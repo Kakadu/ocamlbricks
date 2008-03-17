@@ -1,4 +1,4 @@
-# This is simple Makefile to be used in all our OCaml projects
+# This is simple -*- Makefile -*- to be used in all our OCaml projects
 # which are actually built with OCamlBuild.
 #
 # Started by Jean-Vincent Loddo and Luca Saiu in 2008. 
@@ -6,6 +6,13 @@
 #   --Jean-Vincent Loddo, Luca Saiu.
 #
 # This is the revision of 2008-03-13.
+
+
+######################################################################
+# This make file is
+# general-purpose: the actual project-dependant part should be
+# written for each specific project in a 'Makefile.local' file.
+######################################################################
 
 
 ######################################################################
