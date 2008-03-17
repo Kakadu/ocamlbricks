@@ -1,0 +1,19 @@
+#!/bin/sh
+# This file is part of our general-purpose build system for OCaml projects
+# which are actually built with OCamlBuild.
+#
+# Started by Luca Saiu and Jean-Vincent Loddo in 2008. 
+# We hereby place this makefile into the public domain
+#   --Luca Saiu, Jean-Vincent Loddo.
+#
+# This is the revision of 2008-03-17.
+
+
+# To do: this should be copied to buildsystem/
+
+echo "Sorry, there is no automatic configuration system, as of now."
+echo "Please edit the \"CONFIGME\" file instead, using your favorite text editor."
+
+# Exit with failure: it should be evident that the configuration is not
+# automatic:
+exit -1
