@@ -26,10 +26,8 @@ Hashmmap
 Hashset
 Identifier
 Ledgrid
-#Limbo
 ListExtra
 Memo
-#ModelExtra # This is just a boilerplate!
 Oomarshal
 PreludeExtra
 Shell

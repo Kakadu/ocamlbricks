@@ -19,4 +19,20 @@
 
 # We want to include all the source files in the following directories, without
 # ever bothering to specify pathnames:
-<MARSHAL>or<BASE>or<EXTRA>or<HASH>or<SHELL>or<MAKE>or<WIDGET>or<LEDGRID>: include
+#<MARSHAL>or<BASE>or<EXTRA>or<HASH>or<SHELL>or<MAKE>or<WIDGET>or<LEDGRID>or<lablgtk2>: include
+<MARSHAL>: include
+<BASE>: include
+<EXTRA>: include
+<HASH>: include
+<SHELL>: include
+<MAKE>: include
+<WIDGET>: include
+<LEDGRID>: include
+
+#true: use_lablgtk
+
+#<**/*.{ml,byte,native,cma}>: use_lablgtk, ourocamldocsettings
+<**/*.{ml,byte,native,cma}>: ourincludesettings, ourocamldocsettings
+<**/*.cmxa>: ourincludesettings
+<**/*.byte>: ourincludesettings, ourbytelinksettings
+<**/*.native>: ourincludesettings, ournativelinksettings

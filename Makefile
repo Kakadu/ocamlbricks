@@ -32,14 +32,8 @@ world: world-local main
 
 # Generate ocamldoc documentation:
 ocamldoc: main ocamldoc-local
-	#ocamlbuild -I +lablgtk2 ocamlbricks.docdir/index.html
-	eval `grep '^name=' META`; \
-	if test -z "$$prefix"; then \
-		echo 'prefix is undefined in CONFIGME.'; \
-		exit 1; \
-	fi; \
-	@echo 'I have found absolutely no way to make ocamlbuild work with ocamldoc. --L.'
-	exit 1
+	ocamlbuild ocamlbricks.docdir/index.html; \
+	rm ocamlbricks.docdir
 
 # Install programs and libraries:
 install: install-programs install-libraries install-local
