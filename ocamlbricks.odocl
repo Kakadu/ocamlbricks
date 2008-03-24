@@ -15,8 +15,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# This is simply a list of the OCaml modules (*not* filenames) to be included
-# in the library:
+# This is simply a list of the OCaml modules (*not* filenames) for which
+# documentation should be generated:
 Environment
 Extras
 FilenameExtra

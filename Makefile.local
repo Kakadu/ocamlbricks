@@ -16,10 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#OCAMLBUILD_BYTECODE_CFLAGS = -cflags -g,-I,+threads,-thread,-I,+lablgtk2
-#OCAMLBUILD_NATIVE_CFLAGS = -cflags -g,-I,+threads,-thread,-cclib,-lthreads,-I,+lablgtk2
+COMPILE_OPTIONS = -thread
+DIRECTORIES_TO_INCLUDE = lablgtk2
+LIBRARIES_TO_LINK = lablgtk
 
-OCAMLBUILD_BYTECODE_CFLAGS = -Is +threads -cflags -g,-thread,-cclib,-lthreads
-OCAMLBUILD_NATIVE_CFLAGS =   -Is +threads -cflags -g,-thread,-cclib,-lthreads
-
-main-local: ocamlbricks.cma ocamlbricks.cmxa
+PROGRAMS = stupidprogram.byte stupidprogram.native
+LIBRARIES = ocamlbricks.cma ocamlbricks.cmxa

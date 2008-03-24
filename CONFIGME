@@ -41,7 +41,7 @@ libraryprefix=`ocamlc -where || exit -1`
 
 # Installation prefix, for example /usr or /usr/local
 # *No* trailing slash should be included.
-prefix=/tmp/usr
+prefix=/usr/local
 
 ###########################################################################
 # Section 3: Default configuration. This will end up in /etc/$name at
