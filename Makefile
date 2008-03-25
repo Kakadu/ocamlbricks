@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# This is the revision of 2008-03-24.
+# This is the revision of 2008-03-25.
 
 
 ######################################################################
@@ -36,8 +36,11 @@
 # The main target. Its implementation is entirely project-dependant:
 main: _tags myocamlbuild.ml main-local
 	@(for x in $(PROGRAMS) $(LIBRARIES); do \
-		$(MAKE) $$x; \
-	done)
+	  echo "Building \"$$x\"..."; \
+	  $(MAKE) $$x; \
+	  echo "Ok, \"$$x\" was built with success."; \
+	done && \
+	echo "Success.")
 
 # 'all' is just an alias for 'main':
 all: main
@@ -45,15 +48,18 @@ all: main
 # In some projects we may need to build something more than 'main',
 # but we do nothing more by default:
 world: world-local main
+	@(echo 'Success.')
 
 # Generate ocamldoc documentation:
 ocamldoc: main ocamldoc-local
 	@(ocamlbuild ocamlbricks.docdir/index.html &> /dev/null && \
 	rm ocamlbricks.docdir && \
+	echo 'Success.'; \
 	echo 'The documentation has been built with success under _build/')
 
 # Install programs and libraries:
 install: install-programs install-libraries install-data install-local
+	@(echo 'Success.')
 
 
 # The user is free to override this to add custom targets to install into the
@@ -65,36 +71,49 @@ install-data: main install-data-local
 	@($(call READ_CONFIG, prefix); \
 	$(call READ_META, name); \
 	directory=$$prefix/share/$$name; \
-	if ! mkdir -p $$directory; then \
-	  echo "Could not create $$directory"; \
-	  exit -1; \
-	fi; \
-	echo "Installing $$name data into $$directory ..."; \
 	shopt -s nullglob; \
-	if [ -e data ]; then \
-	  dataifany=`ls data/*`; \
+	if [ -e share ]; then \
+	  dataifany=`ls -d share/*`; \
 	else \
 	  dataifany=''; \
 	fi; \
-	for x in COPYING README $$dataifany $(OTHER_DATA_TO_INSTALL); do \
-	  if ! cp -af $$x $$directory; then \
-	    echo "Could not write $$directory/$$x."; \
+	if [ "$$dataifany" == "" ]; then \
+	  echo "No data to install: ok, no problem..."; \
+	else \
+	  echo "Installing $$name data into $$directory ..."; \
+	  echo "Creating $$directory ..."; \
+	  if mkdir -p $$directory; then \
+	    echo "The directory $$directory was created with success."; \
+	  else \
+	    echo "Could not create $$directory"; \
 	    exit -1; \
 	  fi; \
-	done; \
-	echo "Success.")
+	  echo "Copying $$name data to $$directory ..."; \
+	  for x in COPYING README $$dataifany $(OTHER_DATA_TO_INSTALL); do \
+	    if cp -af $$x $$directory; then \
+	      echo "Installed $$x into $$directory/"; \
+	    else \
+	      echo "Could not write $$directory/$$x."; \
+	      exit -1; \
+	    fi; \
+	  done; \
+	  echo "Data installation for $$name was successful."; \
+	fi)
 
 # Remove the data of this package from $prefix/share/$name:
 uninstall-data: uninstall-data-local
-	@($(call READ_CONFIG, prefix); \
+	@(($(call READ_CONFIG, prefix); \
 	$(call READ_META, name); \
 	directory=$$prefix/share/$$name; \
+	echo "Removing $$name data from $$prefix/share/..."; \
+	shopt -s nullglob; \
 	if rm -rf $$directory; then \
-	  echo "The directory $$directory was removed with success"; \
+	  echo "The entire directory $$directory was removed."; \
 	else \
 	  echo "Could not delete $$directory"; \
 	  exit -1; \
-	fi)
+	fi); \
+	echo 'Data uninstallation was successful.')
 
 # The user is free to override this to add custom targets to install into the
 # $prefix/bin installation directory:
@@ -109,7 +128,7 @@ install-programs: main install-programs-local
 	echo "Installing programs from $$name into $$prefix/bin/..."; \
 	shopt -s nullglob; \
 	for file in $(OTHER_PROGRAMS_TO_INSTALL) _build/*.byte _build/*.native; do \
-	    echo 'Installing '`basename $$file`'...'; \
+	    echo "Installing "`basename $$file`" into $$prefix/bin..."; \
 	    cp -a $$file $$prefix/bin; \
 	done) && \
 	echo 'Program installation was successful.'
@@ -135,25 +154,32 @@ OTHER_LIBRARY_FILES_TO_INSTALL =
 install-libraries: main install-libraries-local
 	@($(call READ_CONFIG,libraryprefix); 		     \
 	$(call READ_META,name);        			     \
-	echo "Installing $$name libraries into $$libraryprefix/$$name/..."; \
-	(mkdir $$libraryprefix/$$name &> /dev/null || true); \
-	cp -f META $(OTHER_LIBRARY_FILES_TO_INSTALL) \
-	      _build/*.cma _build/*.cmxa _build/*.a \
-	      `find _build/ -name \*.cmi | grep -v /myocamlbuild` \
-	      `find _build/ -name \*.mli | grep -v /myocamlbuild` \
-	    $$libraryprefix/$$name/) && \
-	echo 'Library installation was successful.'
+	if [ "$(LIBRARIES)" == "" ]; then \
+	  echo "There are no libraries to install: ok, no problem..."; \
+	else \
+	  (echo "Installing $$name libraries into $$libraryprefix/$$name/..."; \
+	  (mkdir $$libraryprefix/$$name &> /dev/null || true); \
+	  shopt -s nullglob; \
+	  cp -f META $(OTHER_LIBRARY_FILES_TO_INSTALL) \
+	        _build/*.cma _build/*.cmxa _build/*.a \
+	        `find _build/ -name \*.cmi | grep -v /myocamlbuild` \
+	        `find _build/ -name \*.mli | grep -v /myocamlbuild` \
+	      $$libraryprefix/$$name/) && \
+	  echo 'Library installation was successful.'; \
+	fi)
 
 # Uninstall programs and libraries:
-uninstall: uninstall-programs uninstall-libraries uninstall-local
+uninstall: uninstall-programs uninstall-libraries uninstall-data uninstall-local
+	@(echo 'Success.')
 
 # Remove the library from the installation path chosen at configuration time:
 uninstall-libraries: main uninstall-libraries-local
-	@($(call READ_CONFIG,libraryprefix); 		     \
+	@(($(call READ_CONFIG,libraryprefix); 		     \
 	$(call READ_META,name);        			     \
 	echo "Uninstalling $$name libraries from $$libraryprefix/..."; \
+	shopt -s nullglob; \
 	rm -rf $$libraryprefix/$$name/) && \
-	echo 'Uninstallation was successful.'
+	echo 'Library uninstallation was successful.')
 
 # Make a source tarball:
 dist: clean dist-local
@@ -411,22 +437,28 @@ myocamlbuild.ml:
 		echo -en "A \"-I\"; A \"+$$x\"; " >> $@; \
 	done; \
 	echo -e "];;" >> $@; \
-	echo -en "let our_byte_link_options = [ " >> $@; \
+	echo -en "let our_byte_link_options = our_include_options @ [ " >> $@; \
 	for x in $(LIBRARIES_TO_LINK); do \
 		echo -en "A \"$$x.cma\"; " >> $@; \
 	done; \
+	for x in $(OBJECTS_TO_LINK); do \
+		echo -en "A \"$$x.cmo\"; " >> $@; \
+	done; \
 	echo -e "];;" >> $@; \
-	echo -en "let our_native_link_options = [ " >> $@; \
+	echo -en "let our_native_link_options = our_include_options @ [ " >> $@; \
 	for x in $(LIBRARIES_TO_LINK); do \
 		echo -en "A \"$$x.cmxa\"; " >> $@; \
+	done; \
+	for x in $(OBJECTS_TO_LINK); do \
+		echo -en "A \"$$x.cmx\"; " >> $@; \
 	done; \
 	echo -e "];;\n" >> $@; \
 	echo -e "dispatch (function After_rules ->" >> $@; \
 	echo -e "  flag [\"ocaml\"; \"compile\"; \"ourincludesettings\"]" >> $@; \
 	echo -e "       (S (our_compile_options @ our_include_options));" >> $@; \
-	echo -e "  flag [\"ocaml\"; \"compile\"; \"ourbytelinksettings\"]" >> $@; \
+	echo -e "  flag [\"ocaml\"; \"link\"; \"ourbytelinksettings\"]" >> $@; \
 	echo -e "       (S (our_compile_options @ our_byte_link_options));" >> $@; \
-	echo -e "  flag [\"ocaml\"; \"compile\"; \"ournativelinksettings\"]" >> $@; \
+	echo -e "  flag [\"ocaml\"; \"link\"; \"ournativelinksettings\"]" >> $@; \
 	echo -e "       (S (our_compile_options @ our_native_link_options));" >> $@; \
 	echo -e "  flag [\"ocaml\"; \"doc\"; \"ourocamldocsettings\"]" >> $@; \
 	echo -e "       (S ([A \"-keep-code\"; A \"-colorize-code\"] @ our_include_options));" >> $@; \
@@ -436,13 +468,3 @@ myocamlbuild.ml:
 # Include the project-dependant file (if any) which implements the '-local'
 # targets:
 -include Makefile.local
-
-########################################## Tests: begin
-I:
-	@($(call SOURCE_SUBDIRECTORIES); \
-	$(call ADD_PREFIX_TO_EACH_WORD, includes, $$sourcedirectories, -I); \
-	echo $$includes)
-
-q:
-	$(call ADD_PREFIX_TO_EACH_WORD, includes, $$sourcedirectories, -I)
-########################################## Tests: end

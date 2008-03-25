@@ -1,7 +1,7 @@
 name="ocamlbricks"
 description="A general-purpose library of reusable small code bricks"
 version="0.50.1"
-requires(mt) = "threads,lablgtk"
+requires(mt) = "threads lablgtk2"
 directory="+ocamlbricks"
 archive(byte) = "ocamlbricks.cma"
 archive(native) = "ocamlbricks.cmxa"
