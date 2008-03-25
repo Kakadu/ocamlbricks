@@ -183,7 +183,8 @@ uninstall-libraries: main uninstall-libraries-local
 
 # Make a source tarball:
 dist: clean dist-local
-	@($(call READ_META, name, version);    		     \
+	@($(call READ_META, name, version); \
+	$(call FIX_VERSION); \
 	echo "Making the source tarball _build/$$name-$$version.tar.gz ..."; \
 	mkdir -p _build/$$name-$$version; \
 	cp -af * _build/$$name-$$version/ &> /dev/null; \
@@ -199,6 +200,7 @@ FILES_TO_ALWAYS_DISTRIBUTE = \
 # Make a binary tarball:
 dist-binary: dist-binary-local main #ocamldoc
 	@($(call READ_META, name, version); \
+	$(call FIX_VERSION); \
 	architecture=$$(echo `uname -o`-`uname -m` | sed 's/\//-/g'); \
 	directoryname=$$name-$$version--binary-only--$$architecture; \
 	filename=$$directoryname.tar.gz; \
@@ -363,6 +365,15 @@ READ_CONFIG = \
 #
 READ_META = \
 	$(call GREP_AND_TEST,META,$(1),$(2),$(3),$(4),$(5),$(6),$(7),$(8),$(9))
+
+# If the value of the 'version' variable contains the substring 'snapshot' then
+# append to its value the current date, in hacker format. 'version' must be already
+# defined. No arguments, no output.
+FIX_VERSION = \
+	if echo $$version | grep snapshot &> /dev/null; then \
+	  version="$$version-"`date +"%Y-%m-%d"`; \
+	fi
+
 
 # A simple macro automatically finding all the subdirectories containing ML sources,
 # setting the variable 'sourcedirectories' to a string containing all such
