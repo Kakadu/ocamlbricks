@@ -16,4 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-[To do: write this README.]
+OCamlBricks is a reusable library of generally useful OCaml functions
+and classes, with some very heterogeneous components.
+
+Please see the OCamlDoc documentation for details.
