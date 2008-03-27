@@ -1,5 +1,7 @@
 (* This file is part of our reusable OCaml BRICKS library
    Copyright (C) 2007  Jean-Vincent Loddo
+   Copyright (C) 2008  Luca Saiu (wrote the methods remove_key_value_or_fail
+                                  and remove_key_value)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +59,36 @@ class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
            else 
 	    (Hashtbl.remove current x)
 
+  (** Remove the given <key, value> binding, if present; otherwise do nothing. *)
+  method remove_key_value key value =
+    let old_values_for_key = self#lookup key in
+    let new_values_for_key =
+      List.filter
+        (fun a_value -> not (value = a_value))
+        old_values_for_key in
+    let new_bindings_for_key =
+      List.rev (* We reverse as we want to keep the previous element 'priority' *)
+        (List.map
+           (fun a_value -> key, a_value)
+           new_values_for_key) in
+    self#remove ~all:true key;
+    List.iter
+      (fun (new_key, new_value) ->
+        self#add new_key new_value)
+      new_bindings_for_key
+
+  (** Remove the given <key, value> binding, if present; otherwise raise an exception. *)
+  method remove_key_value_or_fail key value = 
+    let old_values_for_key_no = List.length (self#lookup key) in
+    self#remove_key_value key value;
+    if not ((List.length (self#lookup key)) = (old_values_for_key_no - 1)) then begin
+      (* Printf.printf *)
+      (*   "\n\nNew length: %i\nOld length: %i\n\n" *)
+      (*   (List.length (self#lookup key)) *)
+      (*   old_values_for_key_no; *)
+      (* flush_all (); *)
+      failwith "remove_key_value_or_fail did not remove *one* element";
+    end
   (** Make an alist from the map, returning the bindings as <key, value> pairs in some
       unspecified order. *)
   method to_alist =
