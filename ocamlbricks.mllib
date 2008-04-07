@@ -17,6 +17,7 @@
 
 # This is simply a list of the OCaml modules (*not* filenames) to be included
 # in the library:
+Configuration_files
 Environment
 Extras
 FilenameExtra
