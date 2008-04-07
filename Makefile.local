@@ -16,9 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-COMPILE_OPTIONS = -thread
+COMPILE_OPTIONS += -thread
 DIRECTORIES_TO_INCLUDE = lablgtk2
-LIBRARIES_TO_LINK = lablgtk
+LIBRARIES_TO_LINK = str unix lablgtk
 
-PROGRAMS = stupidprogram.byte stupidprogram.native
+PROGRAMS = stupidprogram.byte stupidprogram.native configuration_files.byte
 LIBRARIES = ocamlbricks.cma ocamlbricks.cmxa
