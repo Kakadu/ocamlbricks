@@ -47,23 +47,28 @@ let output_of_environment variables =
 (** Evaluate the given file, then 'echo' each variable name and its value, one variable
     per line: *)
 let output_of_file_name file_name variables =
-  let source_command_line =
-    Printf.sprintf "set -e; (source %s &&" file_name in
-  let command_line =
-    List.fold_left
-      (fun string variable ->
-        (* Print a line with: the variable name, a space, and its value *)
-        Printf.sprintf "%s echo %s $%s && " string variable variable)
-      source_command_line
-      variables in
-  let command_line = command_line ^ " true)" in
-  (* Printf.printf "The command line is %s\n" command_line; *)
-  let (output, exit_code) = Unix.run command_line in
-  if not (exit_code = Unix.WEXITED 0) then
-    failwith ("Failed when source'ing the configuration file " ^ file_name)
-  else begin
-    Printf.printf "The output is:\n-------------------------\n%s\n-------------------------\n" output;
-    output;
+  try
+    let source_command_line =
+      Printf.sprintf "set -e; (source %s &&" file_name in
+    let command_line =
+      List.fold_left
+        (fun string variable ->
+          (* Print a line with: the variable name, a space, and its value *)
+          Printf.sprintf "%s echo %s $%s && " string variable variable)
+        source_command_line
+        variables in
+    let command_line = command_line ^ " true)" in
+    (* Printf.printf "The command line is %s\n" command_line; *)
+    let (output, exit_code) = Unix.run command_line in
+    if not (exit_code = Unix.WEXITED 0) then
+      failwith ("Failed when source'ing the configuration file " ^ file_name)
+    else begin
+      Printf.printf "The output is:\n-------------------------\n%s\n-------------------------\n" output;
+      output;
+    end
+  with _ -> begin
+    Printf.printf "WARNING: could not source %s\n" file_name;
+    "";
   end;;
 
 (** Convert an output into a list of rows, where each row is a list of
@@ -149,10 +154,10 @@ let alists_of_output output variables =
     list_alist_of_matrix matrix in
   string_alist, int_alist, float_alist, bool_alist, list_alist;;
                         
-                        (** Turn a *file* into a tuple of alists: *)
-                        let alists_of_file file_name variables =
-                          let output = output_of_file_name file_name variables in
-                          alists_of_output output variables;;
+(** Turn a *file* into a tuple of alists: *)
+let alists_of_file file_name variables =
+  let output = output_of_file_name file_name variables in
+  alists_of_output output variables;;
 
 (** Merge the two given alist groups; the latest one takes precedence: *)
 let merge_alists alists1 alists2 =
