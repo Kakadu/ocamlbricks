@@ -1,6 +1,7 @@
 # This -*- makefile -*- is part of our build system for OCaml projects
 # Copyright (C) 2008  Luca Saiu
 # Copyright (C) 2008  Jean-Vincent Loddo
+# Updated in 2008 by Jonathan Roudiere
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -185,6 +186,8 @@ install-programs: main install-programs-local
 	$(call READ_META, name);   		     \
 	echo "Creating $$prefix/bin/..."; \
 	(mkdir -p $$prefix/bin &> /dev/null || true); \
+	echo "Creating $$prefix/sbin/..."; \
+	(mkdir -p $$prefix/sbin &> /dev/null || true); \
 	echo "Installing programs from $$name into $$prefix/bin/..."; \
 	shopt -s nullglob; \
 	for file in $(OTHER_PROGRAMS_TO_INSTALL) _build/*.byte _build/*.native; do \
