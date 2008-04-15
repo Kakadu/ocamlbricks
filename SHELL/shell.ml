@@ -1,5 +1,6 @@
 (* This file is part of our reusable OCaml BRICKS library
    Copyright (C) 2007  Jean-Vincent Loddo
+   Updated in 2008 by Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -362,27 +363,27 @@ let check cmd cmdname ?(nullglob=false) (patt:filexpr) =
 end;; (* module Check *)
 
 
-(** Equivalent to [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
+(** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
 let dir_writable ?(nullglob=false) (dirpatt:filexpr) = 
-  let cmd = "[[ -d $1 && -r $1 && -w $1 ]] && echo true" in
+  let cmd = "test -d $1 -a -r $1 -a -w $1 && echo true" in
   Check.check cmd "dir_writable" ~nullglob dirpatt
 ;;
 
-(** Equivalent to [\[\[ -d $1 && -r $1 && -w $1 && -x $1 \]\]]. *)
+(** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 && -x $1 \]\]]. *)
 let dir_comfortable ?(nullglob=false) (dirpatt:filexpr) = 
-  let cmd = "[[ -d $1 && -r $1 && -w $1 && -x $1 ]] && echo true" in
+  let cmd = "test -d $1 -a -r $1 -a -w $1 -a -x $1 && echo true" in
   Check.check cmd "dir_comfortable" ~nullglob dirpatt
 ;;
 
-(** Equivalent to [\[\[ -f $1 && -r $1 \]\]]. *)
+(** Equivalent to the bash test [\[\[ -f $1 && -r $1 \]\]]. *)
 let regfile_readable ?(nullglob=false) (dirpatt:filexpr) = 
-  let cmd = "[[ -f $1 && -r $1 ]] && echo true" in
+  let cmd = "test -f $1 -a -r $1 && echo true" in
   Check.check cmd "regfile_readable" ~nullglob dirpatt
 ;;
 
-(** Equivalent to [\[\[ -f $1 && -r $1 && -w $1 \]\]]. *)
+(** Equivalent to the bash test [\[\[ -f $1 && -r $1 && -w $1 \]\]]. *)
 let regfile_modifiable ?(nullglob=false) (dirpatt:filexpr) = 
-  let cmd = "[[ -f $1 && -r $1 && -w $1 ]] && echo true" in
+  let cmd = "test -f $1 -a -r $1 -a -w $1 && echo true" in
   Check.check cmd "regfile_modifiable" ~nullglob dirpatt
 ;;
 
