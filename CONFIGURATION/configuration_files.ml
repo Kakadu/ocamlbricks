@@ -187,7 +187,8 @@ let file_names =
   | (Some file_names), None ->
       file_names
   | None, (Some software_name) ->
-      [ "/etc/" ^ software_name; "~/." ^ software_name ]
+      [ Printf.sprintf "/etc/%s/%s.conf" software_name software_name;
+        Printf.sprintf "~/.%s/%s.conf" software_name software_name ]
   | (Some _), (Some _) ->
       failwith "you should pass exactly one of ~software_name and ~file_names" in
 object(self)
