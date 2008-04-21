@@ -20,13 +20,16 @@ COMPILE_OPTIONS += -thread
 DIRECTORIES_TO_INCLUDE = lablgtk2
 LIBRARIES_TO_LINK = str unix lablgtk
 
-PROGRAMS = stupidprogram.byte stupidprogram.native configuration_files.byte
-LIBRARIES = ocamlbricks.cma ocamlbricks.cmxa
+NATIVE_PROGRAMS = stupidprogram.native
+BYTE_PROGRAMS = stupidprogram.byte
+NATIVE_LIBRARIES = ocamlbricks.cmxa
+BYTE_LIBRARIES = ocamlbricks.cma
 
 # For OCamlBricks the documentation is exactly the same as the OCamlDoc-generated
 # HTML documentation:
-documentation-local: ocamldoc
-	@(cp -af _build/ocamlbricks.docdir doc/html)
+documentation-local:
+	($(MAKE) ocamldoc && \
+	cp -af _build/ocamlbricks.docdir doc/html)
 
 # Remove the automatically-generated documentation on clean:
 clean-local:
