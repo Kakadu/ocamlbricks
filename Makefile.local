@@ -27,9 +27,10 @@ BYTE_LIBRARIES = ocamlbricks.cma
 
 # For OCamlBricks the documentation is exactly the same as the OCamlDoc-generated
 # HTML documentation:
-documentation-local:
-	($(MAKE) ocamldoc && \
-	cp -af _build/ocamlbricks.docdir doc/html)
+documentation-local: libraries
+	@($(MAKE) ocamldoc && \
+	(rm -rf doc/html; \
+	cp -af _build/ocamlbricks.docdir doc/html))
 
 # Remove the automatically-generated documentation on clean:
 clean-local:
