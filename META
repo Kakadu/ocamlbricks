@@ -1,13 +1,8 @@
-name="ocamlbricks"
-description="A general-purpose library of reusable small code bricks"
-version="0.50.1snapshot"
-requires(mt) = "threads lablgtk2"
-directory="+ocamlbricks"
-archive(byte) = "ocamlbricks.cma"
+name = "ocamlbricks"
+version="0.50.1"
+descriton = "A general-purpose library of reusable small code bricks"
+directory = "+ocamlbricks"
+requires = "lablgtk2"
+archive(syntax,preprocessor) = "-thread"
+archive(byte,mt) = "ocamlbricks.cma"
 archive(native) = "ocamlbricks.cmxa"
-
-#package "init" (
-#  requires = "lablgtk2"
-#  archive(byte) = "gtkInit.cmo"
-#  archive(native) = "gtkInit.cmx"
-#)
