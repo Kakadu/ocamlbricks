@@ -1,4 +1,4 @@
-name = "ocamlbricks"
+name="ocamlbricks"
 version="0.50.1"
 descriton = "A general-purpose library of reusable small code bricks"
 directory = "+ocamlbricks"
