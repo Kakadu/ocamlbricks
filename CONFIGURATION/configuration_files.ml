@@ -19,6 +19,15 @@ open PreludeExtra.Prelude;; (* We want synchronous terminal output *)
 open UnixExtra;;
 open StringExtra;;
 
+(** This module contains a simple implementation of application-wise configuration
+    files, implemented as shell scripts; configuration files are looked for (by
+    default) in "standard" places like /etc, the user's home directory and the
+    shell environment.
+    There is a priority:
+    - System-wise files in /etc
+    - User's files in ~
+    - The shell environment at application startup time. *)
+
 (** An alist is just a list of pairs: *)
 type 'a alist =
     (string * 'a) list;;
