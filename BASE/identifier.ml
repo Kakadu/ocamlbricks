@@ -17,7 +17,7 @@
 (** Build and manage unique (fresh) identifiers. *)
 
 (** Some predefined GLOBAL and independent counters. 
-    The first will be used, for example, for generating fresh identifiers, 
+    The first may be used, for example, for generating fresh identifiers, 
     the second for generating tickets (time marks), and so on *)
 let counter = [| 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; |] 
 ;;

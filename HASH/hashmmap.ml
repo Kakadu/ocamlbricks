@@ -21,6 +21,7 @@
 (** The default size of the hash used in the implementation *)
 let default_size = 32;;
 
+(** The hashmultimap class *)
 class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
 
   object (self) 
@@ -82,11 +83,6 @@ class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
     let old_values_for_key_no = List.length (self#lookup key) in
     self#remove_key_value key value;
     if not ((List.length (self#lookup key)) = (old_values_for_key_no - 1)) then begin
-      (* Printf.printf *)
-      (*   "\n\nNew length: %i\nOld length: %i\n\n" *)
-      (*   (List.length (self#lookup key)) *)
-      (*   old_values_for_key_no; *)
-      (* flush_all (); *)
       failwith "remove_key_value_or_fail did not remove *one* element";
     end
   (** Make an alist from the map, returning the bindings as <key, value> pairs in some

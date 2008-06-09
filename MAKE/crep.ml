@@ -15,6 +15,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
+(** This simple program run as the famous {b grep} command but taking a regular expression in the [Str] O'Caml library format. 
+    The regular expression must be given as the first and unique argument. The parsed file is the standard input. *)
+
 let main () = 
  let re = Str.regexp (Sys.argv.(1)) in
  let rec boucle () = 

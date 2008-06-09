@@ -16,7 +16,7 @@
 
 (** Poor man fix point operators. *)
 
-(** Basic fix point operator. 
+(** Basic fix point operators. 
 
 {b Example}:
 {[# let fact self = fun x -> if (x=0) then 1 else x * (self (x-1)) ;;
