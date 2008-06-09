@@ -226,11 +226,11 @@ object(self)
       else
         alists in
     (* Finally convert the bindings from alists into hashes, for efficient access: *)
-    string_hashmap#add_alist string_alist;
-    int_hashmap#add_alist int_alist;
-    float_hashmap#add_alist float_alist;
-    bool_hashmap#add_alist bool_alist;
-    list_hashmap#add_alist list_alist;
+    string_hashmap#add_list string_alist;
+    int_hashmap#add_list int_alist;
+    float_hashmap#add_list float_alist;
+    bool_hashmap#add_list bool_alist;
+    list_hashmap#add_list list_alist;
     
   (** Lookup a variable of the given type: *)
   method lookup_string = string_hashmap#lookup

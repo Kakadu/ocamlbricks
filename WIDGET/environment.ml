@@ -38,9 +38,9 @@ class ['a,'b] env = fun () -> object (self)
   val table : ('a, 'b) Hashmap.t = Hashmap.make ()
       
   (** Accessors, transparently converting to/from alists: *)
-(* To do: rename into 'to_alist' and 'set_alist' *)
-  method get_l      = Hashmap.to_alist table
-  method set_l xs   = Hashmap.add_alist table xs
+(* To do: rename into 'to_list' and 'of_list' *)
+  method get_l      = Hashmap.to_list table
+  method set_l xs   = Hashmap.add_list table xs
 
   (** High level accessors. *)
   (** Get the value associated to the given id (key). *)

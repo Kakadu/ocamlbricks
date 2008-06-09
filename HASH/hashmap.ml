@@ -52,12 +52,12 @@ class ['a,'b] hashmap = fun ?(size=default_size) () ->
 
   (** Make an alist from the map, returning the bindings as <key, value> pairs in some
       unspecified order. *)
-  method to_alist =
+  method to_list =
     Hashtbl.fold (fun a b current_list -> (a, b) :: current_list) current []
 
   (** Add all the binding from the given alist to the map. In case of multiple values
       for a single key it's undefined which value prevails. *)
-  method add_alist alist =
+  method add_list alist =
     ignore (List.map (fun (key, datum) -> self#add key datum) alist)
 end;; (* class hashmap *)
 
@@ -86,7 +86,7 @@ let add (h:('a,'b) t) (x:'a) (y:'b) = h#add x y;;
 
 (** Add all the binding from the given alist to the map. In case of multiple values
     for a single key it's undefined which value prevails. *)
-let add_alist (h:('a,'b) t) (alist:('a * 'b) list) = h#add_alist alist;;
+let add_list (h:('a,'b) t) (alist:('a * 'b) list) = h#add_list alist;;
 
 (** Replace or add (when not existing) a binding to a map. *)
 let replace (h:('a,'b) t) (x:'a) (y:'b) = h#replace x y;;
@@ -99,11 +99,11 @@ let update (h1:('a,'b) t) (h2:('a,'b) t) : unit = Hashtbl.iter (h1#add) (h2#get)
 
 (** Make an alist from an hashmap, returning the bindings as <key, value> pairs in some
     unspecified order. *)
-let to_alist (h:('a,'b) t) = h#to_alist;;
+let to_list (h:('a,'b) t) = h#to_list;;
 
 (** Make a new hashmap from an alist made of <key, value> pairs. If more than one
     binding is specified for a single key it's undefined which value prevails. *)
-let from_alist ?size:(size=default_size) alist = 
+let of_list ?size:(size=default_size) alist = 
   let h : ('a,'b) t = new hashmap ~size () in
-  h#add_alist alist;
+  h#add_list alist;
   h;;

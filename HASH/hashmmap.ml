@@ -87,11 +87,11 @@ class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
     end
   (** Make an alist from the map, returning the bindings as <key, value> pairs in some
       unspecified order. *)
-  method to_alist =
+  method to_list =
     Hashtbl.fold (fun a b current_list -> (a, b) :: current_list) current []
 
   (** Add all the binding from the given alist to the map. *)
-  method add_alist alist =
+  method add_list alist =
     ignore (List.map (fun (key, datum) -> self#add key datum) alist)
 end;; (* class hashmultimap *)
 
@@ -122,7 +122,7 @@ let bound (h:('a,'b) t) (x:'a) = h#bound x ;;
 let add (h:('a,'b) t) (x:'a) (y:'b) = h#add x y;;
 
 (** Add all the binding from the given alist to the map. *)
-let add_alist (h:('a,'b) t) (alist:('a * 'b) list) = h#add_alist alist;;
+let add_list (h:('a,'b) t) (alist:('a * 'b) list) = h#add_list alist;;
 
 (** [replace h x y] removes all bindings in [h] for the key [x], then add the binding [(x,y)]. *)
 let replace (h:('a,'b) t) (x:'a) (y:'b) = h#replace x y;;
@@ -139,10 +139,10 @@ let update ?(replace=false) (h1:('a,'b) t) (h2:('a,'b) t) : unit =
 
 (** Make an alist from an hashmmap, returning the bindings as <key, value> pairs in some
     unspecified order. *)
-let to_alist (h:('a,'b) t) = h#to_alist;;
+let to_list (h:('a,'b) t) = h#to_list;;
 
 (** Make a new hashmmap from an alist made of <key, value> pairs. *)
-let from_alist ?size:(size=default_size) alist = 
+let of_list ?size:(size=default_size) alist = 
   let h : ('a,'b) t = new hashmultimap ~size () in
   ignore (List.map (fun (key, datum) -> h#add key datum) alist);
   h;;
