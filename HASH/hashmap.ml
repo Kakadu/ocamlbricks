@@ -17,7 +17,7 @@
 (** Module implementing polymorphic {e unbounded} maps (environments). *)
 
 (** The default size of the hash used in the implementation *)
-let default_size = 32;;
+let default_size = 251;;
 
 (** The hashmap class *)
 class ['a,'b] hashmap = fun ?(size=default_size) () ->

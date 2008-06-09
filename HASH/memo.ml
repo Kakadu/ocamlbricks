@@ -16,11 +16,14 @@
 
 (** Module for building memoised functions. *)
 
-(* The string of a key *)
+(** The default size of the hash used in the implementation *)
+let default_size = 251;;
+
+(** The string representation of a key *)
 let sok x = string_of_int (Hashtbl.hash x) ;;
 
-(* The class storing the hash table *)
-class ['a,'b] memo = fun ?(trace=false) ?(size=64) () ->
+(** The class storing the hash table *)
+class ['a,'b] memo = fun ?(trace=false) ?(size=default_size) () ->
 
   object (self) 
 
@@ -47,7 +50,7 @@ end;;
 type ('a,'b) t = ('a,'b) memo;;
 
 (** The constructor of memoisation tables.*)
-let make ?(trace=false) ?(size=64) () : ('a,'b) t = new memo ~trace ~size ();;
+let make ?(trace=false) ?(size=default_size) () : ('a,'b) t = new memo ~trace ~size ();;
 
 (** The call of a function supervised by a memoisation table.*)
 let call (mt:('a,'b) t) (f:('a->'b)) x = mt#get f x;;

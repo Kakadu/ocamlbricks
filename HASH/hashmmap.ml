@@ -19,7 +19,7 @@
 (** Module implementing polymorphic {e unbounded} {b multi} maps (environments). *)
 
 (** The default size of the hash used in the implementation *)
-let default_size = 32;;
+let default_size = 251;;
 
 (** The hashmultimap class *)
 class ['a,'b] hashmultimap = fun ?(size=default_size) () ->

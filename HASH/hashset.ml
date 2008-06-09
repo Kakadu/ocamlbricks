@@ -18,7 +18,11 @@
     An encapsulated [('a, unit) Hashtbl.t] is used for quickly answering
     to the membership problem.  *)
 
-class ['a] hashset = fun ?(size=32) () ->
+(** The default size of the hash used in the implementation *)
+let default_size = 251;;
+
+
+class ['a] hashset = fun ?(size=default_size) () ->
 
   object (self) 
 
@@ -43,7 +47,7 @@ end;; (* class hashset *)
 type 'a t       = 'a hashset ;;
  
 (** The hashset constructor. *)
-let make ?(size=32) () : 'a t = new hashset ~size () ;;
+let make ?(size=default_size) () : 'a t = new hashset ~size () ;;
 
 (** The member predicate. *)
 let mem (hs:'a t) (x:'a) = hs#mem x;;
@@ -57,7 +61,7 @@ let remove (hs:'a t) (x:'a) = hs#remove x;;
 (** Make an hashset from a list. *)
 let of_list (l:'a list) : 'a t = 
  let n = List.length l in 
- let size = if n<16 then 32 else n*2 in
+ let size = if n<(default_size/2) then default_size else n*2 in
  let hs = make ~size () in 
  (List.iter (add hs) l); hs
 ;;
