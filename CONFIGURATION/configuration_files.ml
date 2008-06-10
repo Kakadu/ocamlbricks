@@ -58,7 +58,7 @@ let output_of_environment variables =
 let output_of_file_name file_name variables =
   try
     let source_command_line =
-      Printf.sprintf "set -e; (source %s &&" file_name in
+      Printf.sprintf "set -e; (source %s 2> /dev/null &&" file_name in
     let command_line =
       List.fold_left
         (fun string variable ->
@@ -66,7 +66,7 @@ let output_of_file_name file_name variables =
           Printf.sprintf "%s echo %s $%s && " string variable variable)
         source_command_line
         variables in
-    let command_line = command_line ^ " true)" in
+    let command_line = command_line ^ " true) 2> /dev/null" in
     (* Printf.printf "The command line is %s\n" command_line; *)
     let (output, exit_code) = Unix.run command_line in
     if not (exit_code = Unix.WEXITED 0) then
