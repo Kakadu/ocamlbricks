@@ -365,11 +365,11 @@ object(self)
       port_to_positions: *)
   method private port_to_positions_ port =
     let positions = self#port_to_positions port in
-      List.iter (function x, y ->
-                   print_int port; print_string " -> ("; print_int x; print_string ", ";
+    (*List.iter (function x, y ->
+      print_int port; print_string " -> ("; print_int x; print_string ", ";
                    print_int y; print_string ")\n")
-               positions;
-      positions
+      positions;*)
+    positions
 
   (** Given a port number, return the list of LED lights representing it: *)
   method private port_to_led_lights port =

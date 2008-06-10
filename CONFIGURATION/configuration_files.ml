@@ -72,11 +72,11 @@ let output_of_file_name file_name variables =
     if not (exit_code = Unix.WEXITED 0) then
       failwith ("Failed when source'ing the configuration file " ^ file_name)
     else begin
-      Printf.printf "The output is:\n-------------------------\n%s\n-------------------------\n" output;
+      (* Printf.printf "The output is:\n-------------------------\n%s\n-------------------------\n" output; *)
       output;
     end
   with _ -> begin
-    Printf.printf "WARNING: could not source %s\n" file_name;
+    (* Printf.printf "WARNING: could not source %s\n" file_name; *)
     "";
   end;;
 
