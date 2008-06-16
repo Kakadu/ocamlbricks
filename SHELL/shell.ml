@@ -1,6 +1,6 @@
 (* This file is part of our reusable OCaml BRICKS library
    Copyright (C) 2007  Jean-Vincent Loddo
-   Updated in 2008 by Jean-Vincent Loddo
+   Updated in 2008 by Jean-Vincent Loddo and Luca Saiu
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -391,6 +391,6 @@ let regfile_modifiable ?(nullglob=false) (dirpatt:filexpr) =
 (** Check if a file with the given name can be created by the current user. *)
 let freshname_possible x =
   let d = (Filename.dirname x) in 
-  prerr_endline ("freshname_possible: x="^x^" d="^d) ; 
+  (* prerr_endline ("freshname_possible: x="^x^" d="^d) ;  *)
   (dir_writable d)
  ;; 
