@@ -29,18 +29,17 @@ open Hashmap;;
     Environments are especially useful for maintaining the {e state}, intendend as a set
     of bindings, of a user interaction with a GUI. *)
 
-(** The class of environments. An ('a,'b) environment is a set of 
+(** The class of environments. An ('a,'b) environment is a set of
     <key,value> pairs, where key is of type 'a and value of type 'b.
     A single environment can't contain more than a single binding for
-    each key. *) 
+    each key. *)
 class ['a,'b] env = fun () -> object (self)
   (** The internal representation of an environment. *)
   val table : ('a, 'b) Hashmap.t = Hashmap.make ()
-      
+
   (** Accessors, transparently converting to/from alists: *)
-(* To do: rename into 'to_list' and 'of_list' *)
-  method get_l      = Hashmap.to_list table
-  method set_l xs   = Hashmap.add_list table xs
+  method to_list     = Hashmap.to_list table
+  method add_list xs = Hashmap.add_list table xs
 
   (** High level accessors. *)
   (** Get the value associated to the given id (key). *)
@@ -48,8 +47,8 @@ class ['a,'b] env = fun () -> object (self)
   (** Add a pair (identifier,value) to the environment. *)
   method add (id,v) = Hashmap.add table id v
   (** Update the environment (self) by another environment which will "cover" previous links. @return self.*)
-  method updatedBy (e:(('a,'b) env)) : (('a,'b) env) = List.iter (self#add) (e#get_l); (self :> (('a,'b) env))
+  method updatedBy (e:(('a,'b) env)) : (('a,'b) env) = List.iter (self#add) (e#to_list); (self :> (('a,'b) env))
 end;;
 
 (** Simple constructor for environments.*)
-let mkenv (l:('a*'b) list) = let e=(new env ()) in (e#set_l l); e;;
+let mkenv (l:('a*'b) list) = let e=(new env ()) in (e#add_list l); e;;

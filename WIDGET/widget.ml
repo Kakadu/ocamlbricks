@@ -30,21 +30,21 @@ open Environment;;
 module Image = struct
 
 (** Scale the given image at the given size (width,height). @return a new image *)
-let scaleTo (width,height) pixbuf = 
+let scaleTo (width,height) pixbuf =
   begin
   let scaled = GdkPixbuf.create ~has_alpha:true ~width ~height () in
 (*  GdkPixbuf.scale ~dest:scaled ~width ~height ~interp:`BILINEAR pixbuf; *)
-  GdkPixbuf.scale ~dest:scaled ~width ~height ~interp:`HYPER pixbuf; 
+  GdkPixbuf.scale ~dest:scaled ~width ~height ~interp:`HYPER pixbuf;
   scaled
   end
 ;;
 
 (** Make a zoom of the given image with the given factor (>1 => zoom IN, <1 => zoom OUT).
     @return a new image *)
-let zoom (factor:float) pixbuf = 
-  let formule = (fun x -> (float_of_int  x)  *. factor +. 0.5 ) || int_of_float in 
+let zoom (factor:float) pixbuf =
+  let formule = (fun x -> (float_of_int  x)  *. factor +. 0.5 ) || int_of_float in
   let width  = pixbuf => (GdkPixbuf.get_width  || formule) in
-  let height = pixbuf => (GdkPixbuf.get_height || formule) in 
+  let height = pixbuf => (GdkPixbuf.get_height || formule) in
   prerr_endline ("Old width="^(string_of_int (GdkPixbuf.get_width pixbuf)));
   prerr_endline ("Old height="^(string_of_int (GdkPixbuf.get_height pixbuf))^"\n");
   scaleTo (width,height) pixbuf
@@ -53,7 +53,7 @@ let zoom (factor:float) pixbuf =
 (** The pixels to inch conversion: ppi stands for pixel-per-inch *)
 let inch_of_pixels ?(ppi=96.) (x:int) = (float_of_int x) /. ppi ;;
 
-end;; (* module Image *) 
+end;; (* module Image *)
 
 
 (** {2 Dynamic submenus } *)
@@ -61,34 +61,34 @@ end;; (* module Image *)
 (** Module for building dynamic {e submenus}. A {e submenu} is a menu included in another menu.  *)
 module DynamicSubmenu = struct
 
-(** Makes a dynamic submenu of a given menu (the {e father}). When 
-    the father is activated, the submenu entries are recalculated with the given function ([dynList]). 
+(** Makes a dynamic submenu of a given menu (the {e father}). When
+    the father is activated, the submenu entries are recalculated with the given function ([dynList]).
 
 Exemple:
 
-{[make              
-  ~submenu:w#MACHINE_ELIM_menu 
-  ~menu:w#MACHINE_ELIM         
-  ~dynList:machineList       
+{[make
+  ~submenu:w#MACHINE_ELIM_menu
+  ~menu:w#MACHINE_ELIM
+  ~dynList:machineList
   ~action:(fun x ->fun _ -> prerr_endline x)   ;; ]}
 *)
-let make 
+let make
    ?(set_active:(string->bool)=(fun x->false))
-   ~(submenu: GMenu.menu) 
-   ~(menu:    GMenu.image_menu_item) 
-   ~(dynList: unit->(string list)) 
-   ~(action:  string->unit->unit) () = 
+   ~(submenu: GMenu.menu)
+   ~(menu:    GMenu.image_menu_item)
+   ~(dynList: unit->(string list))
+   ~(action:  string->unit->unit) () =
 
   let recalc () = (
 
     List.iter  (submenu#remove) (submenu#children) ;
 
-    List.iter  (fun x -> let i=(GMenu.check_menu_item ~active:(set_active x) ~label:x  ~packing:(submenu#add) ()) in 
+    List.iter  (fun x -> let i=(GMenu.check_menu_item ~active:(set_active x) ~label:x  ~packing:(submenu#add) ()) in
                          let _ = i#connect#toggled ~callback:(action x) in ()
-                ) 
-               (dynList ())          ) in 
+                )
+               (dynList ())          ) in
 
-  let _ = menu#connect#activate ~callback:recalc in 
+  let _ = menu#connect#activate ~callback:recalc in
   ()
 ;;
 end;; (* Module DynamicSubmenu *)
@@ -98,44 +98,44 @@ end;; (* Module DynamicSubmenu *)
 (* ********************************* *
       Module  ComboTextTree
 
-    comboTextTree class & constructors 
+    comboTextTree class & constructors
  * ********************************* *)
 
 
 (** {2 ComboText Trees} *)
 
-(** Module for building a set (structured in a tree hierarchy) of dependent combo texts. 
-    Any change of the selected value of a particular node, cause the rebuilding 
+(** Module for building a set (structured in a tree hierarchy) of dependent combo texts.
+    Any change of the selected value of a particular node, cause the rebuilding
     of the choice list of all its descendents in the tree. *)
 module ComboTextTree = struct
 
 (** {2 Class definition} *)
 
 (** A ComboTextTree is a combo with eventually some dependent {i childs} (or {i slaves}).
-    The choice list of a node in the tree depends on the father's selected value and on the 
+    The choice list of a node in the tree depends on the father's selected value and on the
     ancestors's selected values. The list of choices of a node is given dynamically by a function
-    called the {i generator} which is used to calculte or recalculate the choice list.  
+    called the {i generator} which is used to calculte or recalculate the choice list.
 *)
-class comboTextTree = fun 
+class comboTextTree = fun
 
   (* The option generator. May be a constant function as particular case. *)
-  ~(generator: ((string,string) env)->(string list)) 
+  ~(generator: ((string,string) env)->(string list))
 
   (* The first input for the generator. *)
-  ~(msg:(string,string) env)                         
+  ~(msg:(string,string) env)
 
   (* The key of the pair (key,value) send to its childs. *)
-  ~(key:string)                            
- 
-  (* An optional callback function, to call at any change *)          
-  ~(callback:(string->unit) option)
- 
-  (* The packing function. *)                        
-  ~(packing:(GObj.widget -> unit) option)            
+  ~(key:string)
 
-  ->  (* Build the initial combo list (no packing and no callback are defined here 
+  (* An optional callback function, to call at any change *)
+  ~(callback:(string->unit) option)
+
+  (* The packing function. *)
+  ~(packing:(GObj.widget -> unit) option)
+
+  ->  (* Build the initial combo list (no packing and no callback are defined here
          (because self dont exist at this stage). *)
-      let strList = (generator msg) in 
+      let strList = (generator msg) in
       let (initial_box, (_, initial_col)) = GEdit.combo_box_text ~strings:strList () in
       let _ = initial_box#set_active 0  in
 
@@ -143,75 +143,75 @@ class comboTextTree = fun
 
   (** Constant fields (methods) *)
 
-  (** The function to build or rebuild the choices using the given environnement. 
+  (** The function to build or rebuild the choices using the given environnement.
       For a simple comboTextTree, this method is used only at the creation and the function
       is not really dependent from its argument, but it is a simple costant function. *)
-  method generator : ((string,string) env -> (string list)) = generator  
+  method generator : ((string,string) env -> (string list)) = generator
 
   (** The key of the pair (key,value) which this widget (node) eventually transmit to its childs (slaves). This field
       is set at the creation. The value of the pair (key,value) will be the selected value of the widget, of course. *)
-  method key : string = key 
+  method key : string = key
 
-  (** A secondary function to call at any change of the selected item. This represent an additional callback. 
+  (** A secondary function to call at any change of the selected item. This represent an additional callback.
       The principal callback is the method [childs_rebuild] which propagate the selected value to all childs. *)
-  method callback  : (string -> unit) = match callback with None   -> (fun x->()) | Some f -> f 
-                   
+  method callback  : (string -> unit) = match callback with None   -> (fun x->()) | Some f -> f
+
   (** The function to call to attach self somewhere. For instance :
       {[ packing = dialog#table#attach ~left:1 ~top:2 ~right:3 ]}
-      Every time the comboTextTree is rebuilded, the old box is destroyed, rebuilded and finally repackaged 
+      Every time the comboTextTree is rebuilded, the old box is destroyed, rebuilded and finally repackaged
       with this packing function. *)
-  method packing   : (GObj.widget -> unit) = match packing with None -> (fun x->()) | Some f -> f         
+  method packing   : (GObj.widget -> unit) = match packing with None -> (fun x->()) | Some f -> f
 
   (** Variable fields *)
 
-  (** This fields stores the environment used for the last generation of the choice list.  
+  (** This fields stores the environment used for the last generation of the choice list.
       This information is fundamental because if this widget has some ancestors and also some descendents,
-      for any alteration of its state, it must resend to its childs the last environment received 
+      for any alteration of its state, it must resend to its childs the last environment received
       from its ancestors enriched with the pair (key,value) representing its own state. In this way,
       every descendent know the state of all its ancestors (not only the state of its father). *)
   val mutable env     : ((string,string) env)     = msg
 
-  (** The choices calculated by the last call to the generator. *)    
-  val mutable choices : (string list)  = (generator msg) 
+  (** The choices calculated by the last call to the generator. *)
+  val mutable choices : (string list)  = (generator msg)
 
   (** The currently encapsulated [GEdit.combo_box]. *)
-  val mutable box     : #GEdit.combo_box  = initial_box 
-  val mutable col     : ('a GTree.column) = initial_col 
+  val mutable box     : #GEdit.combo_box  = initial_box
+  val mutable col     : ('a GTree.column) = initial_col
 
   (** The childs list of this widget. *)
-  val mutable childs  : comboTextTree list = [] 
+  val mutable childs  : comboTextTree list = []
 
   (** Accessors *)
 
   method env     = env
   method choices = choices
-  method box     = box 
+  method box     = box
   method col     = col
   method childs  = childs
   method child i = List.nth childs i
 
-  (** Convenient aliases *) 
+  (** Convenient aliases *)
 
-  method slave   = List.nth childs 0 
-  method slave0  = List.nth childs 0 
-  method slave1  = List.nth childs 1 
-  method slave2  = List.nth childs 2 
+  method slave   = List.nth childs 0
+  method slave0  = List.nth childs 0
+  method slave1  = List.nth childs 1
+  method slave2  = List.nth childs 2
   method slave3  = List.nth childs 3
   method slave4  = List.nth childs 4
   method slave5  = List.nth childs 5
 
-  (** Fixing variable fields *) 
+  (** Fixing variable fields *)
 
-  method set_env     r = env     <- r 
-  method set_choices l = choices <- l 
-  method set_box     b = box     <- b 
-  method set_col     c = col     <- c 
-  method set_childs  l = childs  <- l 
+  method set_env     r = env     <- r
+  method set_choices l = choices <- l
+  method set_box     b = box     <- b
+  method set_col     c = col     <- c
+  method set_childs  l = childs  <- l
   method add_child   x = childs  <- childs @ [x]
 
-  (** Selected item *) 
+  (** Selected item *)
 
-  (** In the most cases, {b the only interesting method} from an abstract point of view. 
+  (** In the most cases, {b the only interesting method} from an abstract point of view.
       @return the selected string belong the combo items *)
   method selected =
     match self#box#active_iter with
@@ -220,26 +220,26 @@ class comboTextTree = fun
 
 
   (** Set the current active (selected) choice by its value (instead of its index) *)
-  method set_active_value (v:string) = 
+  method set_active_value (v:string) =
     try
-      let i = raise_when_none (List.indexOf v self#choices) in 
+      let i = raise_when_none (List.indexOf v self#choices) in
       self#box#set_active i ;
-      self#childs_rebuild () 
+      self#childs_rebuild ()
     with _ -> ()
 
 
-  (** Rebuilding self and childs *) 
+  (** Rebuilding self and childs *)
 
-  (** Demands to all childs to rebuild theirself and their childs and so on. 
-      This procedure is performed sending to all childs the ancestor environment (method [env]) enriched by 
+  (** Demands to all childs to rebuild theirself and their childs and so on.
+      This procedure is performed sending to all childs the ancestor environment (method [env]) enriched by
       the pair (key,value), where value is the current selected item of this node. *)
-  method childs_rebuild () = 
-    let msg = mkenv (self#env#get_l @ [(self#key,self#selected)]) in  (* x = self#selected *)
+  method childs_rebuild () =
+    let msg = mkenv (self#env#to_list @ [(self#key,self#selected)]) in  (* x = self#selected *)
     List.iter (fun w -> w#rebuild msg) self#childs
 
 
   (** Rebuild this widget, and its eventually all childs, with the new given environment. *)
-  method rebuild (msg:(string,string) env) = 
+  method rebuild (msg:(string,string) env) =
     begin
       (* Save the current selected choice. We will try to reset it. *)
       let previous = self#selected in
@@ -261,7 +261,7 @@ class comboTextTree = fun
       self#set_env msg ;
 
       (* Try to restore the previous selected value (or select the index 0) *)
-      let i = ((List.indexOf previous self#choices) |=> 0) in 
+      let i = ((List.indexOf previous self#choices) |=> 0) in
       (self#box#set_active i) ;
 
       (* Propagate to its childs. *)
@@ -269,7 +269,7 @@ class comboTextTree = fun
 
       ()
     end
- 
+
   (**/**) (* STOP DOC *)
 
   (* Proc�ure de connection de l'��ement changed d'un combo �un callback qui permet
@@ -280,16 +280,16 @@ class comboTextTree = fun
         (fun () -> match self#box#active_iter with
                 | None -> ()
                 | Some row -> let data = (self#box#model#get ~row ~column:self#col) in cbfun data
-         ) in () 
+         ) in ()
 
 
   (* The packing initialization (only for bootstrap). *)
-  val initialize_packing = 
+  val initialize_packing =
       let _ = match packing with None -> () | Some f -> f (initial_box :> GObj.widget) in ()
 
   (* This method must be called by a constructor after the bootstrap.
      These action cannot be placed in the boostrap of the instance. *)
-  method initialize_callbacks = 
+  method initialize_callbacks =
     let _ = self#changedAndGetActive (fun x -> self#childs_rebuild ()) in  (** First connect the standard callback. *)
     let _ = self#changedAndGetActive self#callback in ()    (** Second connect the given callback. *)
 
@@ -313,29 +313,29 @@ let make
   ~(msg:(string,string) env)                         (** The input for the generator. *)
   ~(key:string)                                      (** The key of the pair (key,value) send to its childs. *)
   ~(callback:(choice->unit) option)                  (** An optional callback function, to call at any change *)
-  ~(packing:(GObj.widget -> unit) option)            (** The packing function. *)      
- 
+  ~(packing:(GObj.widget -> unit) option)            (** The packing function. *)
+
     = let self = new comboTextTree ~generator ~msg ~key ~callback ~packing in
       let _ = self#initialize_callbacks in self
 ;;
 
 
-(** Make a simple combo text with no childs. 
-     You can specify a [key] (if you plan to affect some childs to this widget) and an additional [callback] 
-     fonction of type [choice -> unit], which will be called every time the user will modify its selection. 
-     You also can specify a packing function. Examples: 
+(** Make a simple combo text with no childs.
+     You can specify a [key] (if you plan to affect some childs to this widget) and an additional [callback]
+     fonction of type [choice -> unit], which will be called every time the user will modify its selection.
+     You also can specify a packing function. Examples:
 
 - {[   let colors = fromList ["red"; "blue"; "black"] ;;  ]}
 
-- {[   let colors = fromList 
-                      ~packing:(Some (dialog#table#attach ~left:2 ~top:6 ~right:4)) 
+- {[   let colors = fromList
+                      ~packing:(Some (dialog#table#attach ~left:2 ~top:6 ~right:4))
                       ["red"; "blue"; "black"]  ]}
 
 *)
-let fromList 
+let fromList
     ?(key:string="unused_key")
-    ?(callback:((choice->unit) option) = None ) 
-    ?(packing:((GObj.widget -> unit) option) = None ) 
+    ?(callback:((choice->unit) option) = None )
+    ?(packing:((GObj.widget -> unit) option) = None )
     (lst:choices)
 
     =   let g = (fun r -> lst)  in
@@ -344,7 +344,7 @@ let fromList
         make ~generator:g ~msg:m ~key ~callback ~packing
 ;;
 
-          
+
 (** {3 Combo chains} *)
 
 (** {b Modelling a dependent chain of widgets: {v master -> slave -> slave -> .. v} } *)
@@ -353,23 +353,23 @@ let fromList
 (** Make a two level chain of dependent combos text. You can access to the slave simply writing [master#slave]
     ([slave] is simply an alias for the child number 0). Example :
 
-{[    let distrib = fromListWithSlave 
-                      ~masterPacking: (Some (dialog#table#attach ~left:2 ~top:4 ~right:4)) 
+{[    let distrib = fromListWithSlave
+                      ~masterPacking: (Some (dialog#table#attach ~left:2 ~top:4 ~right:4))
                       ["debian";"redhat";"suse"]
                       ~slavePacking:  (Some (dialog#table#attach ~left:2 ~top:5 ~right:4))
                       MSys.patchListOf  ;; ]}
  *)
-let fromListWithSlave 
+let fromListWithSlave
  ?(masterCallback:((choice->unit) option) = None)
- ?(masterPacking:((GObj.widget -> unit) option) = None) 
+ ?(masterPacking:((GObj.widget -> unit) option) = None)
   (masterChoices:choices)
 
  ?(slaveCallback:((choice->unit) option) = None)
  ?(slavePacking:((GObj.widget -> unit) option) = None )
-  (slaveChoices: choice -> choices) 
- 
+  (slaveChoices: choice -> choices)
+
  = let master = fromList ~key:"master" ~callback:masterCallback ~packing:masterPacking masterChoices in
-   let slave  = make  
+   let slave  = make
          ~generator:(fun r -> slaveChoices (r#get "master"))
          ~msg:(mkenv [("master",master#selected)])
          ~key:"slave"
@@ -382,23 +382,23 @@ let fromListWithSlave
 
 (** Make a 3 levels chain of dependent combos text. You can access the slave simply writing [master#slave],
     and the slave of the slave simply writing [master#slave#slave]. *)
-let fromListWithSlaveWithSlave 
+let fromListWithSlaveWithSlave
  ?(masterCallback:((choice->unit) option) = None)
- ?(masterPacking:((GObj.widget -> unit) option) = None) 
+ ?(masterPacking:((GObj.widget -> unit) option) = None)
   (masterChoices:choices)
 
  ?(slaveCallback:((choice->unit) option) = None)
  ?(slavePacking:((GObj.widget -> unit) option) = None )
-  (slaveChoices: choice -> choices) 
+  (slaveChoices: choice -> choices)
 
  ?(slaveSlaveCallback:((choice->unit) option) = None)
  ?(slaveSlavePacking:((GObj.widget -> unit) option) = None )
-  (slaveSlaveChoices: choice -> choice -> choices) 
- 
- = let master = 
+  (slaveSlaveChoices: choice -> choice -> choices)
+
+ = let master =
      fromListWithSlave  ~masterCallback ~masterPacking masterChoices ~slaveCallback ~slavePacking slaveChoices in
- 
-   let slaveSlave = make  
+
+   let slaveSlave = make
          ~generator:(fun r -> slaveSlaveChoices (r#get "master") (r#get "slave"))
          ~msg:(mkenv [("master",master#selected);("slave",master#slave#selected)])
          ~key:"slaveSlave"
@@ -409,32 +409,32 @@ let fromListWithSlaveWithSlave
 ;;
 
 
-(** Make a 4 levels chain of dependent combos text. You can access the slave chain simply by 
+(** Make a 4 levels chain of dependent combos text. You can access the slave chain simply by
     [master#slave], [master#slave#slave] and [master#slave#slave#slave].*)
-let fromListWithSlaveWithSlaveWithSlave 
+let fromListWithSlaveWithSlaveWithSlave
  ?(masterCallback:((choice->unit) option) = None)
- ?(masterPacking:((GObj.widget -> unit) option) = None) 
+ ?(masterPacking:((GObj.widget -> unit) option) = None)
   (masterChoices:choices)
 
  ?(slaveCallback:((choice->unit) option) = None)
  ?(slavePacking:((GObj.widget -> unit) option) = None )
-  (slaveChoices: choice -> choices) 
+  (slaveChoices: choice -> choices)
 
  ?(slaveSlaveCallback:((choice->unit) option) = None)
  ?(slaveSlavePacking:((GObj.widget -> unit) option) = None )
-  (slaveSlaveChoices: choice -> choice -> choices) 
+  (slaveSlaveChoices: choice -> choice -> choices)
 
  ?(slaveSlaveSlaveCallback:((choice->unit) option) = None)
  ?(slaveSlaveSlavePacking:((GObj.widget -> unit) option) = None )
-  (slaveSlaveSlaveChoices: choice -> choice -> choice -> choices) 
- 
- = let master = 
-     fromListWithSlaveWithSlave 
-        ~masterCallback      ~masterPacking      masterChoices 
-        ~slaveCallback       ~slavePacking       slaveChoices 
+  (slaveSlaveSlaveChoices: choice -> choice -> choice -> choices)
+
+ = let master =
+     fromListWithSlaveWithSlave
+        ~masterCallback      ~masterPacking      masterChoices
+        ~slaveCallback       ~slavePacking       slaveChoices
         ~slaveSlaveCallback  ~slaveSlavePacking  slaveSlaveChoices in
- 
-   let slaveSlaveSlave = make  
+
+   let slaveSlaveSlave = make
          ~generator:(fun r -> slaveSlaveSlaveChoices (r#get "master") (r#get "slave") (r#get "slaveSlave"))
          ~msg:(mkenv [("master",master#selected);("slave",master#slave#selected);("slaveSlave",master#slave#slave#selected)])
          ~key:"slaveSlaveSlave"
@@ -446,49 +446,49 @@ let fromListWithSlaveWithSlaveWithSlave
 
 
 (** {3 Simple tree constructor} *)
-          
-(** {b Modelling a dependent tree of widgets: {v   
+
+(** {b Modelling a dependent tree of widgets: {v
          master
            /    \
        slave0   slave1
 v} } *)
 
 (** Make a simple tree with 3 nodes: a root combo with two combos (dependent) childs (which can be accessed with the handlers
-    [master#slave0] and [master#slave1]). This function is in this API as an exemple. See the code in order to easily 
+    [master#slave0] and [master#slave1]). This function is in this API as an exemple. See the code in order to easily
     define your own comboTextTree. *)
-let fromListWithTwoSlaves 
+let fromListWithTwoSlaves
  ?(masterCallback:((choice->unit) option) = None)
- ?(masterPacking:((GObj.widget -> unit) option) = None) 
+ ?(masterPacking:((GObj.widget -> unit) option) = None)
   (masterChoices:choices)
 
  ?(slave1Callback:((choice->unit) option) = None)
  ?(slave1Packing:((GObj.widget -> unit) option) = None )
-  (slave1Choices: choice -> choices) 
+  (slave1Choices: choice -> choices)
 
  ?(slave2Callback:((choice->unit) option) = None)
  ?(slave2Packing:((GObj.widget -> unit) option) = None )
-  (slave2Choices: choice -> choices) 
- 
+  (slave2Choices: choice -> choices)
+
  = let master = fromList ~key:"master" ~callback:masterCallback ~packing:masterPacking masterChoices in
-   let slave1  = make  
+   let slave1  = make
          ~generator:(fun r -> slave1Choices (r#get "master"))
          ~msg:(mkenv [("master",master#selected)])
          ~key:"slave1"
          ~callback:slave1Callback
          ~packing:slave1Packing in
 
-   let slave2  = make  
+   let slave2  = make
          ~generator:(fun r -> slave2Choices (r#get "master"))
          ~msg:(mkenv [("master",master#selected)])
          ~key:"slave2"
          ~callback:slave2Callback
          ~packing:slave2Packing in
 
-     let _ = master#add_child slave1 in        
-     let _ = master#add_child slave2 in master 
+     let _ = master#add_child slave1 in
+     let _ = master#add_child slave2 in master
 ;;
 
-  
+
 end ;; (* Module ComboTextTree *)
 
 
@@ -496,47 +496,47 @@ end ;; (* Module ComboTextTree *)
 (* ********************************* *
          Class TextView
 
-  Facilities for using GtkTextView  
+  Facilities for using GtkTextView
  * ********************************* *)
 
 
 class textview = fun ?(view:GText.view = GText.view ()) () ->
-  
+
   let v = view in
 
-  object (self) 
-  
+  object (self)
+
   val view   = v
   val buffer = v#buffer
   val mutable iter = v#buffer#get_iter_at_char 0
 
   method view   = view
 
-  (** Append text with the optional list of tags. *)  
-  method append ?(tags=[]) x = 
+  (** Append text with the optional list of tags. *)
+  method append ?(tags=[]) x =
          buffer#insert ~iter:iter ~tag_names:tags x
 
   (** Append the image found in the given filename  *)
-  method append_image ?(scale:((int*int) option)=None) filename = 
+  method append_image ?(scale:((int*int) option)=None) filename =
    begin
    let pixbuf = GdkPixbuf.from_file filename in
    let pixbuf = (match scale with
-   | None                -> pixbuf 
+   | None                -> pixbuf
    | Some (width,height) -> let scaled = GdkPixbuf.create ~has_alpha:true ~width ~height () in
                             GdkPixbuf.scale ~dest:scaled ~width ~height ~interp:`BILINEAR pixbuf; scaled) in
-   buffer#insert_pixbuf ~iter:iter ~pixbuf 
+   buffer#insert_pixbuf ~iter:iter ~pixbuf
    end
 
   (** Refresh the content applying tags. To use after all calls to append.  *)
   method refresh () =
    begin
    let start,stop = buffer#bounds in
-   buffer#apply_tag_by_name "word_wrap" ~start ~stop ; 
+   buffer#apply_tag_by_name "word_wrap" ~start ~stop ;
    ()
    end
 
   (** Delete the content of the buffer *)
-  method delete () = 
+  method delete () =
    begin
    let start,stop = buffer#bounds in
    buffer#delete ~start ~stop ;
@@ -548,11 +548,11 @@ class textview = fun ?(view:GText.view = GText.view ()) () ->
 
   (** Call by initializer *)
   method private create_tags () =
-   begin      
+   begin
    let stipple = Gdk.Bitmap.create_from_data 2 2 "\002\001" in
    buffer#create_tag ~name:"heading"             [`WEIGHT `BOLD; `SIZE (15*Pango.scale)] => ignore ;
    buffer#create_tag ~name:"italic"              [`STYLE `ITALIC]                        => ignore ;
-   buffer#create_tag ~name:"bold"                [`WEIGHT `BOLD]                         => ignore ;  
+   buffer#create_tag ~name:"bold"                [`WEIGHT `BOLD]                         => ignore ;
    buffer#create_tag ~name:"big"                 [`SIZE 20]                              => ignore ;
    buffer#create_tag ~name:"xx-small"            [`SCALE `XX_SMALL]                      => ignore ;
    buffer#create_tag ~name:"x-large"             [`SCALE `X_LARGE]                       => ignore ;
@@ -582,7 +582,7 @@ class textview = fun ?(view:GText.view = GText.view ()) () ->
 
  initializer self#create_tags ()
 
-end;; (* class textview *) 
+end;; (* class textview *)
 
 
 
