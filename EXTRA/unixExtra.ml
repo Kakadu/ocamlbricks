@@ -366,7 +366,7 @@ let run ?(trace:bool=false) ?(input:content="") (cmd:command) : string * Unix.pr
         ((" <"^name),name) 
       end
   in 
-  let code = Unix.system(script^" >"^output^input_option) in 
+  let code = Unix.system("bash -c " ^script^" >"^output^input_option) in 
   let str = (cat output) in
   begin
     if trace then begin 

@@ -58,7 +58,9 @@ let output_of_environment variables =
 let output_of_file_name file_name variables =
   try
     let source_command_line =
-      Printf.sprintf "set -e; (source %s 2> /dev/null &&" file_name in
+      (* This is very important: dash does not support "source", you have to use the
+         less readable, but more portable, ".": *)
+      Printf.sprintf "set -e; (. %s 2> /dev/null &&" file_name in
     let command_line =
       List.fold_left
         (fun string variable ->
