@@ -52,3 +52,20 @@ end;;
 
 (** Simple constructor for environments.*)
 let mkenv (l:('a*'b) list) = let e=(new env ()) in (e#add_list l); e;;
+
+
+(* **************************************** *
+          Class string_env
+ * **************************************** *)
+
+(** {2 String environments }
+    The special (and quite common) case where keys are strings allows to better trace get failures. *)
+
+exception Undefined_identifier of string
+class ['b] string_env () = object
+  inherit [string,'b] env () as super
+  method get id = try (super#get id) with Not_found -> raise (Undefined_identifier id)
+end;;
+
+
+
