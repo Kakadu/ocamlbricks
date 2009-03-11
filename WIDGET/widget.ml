@@ -169,7 +169,7 @@ class comboTextTree = fun
       for any alteration of its state, it must resend to its childs the last environment received
       from its ancestors enriched with the pair (key,value) representing its own state. In this way,
       every descendent know the state of all its ancestors (not only the state of its father). *)
-  val mutable env     : ((string,string) env)     = msg
+  val mutable env     : (string string_env)     = msg
 
   (** The choices calculated by the last call to the generator. *)
   val mutable choices : (string list)  = (generator msg)
@@ -234,7 +234,7 @@ class comboTextTree = fun
       This procedure is performed sending to all childs the ancestor environment (method [env]) enriched by
       the pair (key,value), where value is the current selected item of this node. *)
   method childs_rebuild () =
-    let msg = mkenv (self#env#to_list @ [(self#key,self#selected)]) in  (* x = self#selected *)
+    let msg = make_string_env (self#env#to_list @ [(self#key,self#selected)]) in  (* x = self#selected *)
     List.iter (fun w -> w#rebuild msg) self#childs
 
 
@@ -339,7 +339,7 @@ let fromList
     (lst:choices)
 
     =   let g = (fun r -> lst)  in
-        let m = (mkenv [])          in
+        let m = (make_string_env [])          in
 
         make ~generator:g ~msg:m ~key ~callback ~packing
 ;;
@@ -371,7 +371,7 @@ let fromListWithSlave
  = let master = fromList ~key:"master" ~callback:masterCallback ~packing:masterPacking masterChoices in
    let slave  = make
          ~generator:(fun r -> slaveChoices (r#get "master"))
-         ~msg:(mkenv [("master",master#selected)])
+         ~msg:(make_string_env [("master",master#selected)])
          ~key:"slave"
          ~callback:slaveCallback
          ~packing:slavePacking in
@@ -400,7 +400,7 @@ let fromListWithSlaveWithSlave
 
    let slaveSlave = make
          ~generator:(fun r -> slaveSlaveChoices (r#get "master") (r#get "slave"))
-         ~msg:(mkenv [("master",master#selected);("slave",master#slave#selected)])
+         ~msg:(make_string_env [("master",master#selected);("slave",master#slave#selected)])
          ~key:"slaveSlave"
          ~callback:slaveSlaveCallback
          ~packing:slaveSlavePacking in
@@ -436,7 +436,7 @@ let fromListWithSlaveWithSlaveWithSlave
 
    let slaveSlaveSlave = make
          ~generator:(fun r -> slaveSlaveSlaveChoices (r#get "master") (r#get "slave") (r#get "slaveSlave"))
-         ~msg:(mkenv [("master",master#selected);("slave",master#slave#selected);("slaveSlave",master#slave#slave#selected)])
+         ~msg:(make_string_env [("master",master#selected);("slave",master#slave#selected);("slaveSlave",master#slave#slave#selected)])
          ~key:"slaveSlaveSlave"
          ~callback:slaveSlaveSlaveCallback
          ~packing:slaveSlaveSlavePacking in
@@ -472,14 +472,14 @@ let fromListWithTwoSlaves
  = let master = fromList ~key:"master" ~callback:masterCallback ~packing:masterPacking masterChoices in
    let slave1  = make
          ~generator:(fun r -> slave1Choices (r#get "master"))
-         ~msg:(mkenv [("master",master#selected)])
+         ~msg:(make_string_env [("master",master#selected)])
          ~key:"slave1"
          ~callback:slave1Callback
          ~packing:slave1Packing in
 
    let slave2  = make
          ~generator:(fun r -> slave2Choices (r#get "master"))
-         ~msg:(mkenv [("master",master#selected)])
+         ~msg:(make_string_env [("master",master#selected)])
          ~key:"slave2"
          ~callback:slave2Callback
          ~packing:slave2Packing in

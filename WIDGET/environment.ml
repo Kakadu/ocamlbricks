@@ -51,7 +51,7 @@ class ['a,'b] env = fun () -> object (self)
 end;;
 
 (** Simple constructor for environments.*)
-let mkenv (l:('a*'b) list) = let e=(new env ()) in (e#add_list l); e;;
+let make (l:('a*'b) list) = let e=(new env ()) in (e#add_list l); e;;
 
 
 (* **************************************** *
@@ -67,5 +67,7 @@ class ['b] string_env () = object
   method get id = try (super#get id) with Not_found -> raise (Undefined_identifier id)
 end;;
 
+(** Simple constructor for string environments.*)
+let make_string_env (l:(string*'b) list) = let e=(new string_env ()) in (e#add_list l); e;;
 
 
