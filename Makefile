@@ -309,9 +309,11 @@ install-programs: programs install-programs-local
 	  if echo " $(ROOT_NATIVE_PROGRAMS) $(ROOT_BYTE_PROGRAMS) " | grep -q " $$basename "; then \
 	    echo "Installing "`basename $$file`" as a \"root program\" into $$prefix/sbin..."; \
 	    cp -a $$file $$prefix/sbin/; \
+	    chmod +x $$prefix/sbin/$$basename; \
 	  else \
 	    echo "Installing "`basename $$file`" into $$prefix/bin..."; \
 	    cp -a $$file $$prefix/bin/; \
+	    chmod +x $$prefix/bin/$$basename; \
 	  fi; \
 	done) && \
 	echo 'Program installation was successful.'
@@ -511,6 +513,8 @@ COMPILE_OPTIONS = -thread
 PP_OPTION =
 DIRECTORIES_TO_INCLUDE =
 LIBRARIES_TO_LINK =
+OBJECTS_TO_LINK =
+C_OBJECTS_TO_LINK =
 
 
 #####################################################################
@@ -714,7 +718,6 @@ _tags:
 	echo "<**/*.{ml,mli}>: ourocamldocsettings" >> $@ ; \
 	echo "<**/*.{ml,mli}>: ourppsettings" >> $@)
 
-
 # We automatically generate the $(OCAMLBUILD) plugin customizing the build process
 # with our user-specified options, include directories, etc.:
 myocamlbuild.ml:
@@ -754,20 +757,26 @@ myocamlbuild.ml:
 		echo -en "A \"-I\"; A \"$$libraryprefix/$$x\"; " >> $@; \
 	done; \
 	echo -e "];;" >> $@; \
-	echo -en "let our_byte_link_options = our_include_options @ [ " >> $@; \
+	echo -en "let our_byte_link_options = our_include_options @ [ A \"-custom\"; " >> $@; \
 	for x in $(LIBRARIES_TO_LINK); do \
 		echo -en "A \"$$x.cma\"; " >> $@; \
 	done; \
 	for x in $(OBJECTS_TO_LINK); do \
 		echo -en "A \"$$x.cmo\"; " >> $@; \
 	done; \
+	for x in $(C_OBJECTS_TO_LINK); do \
+		echo -en "A \"$$x.o\"; " >> $@; \
+	done; \
 	echo -e "];;" >> $@; \
 	echo -en "let our_native_link_options = our_include_options @ [ " >> $@; \
 	for x in $(LIBRARIES_TO_LINK); do \
 		echo -en "A \"$$x.cmxa\"; " >> $@; \
 	done; \
-	for x in $(OBJECTS_TO_LINK); do \
-		echo -en "A \"$$x.cmx\"; " >> $@; \
+	for x in $(C_OBJECTS_TO_LINK); do \
+		echo -en "A \"$$x.o\"; " >> $@; \
+	done; \
+	for x in $(C_OBJECTS_TO_LINK); do \
+		echo -en "A \"$$x.o\"; " >> $@; \
 	done; \
 	echo -e "];;\n" >> $@; \
 	echo -e "dispatch (function After_rules ->" >> $@; \
