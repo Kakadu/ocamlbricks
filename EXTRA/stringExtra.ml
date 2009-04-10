@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2007  Jean-Vincent Loddo
+   Copyright (C) 2007-2009  Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,317 @@ open ListExtra;;
 
 (** Extra definitions. *)
 module Extra = struct
+
+(** Alias for the standard module. *)
+module Stdlib_String = String
+
+(** char list operations (assemble/disassemble). *)
+module Charlist = struct 
+
+(** Fold a char list into a string. *)
+let assemble (xs:char list) : string =
+ let n = List.length xs in
+ let s = String.make n ' ' in
+ let rec loop i = function
+  | []    -> ()
+  | x::xs -> (String.set s i x); loop (i+1) xs
+ in (loop 0 xs); s
+;;
+
+(** {[ disassemble_reversing "abcd" = ['d'; 'c'; 'b'; 'a'] ]} *)
+let disassemble_reversing ?(acc=[]) (s:string) : char list =
+ let n = String.length s in
+ let rec loop acc i = 
+  if i>=n then acc else
+  loop ((String.get s i)::acc) (i+1)
+ in loop acc 0 
+;;
+
+(** Assemble a list of char into a string reversing the order.
+    {[ assemble_reversing ['a';'b';'c';'d'] = "dcba" ]} *)
+let assemble_reversing (xs:char list) : string =
+ let n = List.length xs in
+ let s = String.make n ' ' in
+ let rec loop i = function
+  | []    -> ()
+  | x::xs -> (String.set s i x); loop (i-1) xs
+ in (loop (n-1) xs); s
+;;
+
+end;;
+
+(* Imported from mike/tool.ml *)
+
+type blit_function = string -> int -> string -> int -> int -> unit
+
+(** Import a file into a string. *)
+let from_descr ?(blit=String.blit) (fd:Unix.file_descr) : string =
+ let q = Queue.create () in
+ let buffer_size = 8192 in
+ let buff = String.create buffer_size in
+ let rec loop1 acc_n =
+  begin
+   let n = (Unix.read fd buff 0 buffer_size)    in
+   if (n=0) then acc_n else ((Queue.push ((String.sub buff 0 n),n) q); loop1 (acc_n + n))
+   end in
+ let dst_size = loop1 0 in
+ let dst = String.create dst_size in
+ let rec loop2 dstoff = if dstoff>=dst_size then () else
+  begin
+  let (src,src_size) = Queue.take q in
+  (blit src 0 dst dstoff src_size);
+  loop2 (dstoff+src_size)
+  end in
+ (loop2 0);
+ dst
+;;
+
+let from_file ?(blit=String.blit) (filename:string) : string =
+ let fd = (Unix.openfile filename [Unix.O_RDONLY;Unix.O_RSYNC] 0o640) in
+ let result = from_descr ~blit fd in
+ (Unix.close fd);
+ result
+;;
+ 
+let from_channel ?(blit=String.blit) in_channel : string =
+ from_descr ~blit (Unix.descr_of_in_channel in_channel)
+;;
+
+
+(** Allow to perform an action for any scanned character. *)
+let blitting ~(perform:char->int->unit) s1 ofs1 s2 ofs2 len =
+  if len < 0 || ofs1 < 0 || ofs1 > String.length s1 - len
+             || ofs2 < 0 || ofs2 > String.length s2 - len
+  then invalid_arg "String.blitting" else
+  let ofs1=ref ofs1 in
+  let ofs2=ref ofs2 in
+  for i=1 to len do
+    let c = s1.[!ofs1] in
+    let i = !ofs2 in
+    (perform c i);
+    s2.[i] <- c;
+    incr ofs1;
+    incr ofs2;
+  done
+;;
+
+(** Make a copy of a string performing an action for any scanned character. *)
+let from_string ~(perform:char->int->unit) (src:string) : string =
+ let len = String.length src in
+ let dst = String.create len in
+ let blit = blitting ~perform in
+ (blit src 0 dst 0 len);
+ dst
+;;
+
+
+(** Catenate a list of strings. *)
+let concat = List.fold_left (^) "" ;;
+
+(** [tail s i] return the substring from the index [i] (included) to the end of [s].
+    Raise [Invalid_argument "tail"] if the index is out of the string bounds.
+
+{b Example}:
+{[# tail "azerty" 2;;
+ : string = "erty" ]} *)
+let tail s i =
+ try String.sub s i ((String.length s)-i)
+ with Invalid_argument _ -> raise (Invalid_argument "tail")
+;;
+
+
+(** [head s i] return the substring from the beginning of [s] to the index [i] included.
+    Raise [Invalid_argument "head"] if the index is out of the string bounds.
+
+{b Example}:
+{[# head "azerty" 2;;
+ : string = "aze"
+ # head "azerty" 0 ;;
+ : string = "a"
+]} *)
+let head s i =
+ try String.sub s 0 (i+1)
+ with Invalid_argument _ -> raise (Invalid_argument "head")
+;;
+
+(** [nth_index_from s n c nth] return the index of the [nth]
+    occurrence of the character [c] searching in [s] from the offset [n].
+    Raise [Not_found] if there isn't a sufficient number of occurrences.
+
+    {b Example}:
+{[# nth_index_from "@123@567@" 0 '@' 2;;
+  : int = 4
+]}*)
+let rec nth_index_from =
+ let rec lloop s offset c k =
+   if k=0 then offset else (* degenere *)
+   if k=1 then String.index_from s offset c else
+   let offset' = String.index_from s offset c in
+   lloop s (offset'+1) c (k-1) in
+ fun s n c k -> if k<0 then nth_rindex_from s n c (-k)
+                       else lloop s n c k
+
+(** As [nth_index_from] but searching from the {e right} to the {e left} side. *)
+and nth_rindex_from =
+ let rec rloop s offset c k =
+   if k=0 then offset else (* degenere *)
+   if k=1 then String.rindex_from s offset c else
+   let offset' = String.rindex_from s offset c in
+   rloop s (offset'-1) c (k-1) in
+ fun s n c k -> if k<0 then nth_index_from s n c (-k)
+                       else rloop s n c k
+;;
+
+(** As [nth_index_from] but searching from the beginning of the string (offset [0]). *)
+let nth_index s  = nth_index_from  s 0;;
+
+(** As [nth_rindex_from] but searching from the end of the string. *)
+let nth_rindex s = nth_rindex_from s ((String.length s)-1);;
+
+(** [frame s c nth1 nth2] return the substring of [s] delimited by
+    the [nth1] and the [nth2] occurrence of the character [c].
+    Raise [Not_found] if the number of occurrences is lesser than [nth1].
+    Raise [Invalid_argument "frame"] if [nth1] is greater than [nth2].
+
+    {b Example}:
+{[# frame "\@xxx\@yyy\@zzz\@" '@' 1 3 ;;
+  : string = "\@xxx\@yyy\@"
+]}*)
+let frame s c nth1 nth2 =
+ if nth2<nth1 then (raise (Invalid_argument "frame")) else
+ if nth2=nth1 then String.sub s (nth_index s c nth1) 1 else
+ let offset1 = nth_index s c nth1 in
+ let offset2 =  try
+   nth_index_from s (offset1+1) c (nth2-nth1)
+ with Not_found -> (String.length s)-1 in
+ String.sub s offset1 (offset2-offset1+1)
+;;
+
+(** As [frame] but raise [Not_found] also if the number of occurrences is lesser than [nth2]. *)
+let frame_strict s c nth1 nth2 =
+ if nth2<nth1 then (raise (Invalid_argument "frame")) else
+ if nth2=nth1 then String.sub s (nth_index s c nth1) 1 else
+ let offset1 = nth_index s c nth1 in
+ let offset2 = nth_index_from s (offset1+1) c (nth2-nth1) in
+ String.sub s offset1 (offset2-offset1+1)
+;;
+
+(** As [frame] by searching and counting the number of occurrences
+    from the {e right} to the {e left} side of string.
+
+    {b Example}:
+{[# rframe "\@xxx\@yyy\@zzz\@" '@' 1 3 ;;
+  : string = "\@yyy\@zzz\@"
+]} *)
+let rframe s c nth1 nth2 =
+ if nth2<nth1 then (raise (Invalid_argument "frame")) else
+ if nth2=nth1 then String.sub s (nth_rindex s c nth1) 1 else
+ let offset1 = nth_rindex s c nth1 in
+ let offset2 = try
+   nth_rindex_from s (offset1-1) c (nth2-nth1)
+ with Not_found -> 0 in
+ String.sub s offset2 (offset1-offset2+1)
+;;
+
+(** As [rframe] but raise [Not_found] also if the number of occurrences is lesser than [nth2]. *)
+let rframe_strict s c nth1 nth2 =
+ if nth2<nth1 then (raise (Invalid_argument "frame")) else
+ if nth2=nth1 then String.sub s (nth_rindex s c nth1) 1 else
+ let offset1 = nth_rindex s c nth1 in
+ let offset2 = nth_rindex_from s (offset1-1) c (nth2-nth1) in
+ String.sub s offset2 (offset1-offset2+1)
+;;
+
+
+(** Count the number of occurrences of the character in the string. *)
+let count =
+ let rec loop s c i acc =
+  try let i = (String.index_from s i c) in loop s c (i+1) (acc+1)
+  with Not_found -> acc
+ in fun s c -> loop s c 0 0
+;;
+
+(** Note that the last index is (-1) when the character is not found. *)
+let count_and_last_index =
+ let rec loop s c i acc last_index =
+  try let i = (String.index_from s i c) in loop s c (i+1) (acc+1) i
+  with Not_found -> (acc,last_index)
+ in fun s c -> loop s c 0 0 (-1)
+;;
+
+(** Note that the last two indexes may be (-1) if there isn't a sufficient number of occurrences. *)
+let count_and_last_two_indexes =
+ let rec loop s c i acc last_index penultimate =
+  try let i = (String.index_from s i c) in loop s c (i+1) (acc+1) i last_index
+  with Not_found -> (acc,last_index,penultimate)
+ in fun s c -> loop s c 0 0 (-1) (-1)
+;;
+
+(** Similar to List.for_all, considering a string as a list of characters. *)
+let rec for_all p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then true else
+  p s.[i] && loop (i+1)
+ in loop 0
+;;
+
+(** Similar to List.exists, considering a string as a list of characters. *)
+let rec exists p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then false else
+  p s.[i] || loop (i+1)
+ in loop 0
+;;
+
+(** As the function exists, but provides the index that verifies the predicate. *)
+let rec lexists p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then None else
+  if p s.[i] then (Some i) else loop (i+1)
+ in loop 0
+;;
+
+(** As the function lexists, but searching from the right side. *)
+let rec rexists p s =
+ let l = String.length s in
+ let rec loop i =
+  if i<0 then None else
+  if p s.[i] then (Some i) else loop (i-1)
+ in loop (l-1)
+;;
+
+(** Stands for not [' '], not ['\t'] and not ['\n'] *)
+let not_blank = (fun c -> (c<>' ') && (c<>'\t') && (c<>'\n'))
+;;
+
+(** Strip the left side of the string with the predicate [not_blank] *)
+let lstrip s =
+ match lexists not_blank s with
+ | None   -> ""
+ | Some i -> String.sub s i (((String.length s))-i)
+;;
+
+(** Strip the right side of the string with the predicate [not_blank] *)
+let rstrip s =
+ match rexists not_blank s with
+ | None   -> ""
+ | Some i -> String.sub s 0 (i+1)
+;;
+
+(** Strip the both sides of the string with the predicate [not_blank] *)
+let strip s =
+ match (lexists not_blank s) with
+ |  None   -> ""
+ |  Some i -> (match (rexists not_blank s) with
+	       | Some j -> String.sub s i (j-i+1)
+               | None   -> assert false
+               )
+;;
+
+(* End of snippet imported from mike/tool.ml *)
 
 (** Split a string into a list of strings containing 
     each one [n] characters of the input string (by default [n=1]). 
@@ -41,7 +352,7 @@ let cut ?(n:int=1) (s:string) =
    let l' = (l-n) in
    (String.sub s 0 n)::(loop (String.sub s n l') l')
  in loop s l
-;; 
+;;
 
 (** Similar to [cut ~n:1] but returns the list of {e characters} (instead of strings)
     of the input string. {b Example}:
@@ -56,15 +367,6 @@ let to_charlist (s:string) =
  in loop s l
 ;; 
 
- let rec split_old ?(d:char=' ') (s:string) = try
-  let l = String.length s in
-  let p = String.index s d in
-   (StringLabels.sub ~pos:0 ~len:p s)::(split_old ~d (StringLabels.sub ~pos:(p+1) ~len:(l-p-1) s))
-  with
-   _ -> if (s="") then [] else [s]
-;;
-
- 
 (** Split a string into a list of strings using a char delimiter (space (blank) by default).
     By default [squeeze=true], which means that delimiter repetitions are considered 
     as single occurrences.
@@ -85,6 +387,22 @@ let rec split ?(squeeze=true) ?(d:char=' ') (s:string) = try
   if squeeze && (p=0) then rest else (StringLabels.sub ~pos:0 ~len:p s)::rest
   with
    _ -> if (s="") then [] else [s]
+;;
+
+(** Split a string into a string list using a list of blanks as word separators. *)
+let split_squeezing_blanks ?(blanks=['\t';' ']) (s:string) : string list =
+ let xs = Charlist.disassemble_reversing s in
+ let push_if_not_empty x l = if x=[] then l else (x::l) in
+ let rec loop previous_blank acc1 acc2 = function
+  | []      -> (push_if_not_empty acc1 acc2)
+  | b ::xs when (List.mem b blanks) ->
+	if previous_blank
+	then loop true acc1 acc2 xs
+	else loop true [] (push_if_not_empty acc1 acc2) xs
+   |  x  ::xs -> loop false (x::acc1) acc2 xs
+  in
+  let xs = List.map Charlist.assemble (loop false [] [] xs) in
+ xs
 ;;
 
 (** Merge two strings with a string separator. The call [merge sep x y] is simply equivalent to [x^sep^y].
@@ -286,7 +604,7 @@ end;; (* module Text *)
      Example:
 {[# chop "hell o \t\n";;
   : string = "hell o"]} *)
-let rec chop x =  
+let rec chop x =
   let l = (String.length x) in if (l=0) then x else 
    begin
    let last = (String.sub x (l-1) 1) in match last with
@@ -294,23 +612,6 @@ let rec chop x =
    | _ -> x
    end
    ;;
-(** Alias for {e Python} fans. *)        
-let rstrip = chop;; 
-
-(** As {!chop} but at left side. *)
-let rec lstrip x =  
- let l = (String.length x) in if (l=0) then x else 
-   begin
-   let first = (String.sub x 0 1) in match first with
-   | "\n" | " " | "\t" -> lstrip (String.sub x 1 (l-1))
-   | _ -> x
-   end
-   ;;
-
-(** As {!chop} but for both sides. *)
-let strip x = lstrip (rstrip x)
-;;
-
 
 end;; (* module Extra *)
 
