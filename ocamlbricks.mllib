@@ -17,7 +17,9 @@
 
 # This is simply a list of the OCaml modules (*not* filenames) to be included
 # in the library:
+ArrayExtra
 Configuration_files
+Endpoint
 Environment
 Extras
 FilenameExtra
@@ -30,13 +32,16 @@ Ledgrid
 #Limbo
 ListExtra
 Memo
+Mrproper
 #ModelExtra # This is just a boilerplate!
 Oomarshal
+Option
 PreludeExtra
 Shell
 StrExtra
 StringExtra
 Sugar
+StackExtra
 SysExtra
 UnixExtra
 Widget

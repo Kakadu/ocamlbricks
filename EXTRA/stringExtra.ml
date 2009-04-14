@@ -14,56 +14,54 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** Additional features for the standard module [String].
+
+{b Usage}:
+-    {[ open StringExtra;; ]}
+-    {[ module String = StringExtra.String;; ]}
+The previous phrases are equivalent and allow you to access to additional features for strings.
+
+You can give a look to the {!StringExtra.Extra} module documentation for more informations on these features.
+*)
+
 
 open ListExtra;;
 
-(** Extra definitions. *)
+(** Extra definitions for strings. *)
 module Extra = struct
 
-(** Alias for the standard module. *)
-module Stdlib_String = String
+(** {2 Importing & copying} *)
 
-(** char list operations (assemble/disassemble). *)
-module Charlist = struct 
-
-(** Fold a char list into a string. *)
-let assemble (xs:char list) : string =
- let n = List.length xs in
- let s = String.make n ' ' in
- let rec loop i = function
-  | []    -> ()
-  | x::xs -> (String.set s i x); loop (i+1) xs
- in (loop 0 xs); s
-;;
-
-(** {[ disassemble_reversing "abcd" = ['d'; 'c'; 'b'; 'a'] ]} *)
-let disassemble_reversing ?(acc=[]) (s:string) : char list =
- let n = String.length s in
- let rec loop acc i = 
-  if i>=n then acc else
-  loop ((String.get s i)::acc) (i+1)
- in loop acc 0 
-;;
-
-(** Assemble a list of char into a string reversing the order.
-    {[ assemble_reversing ['a';'b';'c';'d'] = "dcba" ]} *)
-let assemble_reversing (xs:char list) : string =
- let n = List.length xs in
- let s = String.make n ' ' in
- let rec loop i = function
-  | []    -> ()
-  | x::xs -> (String.set s i x); loop (i-1) xs
- in (loop (n-1) xs); s
-;;
-
-end;;
-
-(* Imported from mike/tool.ml *)
-
+(** The type of the standard [String.blit]. *)
 type blit_function = string -> int -> string -> int -> int -> unit
 
-(** Import a file into a string. *)
-let from_descr ?(blit=String.blit) (fd:Unix.file_descr) : string =
+(** Make a blit function that uses the argument [~(perform:char->int->unit)]
+    to perform an action for any scanned character. The first
+    argument of [perform] is the character that will be copied,
+    the second argument is the index in the target string. {b Example}:
+{[# let perform c i = Printf.eprintf "Copying character %c at position %d\n" c i in
+    let s = from_file ~blit:(blitting ~perform) "/etc/fstab" in
+    ... ]} *)
+let blitting ~(perform:char->int->unit) : blit_function =
+ fun s1 ofs1 s2 ofs2 len ->
+  if len < 0 || ofs1 < 0 || ofs1 > String.length s1 - len
+             || ofs2 < 0 || ofs2 > String.length s2 - len
+  then invalid_arg "String.blitting" else
+  let ofs1=ref ofs1 in
+  let ofs2=ref ofs2 in
+  for i=1 to len do
+    let c = s1.[!ofs1] in
+    let i = !ofs2 in
+    (perform c i);
+    s2.[i] <- c;
+    incr ofs1;
+    incr ofs2;
+  done
+;;
+
+(** Import the content of the [Unix] file descriptor. The optional [?(blit=String.blit)] allows
+    to perform some operations during the copy of characters (see the function {!StringExtra.Extra.blitting}). *)
+let from_descr ?(blit:blit_function=String.blit) (fd:Unix.file_descr) : string =
  let q = Queue.create () in
  let buffer_size = 8192 in
  let buff = String.create buffer_size in
@@ -84,33 +82,17 @@ let from_descr ?(blit=String.blit) (fd:Unix.file_descr) : string =
  dst
 ;;
 
-let from_file ?(blit=String.blit) (filename:string) : string =
+(** Similar to {!StringExtra.Extra.from_descr}) but the user provides the file name instead of the file descriptor. *)
+let from_file ?(blit:blit_function=String.blit) (filename:string) : string =
  let fd = (Unix.openfile filename [Unix.O_RDONLY;Unix.O_RSYNC] 0o640) in
  let result = from_descr ~blit fd in
  (Unix.close fd);
  result
 ;;
- 
-let from_channel ?(blit=String.blit) in_channel : string =
+
+(** Similar to {!StringExtra.Extra.from_descr}) but the user provides the [Pervasives.in_channel] instead of the file descriptor. *)
+let from_channel ?(blit:blit_function=String.blit) in_channel : string =
  from_descr ~blit (Unix.descr_of_in_channel in_channel)
-;;
-
-
-(** Allow to perform an action for any scanned character. *)
-let blitting ~(perform:char->int->unit) s1 ofs1 s2 ofs2 len =
-  if len < 0 || ofs1 < 0 || ofs1 > String.length s1 - len
-             || ofs2 < 0 || ofs2 > String.length s2 - len
-  then invalid_arg "String.blitting" else
-  let ofs1=ref ofs1 in
-  let ofs2=ref ofs2 in
-  for i=1 to len do
-    let c = s1.[!ofs1] in
-    let i = !ofs2 in
-    (perform c i);
-    s2.[i] <- c;
-    incr ofs1;
-    incr ofs2;
-  done
 ;;
 
 (** Make a copy of a string performing an action for any scanned character. *)
@@ -122,44 +104,13 @@ let from_string ~(perform:char->int->unit) (src:string) : string =
  dst
 ;;
 
-
-(** Catenate a list of strings. *)
-let concat = List.fold_left (^) "" ;;
-
-(** [tail s i] return the substring from the index [i] (included) to the end of [s].
-    Raise [Invalid_argument "tail"] if the index is out of the string bounds.
-
-{b Example}:
-{[# tail "azerty" 2;;
- : string = "erty" ]} *)
-let tail s i =
- try String.sub s i ((String.length s)-i)
- with Invalid_argument _ -> raise (Invalid_argument "tail")
-;;
-
-
-(** [head s i] return the substring from the beginning of [s] to the index [i] included.
-    Raise [Invalid_argument "head"] if the index is out of the string bounds.
-
-{b Example}:
-{[# head "azerty" 2;;
- : string = "aze"
- # head "azerty" 0 ;;
- : string = "a"
-]} *)
-let head s i =
- try String.sub s 0 (i+1)
- with Invalid_argument _ -> raise (Invalid_argument "head")
-;;
+(** {2 Searching indexes} *)
 
 (** [nth_index_from s n c nth] return the index of the [nth]
     occurrence of the character [c] searching in [s] from the offset [n].
-    Raise [Not_found] if there isn't a sufficient number of occurrences.
-
-    {b Example}:
+    Raise [Not_found] if there isn't a sufficient number of occurrences. {b Example}:
 {[# nth_index_from "@123@567@" 0 '@' 2;;
-  : int = 4
-]}*)
+  : int = 4 ]}*)
 let rec nth_index_from =
  let rec lloop s offset c k =
    if k=0 then offset else (* degenere *)
@@ -186,15 +137,71 @@ let nth_index s  = nth_index_from  s 0;;
 (** As [nth_rindex_from] but searching from the end of the string. *)
 let nth_rindex s = nth_rindex_from s ((String.length s)-1);;
 
+(** Similar to the standard [List.for_all], considering a string as a list of characters. *)
+let rec for_all p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then true else
+  p s.[i] && loop (i+1)
+ in loop 0
+;;
+
+(** Similar to the standard [List.exists], considering a string as a list of characters. *)
+let rec exists p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then false else
+  p s.[i] || loop (i+1)
+ in loop 0
+;;
+
+(** As the function {!StringExtra.Extra.exists}, but provides the index that verifies the predicate. *)
+let rec lexists p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then None else
+  if p s.[i] then (Some i) else loop (i+1)
+ in loop 0
+;;
+
+(** As the function lexists, but searching from the right side. *)
+let rec rexists p s =
+ let l = String.length s in
+ let rec loop i =
+  if i<0 then None else
+  if p s.[i] then (Some i) else loop (i-1)
+ in loop (l-1)
+;;
+
+(** {2 Extracting sub-strings} *)
+
+(** [tail s i] return the substring from the index [i] (included) to the end of [s].
+    Raise [Invalid_argument "tail"] if the index is out of the string bounds. {b Example}:
+{[# tail "azerty" 2;;
+ : string = "erty" ]} *)
+let tail s i =
+ try String.sub s i ((String.length s)-i)
+ with Invalid_argument _ -> raise (Invalid_argument "tail")
+;;
+
+
+(** [head s i] return the substring from the beginning of [s] to the index [i] included.
+    Raise [Invalid_argument "head"] if the index is out of the string bounds. {b Example}:
+{[# head "azerty" 2;;
+ : string = "aze"
+# head "azerty" 0 ;;
+ : string = "a" ]} *)
+let head s i =
+ try String.sub s 0 (i+1)
+ with Invalid_argument _ -> raise (Invalid_argument "head")
+;;
+
 (** [frame s c nth1 nth2] return the substring of [s] delimited by
     the [nth1] and the [nth2] occurrence of the character [c].
     Raise [Not_found] if the number of occurrences is lesser than [nth1].
-    Raise [Invalid_argument "frame"] if [nth1] is greater than [nth2].
-
-    {b Example}:
+    Raise [Invalid_argument "frame"] if [nth1] is greater than [nth2]. {b Example}:
 {[# frame "\@xxx\@yyy\@zzz\@" '@' 1 3 ;;
-  : string = "\@xxx\@yyy\@"
-]}*)
+  : string = "\@xxx\@yyy\@" ]}*)
 let frame s c nth1 nth2 =
  if nth2<nth1 then (raise (Invalid_argument "frame")) else
  if nth2=nth1 then String.sub s (nth_index s c nth1) 1 else
@@ -215,12 +222,9 @@ let frame_strict s c nth1 nth2 =
 ;;
 
 (** As [frame] by searching and counting the number of occurrences
-    from the {e right} to the {e left} side of string.
-
-    {b Example}:
+    from the {e right} to the {e left} side of string. {b Example}:
 {[# rframe "\@xxx\@yyy\@zzz\@" '@' 1 3 ;;
-  : string = "\@yyy\@zzz\@"
-]} *)
+  : string = "\@yyy\@zzz\@" ]} *)
 let rframe s c nth1 nth2 =
  if nth2<nth1 then (raise (Invalid_argument "frame")) else
  if nth2=nth1 then String.sub s (nth_rindex s c nth1) 1 else
@@ -240,6 +244,7 @@ let rframe_strict s c nth1 nth2 =
  String.sub s offset2 (offset1-offset2+1)
 ;;
 
+(** {2 Counting} *)
 
 (** Count the number of occurrences of the character in the string. *)
 let count =
@@ -265,61 +270,27 @@ let count_and_last_two_indexes =
  in fun s c -> loop s c 0 0 (-1) (-1)
 ;;
 
-(** Similar to List.for_all, considering a string as a list of characters. *)
-let rec for_all p s =
- let l = String.length s in
- let rec loop i =
-  if i>=l then true else
-  p s.[i] && loop (i+1)
- in loop 0
-;;
+(** {2 Stripping} *)
 
-(** Similar to List.exists, considering a string as a list of characters. *)
-let rec exists p s =
- let l = String.length s in
- let rec loop i =
-  if i>=l then false else
-  p s.[i] || loop (i+1)
- in loop 0
-;;
-
-(** As the function exists, but provides the index that verifies the predicate. *)
-let rec lexists p s =
- let l = String.length s in
- let rec loop i =
-  if i>=l then None else
-  if p s.[i] then (Some i) else loop (i+1)
- in loop 0
-;;
-
-(** As the function lexists, but searching from the right side. *)
-let rec rexists p s =
- let l = String.length s in
- let rec loop i =
-  if i<0 then None else
-  if p s.[i] then (Some i) else loop (i-1)
- in loop (l-1)
-;;
-
-(** Stands for not [' '], not ['\t'] and not ['\n'] *)
+(** [not_blank] stands for not [' '], not ['\t'] and not ['\n'] *)
 let not_blank = (fun c -> (c<>' ') && (c<>'\t') && (c<>'\n'))
 ;;
 
-(** Strip the left side of the string with the predicate [not_blank] *)
+(** Strip the left side of the string with the predicate {!StringExtra.Extra.not_blank} *)
 let lstrip s =
  match lexists not_blank s with
  | None   -> ""
  | Some i -> String.sub s i (((String.length s))-i)
 ;;
 
-(** Strip the right side of the string with the predicate [not_blank] *)
+(** Strip the right side of the string with the predicate {!StringExtra.Extra.not_blank} *)
 let rstrip s =
  match rexists not_blank s with
  | None   -> ""
  | Some i -> String.sub s 0 (i+1)
 ;;
 
-(** Strip the both sides of the string with the predicate [not_blank] *)
+(** Strip the both sides of the string with the predicate {!StringExtra.Extra.not_blank} *)
 let strip s =
  match (lexists not_blank s) with
  |  None   -> ""
@@ -329,30 +300,20 @@ let strip s =
                )
 ;;
 
-(* End of snippet imported from mike/tool.ml *)
+(** Remove from the input string the last chars in the set [['\n','\t',' ']].
+     Similar to the [rstrip] {e Python} function. Example:
+{[# chop "hell o \t\n";;
+  : string = "hell o"]} *)
+let rec chop x =
+  let l = (String.length x) in if (l=0) then x else 
+   begin
+   let last = (String.sub x (l-1) 1) in match last with
+   | "\n" | " " | "\t" -> chop (String.sub x 0 (l-1))
+   | _ -> x
+   end
+   ;;
 
-(** Split a string into a list of strings containing 
-    each one [n] characters of the input string (by default [n=1]). 
-    {b Examples}:
-
-{[# cut "aabbc";;
-  : string list = ["a"; "a"; "b"; "b"; "c"]
-
-# cut ~n:2 "aabbc";;
-  : string list = ["aa"; "bb"; "c"]
-
-# cut ~n:3 "aabbc";;
-  : string list = ["aab"; "bc"]
-]}*)
-let cut ?(n:int=1) (s:string) = 
- let l = String.length s in
- let rec loop s l = 
-  if l=0 then []  else
-  if l<n then [s] else
-   let l' = (l-n) in
-   (String.sub s 0 n)::(loop (String.sub s n l') l')
- in loop s l
-;;
+(** {2 Splitting to char list} *)
 
 (** Similar to [cut ~n:1] but returns the list of {e characters} (instead of strings)
     of the input string. {b Example}:
@@ -366,6 +327,73 @@ let to_charlist (s:string) =
    (String.get s 0)::(loop (String.sub s 1 l') l')
  in loop s l
 ;; 
+
+(** Convert a list of chars in a string.
+{[# of_charlist ['h';'e';'l';'l';'o'];;
+  : string = "hello"
+]}*)
+let of_charlist = List.fold_left  (fun s c -> (s^(Char.escaped c))) "" ;;
+
+(** More efficient char list operations (assemble/disassemble). *)
+module Charlist = struct 
+
+(** Fold a char list into a string. *)
+let assemble (xs:char list) : string =
+ let n = List.length xs in
+ let s = String.make n ' ' in
+ let rec loop i = function
+  | []    -> ()
+  | x::xs -> (String.set s i x); loop (i+1) xs
+ in (loop 0 xs); s
+;;
+
+(** Disassemble (split) the string and return the reversed list of its characters. {b Example}:
+{[# disassemble_reversing "abcd" ;;
+ : char list = ['d'; 'c'; 'b'; 'a'] ]} *)
+let disassemble_reversing ?(acc=[]) (s:string) : char list =
+ let n = String.length s in
+ let rec loop acc i = 
+  if i>=n then acc else
+  loop ((String.get s i)::acc) (i+1)
+ in loop acc 0 
+;;
+
+(** Assemble a list of char into a string reversing the order. {b Example}:
+{[# assemble_reversing ['a';'b';'c';'d'] ;;
+ : string = "dcba" ]} *)
+let assemble_reversing (xs:char list) : string =
+ let n = List.length xs in
+ let s = String.make n ' ' in
+ let rec loop i = function
+  | []    -> ()
+  | x::xs -> (String.set s i x); loop (i-1) xs
+ in (loop (n-1) xs); s
+;;
+
+end;;
+
+(** {2 Splitting to string list} *)
+
+(** Split a string into a list of strings containing 
+    each one [n] characters of the input string (by default [n=1]). {b Examples}:
+{[# cut "aabbc";;
+  : string list = ["a"; "a"; "b"; "b"; "c"]
+
+# cut ~n:2 "aabbc";;
+  : string list = ["aa"; "bb"; "c"]
+
+# cut ~n:3 "aabbc";;
+  : string list = ["aab"; "bc"]
+]} *)
+let cut ?(n:int=1) (s:string) = 
+ let l = String.length s in
+ let rec loop s l = 
+  if l=0 then []  else
+  if l<n then [s] else
+   let l' = (l-n) in
+   (String.sub s 0 n)::(loop (String.sub s n l') l')
+ in loop s l
+;;
 
 (** Split a string into a list of strings using a char delimiter (space (blank) by default).
     By default [squeeze=true], which means that delimiter repetitions are considered 
@@ -389,7 +417,8 @@ let rec split ?(squeeze=true) ?(d:char=' ') (s:string) = try
    _ -> if (s="") then [] else [s]
 ;;
 
-(** Split a string into a string list using a list of blanks as word separators. *)
+(** Split a string into a string list using a list of blanks as word separators.
+    Blanks are squeezed. {i Efficient version}.*)
 let split_squeezing_blanks ?(blanks=['\t';' ']) (s:string) : string list =
  let xs = Charlist.disassemble_reversing s in
  let push_if_not_empty x l = if x=[] then l else (x::l) in
@@ -405,6 +434,20 @@ let split_squeezing_blanks ?(blanks=['\t';' ']) (s:string) : string list =
  xs
 ;;
 
+(** {2 Merging strings} *)
+
+(** Catenate a list of strings in an efficient way: the target string is created once
+    (not as happen with a fold of [^]). The optional [?(blit=String.blit)] allows
+    to perform some operations during the copy of characters (see the function {!StringExtra.Extra.blitting}). *)
+let concat ?(blit:blit_function=String.blit) xs =
+ let len  = List.fold_left (fun k s -> k+(String.length s)) 0 xs in
+ let dst  = String.create len in
+ let _ =
+    List.fold_left
+    (fun k src -> let l=(String.length src) in (blit src 0 dst k l); (k+l)) 0 xs in
+ dst
+;;
+
 (** Merge two strings with a string separator. The call [merge sep x y] is simply equivalent to [x^sep^y].
     However, the partial application [merge sep] may be useful for defining a string list
     folding (see the next section {b Folding} and the examples in the subsection {b Common foldings} ). *)
@@ -417,12 +460,6 @@ let quote ?(l="'") ?(r="'") (x:string) = l^x^r;;
      return the empty string ignoring the given prefix and suffix. *)
 let assemble prefix x suffix = if (x="") then "" else (prefix^x^suffix)
 ;;
-
-(** Convert a list of chars in a string.
-{[# of_charlist ['h';'e';'l';'l';'o'];;
-  : string = "hello"
-]}*)
-let of_charlist = List.fold_left  (fun s c -> (s^(Char.escaped c))) "" ;;
 
 (** Curryfied binary operation on strings. *)
 type binop = string -> string -> string ;;
@@ -481,12 +518,13 @@ let rec merge_fields sep (fieldlist:int list) (l:string list) =
  let l'=(List.select l fieldlist) in (big (merge sep) l')
 ;;
 
+(** {2 Text} *)
 
 (** A {e line} is a string terminating with a newline ['\n']. *)
 type line = string ;;
 
-(** Convert a string in a {!line} just adding a newline {b if needed}. 
-    The function {!chop} may be used as inverse.
+(** Convert a string in a [line] just adding a newline {b if needed}.
+    The function {!StringExtra.Extra.chop} may be used as inverse.
 
 {b Example}:
 {[# to_line "hello";;
@@ -500,8 +538,7 @@ let to_line (x:string) : line =
  match last with "\n" -> x | _ -> x^"\n"  
 ;;
 
-
-(** Converting raw text to list of strings and vice-versa. 
+(** Converting raw text to list of strings and vice-versa.
     A raw text is simply a (may be big) string, i.e. a sequence of lines 
     collected in a unique string, where each line terminates with a newline ['\n']. 
     The last line in the text may not terminate with a newline. *)
@@ -514,7 +551,7 @@ type t = string list ;;
 type filter = string list -> string list ;;
 
 (** Convert a string list in a raw text. 
-    Each string in the input list is treated by the function {!to_line} in order to
+    Each string in the input list is treated by the function [to_line] in order to
     add a newline if needed, then the list is folded by a simple catenation ([^]).
     If the input list is empty, the result is the empty string. {b Examples}:
 {[# Text.to_string ["AAA";"BBB";"CCC"];;
@@ -594,29 +631,11 @@ let to_string ?(d=" ") m =
  to_line (big (merge "\n") (List.map (big (merge d)) m)) ;;
 
 end;; (* module Text.Matrix *)
-
-
 end;; (* module Text *)
-
-
- (** Remove from the input string the last chars in the set [['\n','\t',' ']]. 
-     Similar to the [rstrip] {e Python} function.
-     Example:
-{[# chop "hell o \t\n";;
-  : string = "hell o"]} *)
-let rec chop x =
-  let l = (String.length x) in if (l=0) then x else 
-   begin
-   let last = (String.sub x (l-1) 1) in match last with
-   | "\n" | " " | "\t" -> chop (String.sub x 0 (l-1))
-   | _ -> x
-   end
-   ;;
-
 end;; (* module Extra *)
 
 
-(** Redefinition of module [List]. *)
+(** Redefinition of the standard [String]. *)
 module String = struct 
  include String;;
  include Extra;;

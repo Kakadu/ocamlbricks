@@ -17,7 +17,7 @@
 
 
 COMPILE_OPTIONS += -thread
-DIRECTORIES_TO_INCLUDE = lablgtk2
+DIRECTORIES_TO_INCLUDE = threads lablgtk2
 LIBRARIES_TO_LINK = str unix lablgtk
 
 NATIVE_PROGRAMS = stupidprogram.native
@@ -25,7 +25,7 @@ BYTE_PROGRAMS = stupidprogram.byte
 NATIVE_LIBRARIES = ocamlbricks.cmxa
 BYTE_LIBRARIES = ocamlbricks.cma
 
-UNDOCUMENTED=stupidprogram.ml
+UNDOCUMENTED=stupidprogram.ml modelExtra.ml
 
 # Remove the automatically-generated documentation on clean:
 clean-local:

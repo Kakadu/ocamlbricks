@@ -14,9 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Additional features for the standard library [Unix]. 
-    Open this module in order to use the extended version of [Unix] instead of
-    the standard one. *)
+(* Do not remove the following line: it's an ocamldoc workaround!*)
+(** *)
 
 (** Extra definitions. *)
 module Extra = struct
@@ -43,7 +42,7 @@ let touch ?(perm=0o640) (fname:filename) : unit =
   let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in (Unix.close fd)
 ;;
 
-(** {2 Copying} *)
+(* {2 Copying} *)
 
 (** Support for copying files. 
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
@@ -73,8 +72,7 @@ let file_copy ?(perm=0o640) (x:filename) (y:filename) = Unix.handle_unix_error (
 (** Append a file into another. Optional permissions (by default [0o640]) concern of course the target. *)
 let file_append ?(perm=0o640) (x:filename) (y:filename) = Unix.handle_unix_error (Copylib.file_copy ~perm ~flag:Unix.O_APPEND x) y ;;
 
-
-(** {2 Saving strings} *)
+(* {2 Saving strings} *)
 
 (** Write or rewrite the file with the given content. 
     If the file does not exists, it is created with the given permission 
@@ -98,7 +96,7 @@ let append ?(perm=0o640) (fname:filename) (x:content) =
   (Unix.close fd)
 ;;
 
-(** {2 Loading strings} *)
+(* {2 Loading strings} *)
 
 (** Return the {b whole} content (caution!) of the file 
     as a string. Use only for small files. 
@@ -121,7 +119,7 @@ let rec cat (fname:filename) =
 ;;
 
 
-(** {2 Temporary files} *)
+(* {2 Temporary files} *)
 
 (** Support for this section. *)
 module Templib = struct
@@ -174,7 +172,36 @@ let rec temp_file ?(perm=0o644) ?(parent="/tmp") ?(prefix="") ?(suffix="") ?(con
   fname
 ;;
 
-(** {2 Kind} *)
+(** More secure functions using the [TMPDIR] environment variable and implemented as wrappers of [Filename.open_temp]. *)
+module TMPDIR = struct
+
+let default_prefix = (Filename.basename Sys.executable_name)^".";;
+
+let rec open_temp 
+  ?(perm=0o640) 
+  ?(prefix=default_prefix) 
+  ?(suffix="") () =
+  (try
+    let (filename,ch) = Filename.open_temp_file prefix suffix in
+    let fd = Unix.descr_of_out_channel ch in
+    (Unix.chmod filename perm);
+    (filename,fd)
+   with e ->
+     (Printf.eprintf "%s: cannot create a temporary file; set the environment variable TMPDIR to resolve this problem.\n" Sys.executable_name);
+     (flush stderr);
+     raise e)
+
+let temp_file
+ ?(perm=0o640) 
+ ?(prefix=default_prefix) 
+ ?(suffix="") () =
+ let (filename,fd) = open_temp ~perm ~prefix ~suffix () in
+ (Unix.close fd);
+ filename
+
+end;;
+
+(* {2 Kind} *)
 
 (** Heuristic that tries to convert a char into a value of the type: 
 
@@ -194,7 +221,7 @@ let file_kind_of_char = function
  |  _        -> None
 ;;
 
-(** {2 Directories} *)
+(* {2 Directories} *)
 
 (** [iter_dir f dirname] iterate the function [f] on each entry of the directory [dirname].
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
@@ -205,7 +232,7 @@ let iter_dir f dirname =
 ;;
 
 
-(** {3 Find} *)
+(* {3 Find} *)
 
 (** Support for finding in a directory hierarchy. 
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
@@ -215,7 +242,7 @@ module Findlib = struct
 
     let hide_exn f x = try f x with exn -> raise (Hidden exn);;
     let reveal_exn f x = try f x with Hidden exn -> raise exn;;
-       
+
     open Unix;;
 
     let find on_error on_path follow depth roots =
@@ -294,7 +321,7 @@ let find ?(follow=false) ?(maxdepth=1024) ?(kind='_') ?(name="") (root:string) :
 
 
 
-(** {2 Password} *)
+(* {2 Password} *)
 
 (** Support for input passwords. 
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
@@ -333,16 +360,124 @@ end;; (* Passwdlib *)
 let read_passwd prompt = Passwdlib.read_passwd prompt;;
 
 
-(** {2 Running} *)
+(* {2 Process status printers} *)
 
-(** A {e command} is a string. *)
+(** Process status printers; {b examples}:
+{[# Process_status.printf "The result is '%s'\n" (snd (run "unexisting-program"));;
+The result is 'Unix.WEXITED 127'
+  : unit = ()
+
+# Process_status.printf "The result is '%s'\n" (snd (run "ls"));;
+The result is 'Unix.WEXITED 0'
+ : unit = () ]} *)
+module Process_status = PreludeExtra.Extra.Printers0 (struct
+    type t = Unix.process_status
+    let string_of = function
+    | Unix.WEXITED   code   -> (Printf.sprintf "Unix.WEXITED %d" code)
+    | Unix.WSIGNALED signal -> (Printf.sprintf "Unix.WSIGNALED %d" signal)
+    | Unix.WSTOPPED  signal -> (Printf.sprintf "Unix.WSTOPPED %d" signal)
+    end);;
+
+(* {2 Running} *)
+
+(** A {e command} is something understandable by the shell. *)
 type command = string;;
 
-(** Returns the pair (output, exit-code) of the given system command. A string can be
-    specified as input for the command. The flag [trace] (by default set to [false])
-    permits to obtain some informations about the running on [stderr]. 
+(** A {e program} is a file binary (which will be found by the system in [PATH]). *)
+type program = string;;
 
-{b Examples}:
+open Endpoint;;
+
+(** [kill_safe pid signal] send the [signal] to the process [pid] ignoring exceptions. *)
+let kill_safe pid signal =
+  try Unix.kill pid signal with _ -> ()
+;;
+
+exception Signal_forward of int;;
+exception Waitpid;;
+
+type waiting_events = {
+  mutable forwarded_signal : int option ;
+  mutable process_status   : Unix.process_status option;
+  mutable waitpid_exn      : bool ;
+ };;
+
+let new_waiting_events () = {
+  forwarded_signal = None  ;
+  process_status   = None  ;
+  waitpid_exn      = false ;
+ };;
+
+let rec wait_child child_pid events =
+ try begin
+  let (_, process_status) = (Unix.waitpid [] child_pid) in 
+  (events.process_status <- Some process_status);
+  match process_status with 
+  | Unix.WEXITED   code   -> () (* return *)
+  | Unix.WSIGNALED signal 
+  | Unix.WSTOPPED  signal -> (events.forwarded_signal <- Some signal); wait_child child_pid events
+ end with 
+ | Unix.Unix_error(_,_, _) -> (events.waitpid_exn <- true)
+ ;;
+
+ let new_handler child_pid events = 
+  Sys.Signal_handle 
+   (fun s -> (events.forwarded_signal <- Some s); 
+             (kill_safe child_pid s); 
+             (wait_child child_pid events))
+ ;;
+
+ (** Create process with [?stdin=Unix.stdin], [?stdout=Unix.stdout] and [?stderr=Unix.stderr] connected
+     to a given source and sinks, then wait until its termination.
+     During waiting, some signals could be forwarded by the father to the child specifying the argument [?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm; Sys.sigcont])].
+     The two last parameters are the program (binary) and its list of actual parameters. The process is created with the primitive [Unix.create_process].
+     If the process exits with [Unix.WEXITED code] the code is returned. Otherwise an exception is raised, more specifically:
+     - [Signal_forward s] is raised if the father has transmitted a signal (certainly the reason of the violent termination of the child);
+     - [Waitpid] is raised if the internal call to [Unix.waitpid] has failed for some unknown reasons.*)
+ let create_process_and_wait 
+ ?(stdin  = Source.Unix_descr Unix.stdin) 
+ ?(stdout = Sink.Unix_descr   Unix.stdout) 
+ ?(stderr = Sink.Unix_descr   Unix.stderr)
+ ?(pseudo = None) 
+ ?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm; Sys.sigcont])
+ program arguments =
+
+ let (stdin,  stdin_must_be_closed )  = Source.to_file_descr stdin in
+ let (stdout, stdout_must_be_closed)  = Sink.to_file_descr stdout    in
+ let (stderr, stderr_must_be_closed)  = Sink.to_file_descr stderr    in
+
+ let name = match pseudo with None -> program | Some name -> name in
+ let argv = (Array.of_list (name :: arguments)) in
+ let child_pid = (Unix.create_process program argv stdin stdout stderr) in
+
+ let events = new_waiting_events () in
+ let handler = new_handler child_pid events in
+ let handler_backups = List.map  (fun s -> (s, (Sys.signal s handler))) forward in
+ let restore_handlers () = List.iter (fun (s,h) -> Sys.set_signal s h) handler_backups in
+ (wait_child child_pid events);
+ (restore_handlers ()); 
+
+ (if  stdin_must_be_closed then Unix.close stdin); 
+ (if stdout_must_be_closed then Unix.close stdout); 
+ (if stderr_must_be_closed then Unix.close stderr); 
+
+ match events with
+  | { process_status   = Some (Unix.WEXITED code); forwarded_signal = None;  waitpid_exn = false } -> code
+  | { process_status   = Some (Unix.WEXITED code); forwarded_signal = Some s } when s=Sys.sigcont  -> code
+  | { forwarded_signal = Some s ; waitpid_exn = true } -> (raise (Signal_forward s))
+  | { waitpid_exn      = true  }                       -> (raise Waitpid)
+  | _ -> (assert false)
+ ;;
+
+(* Convert a string option into a shell specification. The shell "bash" is our default. *)
+let shell_of_string_option = function
+| None       -> "bash"
+| Some shell -> shell
+;;
+
+(** [run command] exec the shell ([bash] by default) with arguments [\["-c";command\]] and return the pair (output, exit-code).
+    A string can be specified as standard input for the command. The flag [trace] (by default set to [false])
+    permits to obtain some informations about the running on [stderr]. {b Examples}:
 {[# run "ls /etc/*tab";;
   : string * Unix.process_status =
 ("/etc/crontab\n/etc/fstab\n/etc/inittab\n/etc/mtab\n/etc/quotatab\n", Unix.WEXITED 0)
@@ -350,37 +485,27 @@ type command = string;;
 # run ~input:"hello" "cat";;
   : string * Unix.process_status = ("hello", Unix.WEXITED 0)
 
-# run ~input:"HELLO" "head -n 1 /etc/passwd /dev/stdin | cut -c-15";;
+# run ~shell:"dash" ~input:"HELLO" "head -n 1 /etc/passwd /dev/stdin | cut -c-15";;
   : string * Unix.process_status =
 ("==> /etc/passwd\nat:x:25:25:Batc\n\n==> /dev/stdin \nHELLO\n", Unix.WEXITED 0)
 ]} *)
-let run ?(trace:bool=false) ?(input:content="") (cmd:command) : string * Unix.process_status = 
-  let script = temp_file ~perm:0o755 ~prefix:"script-" ~suffix:".sh" ~content:cmd ()  in 
-  let output = temp_file ~perm:0o644 ~prefix:"script-" ~suffix:".output" () in 
-  let (input_option,input_file) = if (input="") 
-    then ("","")
-    else 
-      let name=(temp_file ~perm:0o644 ~prefix:"script-" ~suffix:".input" ()) in 
-      begin
-        put name input; 
-        ((" <"^name),name) 
-      end
-  in 
-  let code = Unix.system("bash -c " ^script^" >"^output^input_option) in 
+let run ?shell ?(trace:bool=false) ?input (cmd:command) : string * Unix.process_status =
+  let shell = shell_of_string_option shell in
+  let (stdin,inp) = match input with
+   | None   -> (Source.Unix_descr Unix.stdin, "<stdin>")
+   | Some x -> (Source.String x, x)
+  in
+  let output = temp_file ~perm:0o644 ~prefix:"script-" ~suffix:".output" () in
+  let code = create_process_and_wait ~stdin ~stdout:(Sink.Filename output) shell ["-c";cmd] in
   let str = (cat output) in
-  begin
-    if trace then begin 
-      prerr_endline ("\n======> INPUT FILE: <<EOF\n"^input^"EOF"); 
-      prerr_endline ("\n======> SCRIPT CONTENT: <<EOF\n"^cmd^"EOF");
-      prerr_endline ("\n======> OUTPUT: <<EOF\n"^str^"EOF");
-      ()
-    end;
-    Unix.unlink script; 
-    Unix.unlink output;
-    if (not (input="")) then (Unix.unlink input_file);  
-    (str,code)
-  end 
-;;
+  (if trace then begin
+      Printf.eprintf "UnixExtra.run: tracing: input   is '%s'\n" inp;
+      Printf.eprintf "UnixExtra.run: tracing: command is '%s'\n" cmd;
+      Printf.eprintf "UnixExtra.run: tracing: output  is '%s'\n" str;
+      flush stderr;
+      end);
+  Unix.unlink output;
+  (str, Unix.WEXITED code)
 
 (** As [run], but ignoring the exit-code. This function is
     simply a shortcut for the composition of [run] with [fst]. {b Examples}:
@@ -388,13 +513,14 @@ let run ?(trace:bool=false) ?(input:content="") (cmd:command) : string * Unix.pr
 {[# shell "date";;
   : string = "ven avr 13 18:34:02 CEST 2007\n"
 
-# String.Text.to_matrix (shell "wc -l /etc/*tab");;
+# String.Text.Matrix.of_string (shell "wc -l /etc/*tab");;
   : string list list =
 [["8"; "/etc/crontab"]; ["20"; "/etc/fstab"]; ["98"; "/etc/inittab"];
  ["11"; "/etc/mtab"]; ["127"; "/etc/naccttab"]; ["9"; "/etc/quotatab"];
  ["273"; "total"]]
 ]}*)
-let shell ?(trace:bool=false) ?(input:string="") cmd = fst(run ~trace ~input cmd) 
+let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
+  fst(run ~shell:(shell_of_string_option shell) ~trace ~input cmd) 
 ;;
 
 

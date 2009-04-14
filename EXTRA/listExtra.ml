@@ -16,11 +16,18 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Additional features for the standard module [List]. 
-    Open this module in order to use the extended version of [List] instead of
-    the standard one. *)
+(** Additional features for the standard module [List].
 
-(** Extra definitions. *)
+{b Usage}:
+-    {[ open ListExtra;; ]}
+-    {[ module List = ListExtra.List;; ]}
+The previous phrases are equivalent and allow you to access to additional features for lists.
+
+You can give a look to the {!ListExtra.Extra} module documentation for more informations on these features.
+*)
+
+
+(** Extra definitions for lists. *)
 module Extra = struct
 
  open Sugar;;

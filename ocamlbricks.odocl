@@ -17,7 +17,9 @@
 
 # This is simply a list of the OCaml modules (*not* filenames) for which
 # documentation should be generated:
+ArrayExtra
 Configuration_files
+Endpoint
 Environment
 Extras
 FilenameExtra
@@ -29,10 +31,13 @@ Identifier
 Ledgrid
 ListExtra
 Memo
+Mrproper
 Oomarshal
+Option
 PreludeExtra
 Shell
 StrExtra
+StackExtra
 StringExtra
 Sugar
 SysExtra

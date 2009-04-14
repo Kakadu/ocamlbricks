@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2007  Jean-Vincent Loddo
+   Copyright (C) 2009  Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,27 +14,18 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-
-(** Additional features for the standard module [XXX].
-
-{b Usage}:
--    {[ open XXXExtra;; ]}
--    {[ module XXX = XXXExtra.XXX;; ]}
-The previous phrases are equivalent and allow you to access to additional features for XXX.
-
-You can give a look to the {!XXXExtra.Extra} module documentation for more informations on these features.
-*)
-
-(** Extra definitions for XXX. *)
-module Extra = struct
-
- (* Add your additional features here. *)
-
-end;; (* module Extra *)
-
-
-(** Redefinition of the standard [XXX]. *)
-module XXX = struct
-  include XXX;;
-  include Extra;;
-end;;
+module Stack :
+  sig
+    type 'a t
+    exception Empty
+    val create : unit -> 'a t
+    val clear : 'a t -> unit
+    val copy : 'a t -> 'a t
+    val push : 'a -> 'a t -> unit
+    val pop : 'a t -> 'a
+    val top : 'a t -> 'a
+    val is_empty : 'a t -> bool
+    val length : 'a t -> int
+    val iter : ('a -> unit) -> 'a t -> unit
+    val to_list : 'a t -> 'a list
+  end
