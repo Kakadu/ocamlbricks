@@ -20,7 +20,7 @@ open UnixExtra;;
 open StringExtra;;
 
 (** This module contains a simple implementation of application-wise configuration
-    files, implemented as shell scripts; configuration files are looked for (by
+    files, implemented as shell scripts. Configuration files are looked for (by
     default) in "standard" places like /etc, the user's home directory and the
     shell environment.
     There is a priority:

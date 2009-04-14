@@ -25,9 +25,7 @@ open Hashmap;;
               Class Env
  * **************************************** *)
 
-(** {2 Environments }
-    Environments are especially useful for maintaining the {e state}, intendend as a set
-    of bindings, of a user interaction with a GUI. *)
+(** Environments are set of bindings especially useful to express the result of a GUI dialog. *)
 
 (** The class of environments. An ('a,'b) environment is a set of
     <key,value> pairs, where key is of type 'a and value of type 'b.

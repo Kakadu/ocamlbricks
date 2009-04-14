@@ -19,8 +19,8 @@
  * - Jean-Vincent Loddo: functors for printers
  *)
 
-(** "Additional features" for the standard module [Pervasives].
-    Open this module in order to use printing function such as print_string in
+(** Additional features for the standard module [Pervasives].
+    Open this module in order to use printing function such as [print_string] in
     {e synchronous} mode. *)
 
 (** Extra definitions. *)

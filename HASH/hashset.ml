@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Very simple module implementing a polymorphic {e unbounded} sets. 
+(** Polymorphic {e unbounded} sets. 
     An encapsulated [('a, unit) Hashtbl.t] is used for quickly answering
     to the membership problem.  *)
 
