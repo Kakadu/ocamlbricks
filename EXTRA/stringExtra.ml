@@ -138,7 +138,7 @@ let nth_index s  = nth_index_from  s 0;;
 let nth_rindex s = nth_rindex_from s ((String.length s)-1);;
 
 (** Similar to the standard [List.for_all], considering a string as a list of characters. *)
-let rec for_all p s =
+let for_all p s =
  let l = String.length s in
  let rec loop i =
   if i>=l then true else
@@ -147,7 +147,7 @@ let rec for_all p s =
 ;;
 
 (** Similar to the standard [List.exists], considering a string as a list of characters. *)
-let rec exists p s =
+let exists p s =
  let l = String.length s in
  let rec loop i =
   if i>=l then false else
@@ -156,7 +156,7 @@ let rec exists p s =
 ;;
 
 (** As the function {!StringExtra.Extra.exists}, but provides the index that verifies the predicate. *)
-let rec lexists p s =
+let lexists p s =
  let l = String.length s in
  let rec loop i =
   if i>=l then None else
@@ -164,8 +164,8 @@ let rec lexists p s =
  in loop 0
 ;;
 
-(** As the function lexists, but searching from the right side. *)
-let rec rexists p s =
+(** As the function [lexists], but searching from the right side. *)
+let rexists p s =
  let l = String.length s in
  let rec loop i =
   if i<0 then None else
