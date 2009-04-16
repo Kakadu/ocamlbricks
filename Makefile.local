@@ -18,7 +18,7 @@
 
 COMPILE_OPTIONS += -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2
-LIBRARIES_TO_LINK = str unix lablgtk
+LIBRARIES_TO_LINK = str unix threads lablgtk
 
 NATIVE_PROGRAMS = stupidprogram.native
 BYTE_PROGRAMS = stupidprogram.byte
@@ -30,3 +30,10 @@ UNDOCUMENTED=stupidprogram.ml modelExtra.ml
 # Remove the automatically-generated documentation on clean:
 clean-local:
 	@(rm -rf doc/html)
+
+# Test without installation
+LIBRARY_TO_TEST=_build/ocamlbricks.cma
+test:
+	@test -f  $(LIBRARY_TO_TEST) || make
+	@chmod +x Makefile.d/test.sh
+	@Makefile.d/test.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"

@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 # This -*- makefile -*- is part of our build system for OCaml projects
-# Copyright (C) 2008  Jean-Vincent Loddo
+# Copyright (C) 2009  Jean-Vincent Loddo
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
