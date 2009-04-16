@@ -17,6 +17,7 @@ module Sink :
   | Out_channel of out_channel
   | Filename    of string
   | Fun_thread  of (Unix.file_descr -> unit)
+  | String_queue of String_queue.t
 
   val to_file_descr : t -> Unix.file_descr * bool
   val to_string : t -> string

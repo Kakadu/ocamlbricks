@@ -9,7 +9,6 @@ type t =
   | In_channel of in_channel       (** An already opened pervasives input channel. *)
   | Filename   of string           (** A file name. *)
   | String     of string           (** A string content. *)  
-;;
 
 (** Source to string conversion. Useful for generate printers with {!PreludeExtra.Extra.Printers0} *)
 let to_string = function
@@ -19,7 +18,6 @@ let to_string = function
  | In_channel  c -> "in_channel"
  | Filename    f -> f
  | String      s -> "String \""^s^"\""
-;;
 
 (** Create a unix file descriptor from a source if necessary.
     The function returns also a flag indicating if the descriptor must be closed. 
@@ -39,9 +37,8 @@ let to_file_descr =
  | In_channel  c -> ((Unix.descr_of_in_channel c), false)
  | Filename    s -> ((Unix.openfile s [Unix.O_RDONLY] 0o640), true)
  | String      s -> ((in_descr_of_string s),true)
-;;
 
-end;;
+end
 
 
 (** Abstract sink (or positive) channel endpoints. *)
@@ -49,11 +46,11 @@ module Sink = struct
 
 (** The abstract type of a sink endpoint. *)
 type t = 
-  | Unix_descr  of Unix.file_descr            (** An already opened unix descriptor. *)
-  | Out_channel of out_channel                (** An already opened pervasives output channel. *)
-  | Filename    of string                     (** A file name. *)
-  | Fun_thread  of (Unix.file_descr -> unit)  (** A consumer function. The descriptor will be automatically closed. *)
-;;
+  | Unix_descr   of Unix.file_descr            (** An already opened unix descriptor. *)
+  | Out_channel  of out_channel                (** An already opened pervasives output channel. *)
+  | Filename     of string                     (** A file name. *)
+  | Fun_thread   of (Unix.file_descr -> unit)  (** A consumer function. *)
+  | String_queue of String_queue.t             (** A string queue. *)
 
 (** Sink to string conversion. Useful for generate printers with {!PreludeExtra.Extra.Printers0} *)
 let to_string = function
@@ -64,14 +61,14 @@ let to_string = function
  | Out_channel c when c=stderr -> "stderr"
  | Out_channel c -> "out_channel"
  | Filename    f -> f
- | Fun_thread  _ -> "Thread"
-;;
+ | Fun_thread   _ -> "Fun_thread"
+ | String_queue _ -> "String_queue"
 
 (** Create a unix file descriptor from a sink if necessary.
     The function returns also a flag indicating if the descriptor must be closed. 
     If the user has given directly a descriptor (unix or standard), the descriptor
-    do not must be closed. If the user has given a filename, the on-the-fly created
-    descriptor must be closed. *)
+    do not must be closed. If the user has given a filename, a treatment function or
+    a string queue, the on-the-fly created descriptor must be closed. *)
 let to_file_descr = 
  let out_descr_of_fun_thread f =
   let (pread,pwrite) = Unix.pipe () in
@@ -81,10 +78,12 @@ let to_file_descr =
   (ignore (Thread.create (wrap f) pread));
    pwrite
  in function
- | Unix_descr  d -> (d, false)
- | Out_channel c -> ((Unix.descr_of_out_channel c), false)
- | Filename    s -> ((Unix.openfile s [Unix.O_WRONLY] 0o640), true)
- | Fun_thread  f -> ((out_descr_of_fun_thread f),true)
-;;
+ | Unix_descr   d -> (d, false)
+ | Out_channel  c -> ((Unix.descr_of_out_channel c), false)
+ | Filename     s -> ((Unix.openfile s [Unix.O_WRONLY] 0o640), true)
+ | Fun_thread   f -> ((out_descr_of_fun_thread f),true)
+ | String_queue q ->
+    let f = fun fd -> String_queue.append_from_descr ~release:true q fd; in
+    ((out_descr_of_fun_thread f),true)
 
-end;;
+end

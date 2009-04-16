@@ -495,17 +495,17 @@ let run ?shell ?(trace:bool=false) ?input (cmd:command) : string * Unix.process_
    | None   -> (Source.Unix_descr Unix.stdin, "<stdin>")
    | Some x -> (Source.String x, x)
   in
-  let output = temp_file ~perm:0o644 ~prefix:"script-" ~suffix:".output" () in
-  let code = create_process_and_wait ~stdin ~stdout:(Sink.Filename output) shell ["-c";cmd] in
-  let str = (cat output) in
+  let queue  = String_queue.create () in
+  let stdout = Sink.String_queue queue in
+  let code = create_process_and_wait ~stdin ~stdout shell ["-c";cmd] in
+  let out  = (String_queue.concat queue) in
   (if trace then begin
       Printf.eprintf "UnixExtra.run: tracing: input   is '%s'\n" inp;
       Printf.eprintf "UnixExtra.run: tracing: command is '%s'\n" cmd;
-      Printf.eprintf "UnixExtra.run: tracing: output  is '%s'\n" str;
+      Printf.eprintf "UnixExtra.run: tracing: output  is '%s'\n" out;
       flush stderr;
       end);
-  Unix.unlink output;
-  (str, Unix.WEXITED code)
+  (out, Unix.WEXITED code)
 
 (** As [run], but ignoring the exit-code. This function is
     simply a shortcut for the composition of [run] with [fst]. {b Examples}:
