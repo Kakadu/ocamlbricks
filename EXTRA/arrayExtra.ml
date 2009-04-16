@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2007  Jean-Vincent Loddo
+   Copyright (C) 2009 Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,10 +43,43 @@ let of_known_length_list ?(reversing=false) len = function
       | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i+1) xs 
       in fill 1 xs) 
 
+(** Similar to the standard [List.for_all], implemented directly, i.e. without conversion. *)
+let for_all p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then true else
+  (p i s.(i)) && loop (i+1)
+ in loop 0
+
+(** Similar to the standard [List.exists], implemented directly, i.e. without conversion. *)
+let exists p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then false else
+  (p i s.(i)) || loop (i+1)
+ in loop 0
+
+(** As the function {!ArrayExtra.Extra.exists}, but provides the index that verifies the predicate. *)
+let lexists p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then None else
+  if (p i s.(i)) then (Some i) else loop (i+1)
+ in loop 0
+
+(** As the function [lexists], but searching from the right side. *)
+let rexists p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i<0 then None else
+  if (p i s.(i)) then (Some i) else loop (i-1)
+ in loop (l-1)
+
 end;; (* module Extra *)
 
 (** Redefinition of the standard [Array]. *)
 module Array = struct
   include Array;;
   include Extra;;
-end;;
+end
+
