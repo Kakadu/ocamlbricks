@@ -1,6 +1,7 @@
-(** Thread safe, efficient concatenation string queues. *)
+(* Do not remove the following comment: is a workaround for ocamldoc. *)
+(** *)
 
-(** Each string in the queue comes with its real size <= block_size. *)
+(* Each string in the queue comes with its real size <= block_size. *)
 type t = {
   writer_mutex            : Mutex.t ; (* writers are queue producers. *)
   block_size              : int ;
@@ -11,6 +12,7 @@ type t = {
   mutable catenation      : string option;
   }
 
+(** Create a string queue. The optional [?block_size=8192] set the size of each string buffer in the queue. *)
 let create ?(block_size=8192) () = {
   writer_mutex    = Mutex.create ();
   reader_mutex    = Mutex.create ();
@@ -24,7 +26,7 @@ let create ?(block_size=8192) () = {
 (** The type of the standard [String.blit]. *)
 type blit_function = string -> int -> string -> int -> int -> unit
 
-(** Thread-unsafe versions. *)
+(** Thread-unsafe versions. If you are not using threads this is the module for you. *)
 module Thread_unsafe = struct
 
 (** Import the content of the [Unix] file descriptor into a string queue. *)
@@ -71,29 +73,32 @@ end
 (* Mutex equipped by with_mutex. *)
 module Mutex = MutexExtra.Mutex
 
-(** Append the content of the [Unix] file descriptor into a string queue. *)
+(** Append the content of the [Unix] file descriptor into a string queue. By default, the queue is built then
+    released [?(release=true)], then is ready to be catenated by a reader. *)
 let append_from_descr ?(release=true) t (fd:Unix.file_descr) : unit =
  Mutex.with_mutex t.writer_mutex (fun () -> Thread_unsafe.append_from_descr ~release t fd)
 
 (** Import the content of the [Unix] file descriptor into a string queue. *)
-let from_descr ?(block_size=8192) (fd:Unix.file_descr) : t =
+let from_descr ?(release=true) ?(block_size=8192) (fd:Unix.file_descr) : t =
  let result = create ~block_size () in
- (Thread_unsafe.append_from_descr result fd);
+ (Thread_unsafe.append_from_descr ~release result fd);
  result
 
 (** Similar to {!String_queue.from_descr}) but the user provides the file name instead of the file descriptor. *)
-let from_file ?(block_size=8192) (filename:string) : t =
+let from_file ?(release=true) ?(block_size=8192) (filename:string) : t =
  let fd = (Unix.openfile filename [Unix.O_RDONLY;Unix.O_RSYNC] 0o640) in
- let result = from_descr ~block_size fd in
+ let result = from_descr ~release ~block_size fd in
  (Unix.close fd);
  result
 
 (** Similar to {!String_queue.from_descr}) but the user provides the [Pervasives.in_channel] instead of the file descriptor. *)
-let from_channel ?(block_size=8192) in_channel : t =
- from_descr ~block_size (Unix.descr_of_in_channel in_channel)
+let from_channel ?(release=true) ?(block_size=8192) in_channel : t =
+ from_descr ~release ~block_size (Unix.descr_of_in_channel in_channel)
 
 
-(** Efficient concatenation of the string queue content. The queue is then destructively emptied. *)
+(** Efficient concatenation of the string queue content. The catenation is performed by the first reader
+    when the queue is released by a writer. If a successive reader requires the catenation, it will get it
+    immediately. *)
 let concat ?(blit:blit_function=String.blit) t : string =
  let () = Egg.wait t.released in
  Mutex.with_mutex t.reader_mutex (fun () -> Thread_unsafe.concat ~blit t)

@@ -1,4 +1,4 @@
-(** Synchronization barriers released once forever. *)
+(** Values released by a writer once forever, acting as synchronization barriers. *)
 
 type 'a t = {
   mutable barrier   : bool        ;
@@ -30,7 +30,7 @@ let with_mutex mutex thunk =
     raise e;
   end
 
-(** Wait for the egg. *)
+(** Wait for the egg. If the egg is ready, return immediately. *)
 let wait t =
   with_mutex t.mutex (fun () ->
     begin
@@ -42,7 +42,7 @@ let wait t =
      | None   -> assert false
     end)
 
-(** Release the egg once forever. *)
+(** Release the egg once forever. Broadcast all pending readers. Future readers will get the egg immediately without waiting. *)
 let release t v =
   with_mutex t.mutex (fun () ->
     begin
@@ -51,6 +51,6 @@ let release t v =
      (Condition.broadcast t.condition);
     end)
 
-(** Release the egg once forever. *)
+(** Look at the egg status. *)
 let status t =
   with_mutex t.mutex (fun () -> t.egg)
