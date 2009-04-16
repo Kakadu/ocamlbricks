@@ -19,6 +19,7 @@
 # documentation should be generated:
 ArrayExtra
 Configuration_files
+Egg
 Endpoint
 Environment
 Extras
@@ -32,13 +33,16 @@ Ledgrid
 ListExtra
 Memo
 Mrproper
+MutexExtra
 Oomarshal
 Option
 PreludeExtra
+Semaphore
 Shell
 StrExtra
 StackExtra
 StringExtra
+String_queue
 Sugar
 SysExtra
 UnixExtra

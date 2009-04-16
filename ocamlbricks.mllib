@@ -19,6 +19,7 @@
 # in the library:
 ArrayExtra
 Configuration_files
+Egg
 Endpoint
 Environment
 Extras
@@ -33,13 +34,16 @@ Ledgrid
 ListExtra
 Memo
 Mrproper
+MutexExtra
 #ModelExtra # This is just a boilerplate!
 Oomarshal
 Option
 PreludeExtra
+Semaphore
 Shell
 StrExtra
 StringExtra
+String_queue
 Sugar
 StackExtra
 SysExtra
