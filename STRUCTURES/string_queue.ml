@@ -1,4 +1,4 @@
-(* Do not remove the following comment: is a workaround for ocamldoc. *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
 (* Each string in the queue comes with its real size <= block_size. *)

@@ -1,18 +1,21 @@
-(** Values released by a writer once forever, acting as synchronization barriers. *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 type 'a t = {
   mutable barrier   : bool        ;
   condition         : Condition.t ;
   mutex             : Mutex.t     ;
   mutable egg       : 'a option   ;
+  mutable release_power_available : bool    ;
   }
 
-(** Create a barrier, i.e. an egg t. *)
+(** Create an egg structure. *)
 let create () = {
   barrier         = true ;
   condition       = Condition.create () ;
   mutex           = Mutex.create () ;
-  egg             = None ;
+  egg             = None  ;
+  release_power_available = true ;
   }
 
 (* Included here from MutexExtra for efficiency. *)
@@ -30,7 +33,7 @@ let with_mutex mutex thunk =
     raise e;
   end
 
-(** Wait for the egg. If the egg is ready, return immediately. *)
+(** Wait for the egg. If the egg is ready, return its value immediately. *)
 let wait t =
   with_mutex t.mutex (fun () ->
     begin
@@ -42,7 +45,8 @@ let wait t =
      | None   -> assert false
     end)
 
-(** Release the egg once forever. Broadcast all pending readers. Future readers will get the egg immediately without waiting. *)
+(** [release t v] release the value [v] (the egg) for the structure [t]. Broadcast all pending readers. Future readers will get the egg immediately without blocking.
+    This call is typically performed once forever. *)
 let release t v =
   with_mutex t.mutex (fun () ->
     begin
@@ -51,6 +55,12 @@ let release t v =
      (Condition.broadcast t.condition);
     end)
 
-(** Look at the egg status. *)
-let status t =
-  with_mutex t.mutex (fun () -> t.egg)
+(** Acquire the power to release the egg, i.e. the power to be {e the} writer. *)
+let acquire_release_power t =
+  with_mutex t.mutex (fun () ->
+    if t.barrier && t.release_power_available
+     then begin
+       t.release_power_available <- false;
+       true
+      end
+     else false)
