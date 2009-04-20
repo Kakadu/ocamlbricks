@@ -408,9 +408,10 @@ let new_waiting_events () = {
   waitpid_exn      = false ;
  };;
 
+
 let rec wait_child child_pid events =
  try begin
-  let (_, process_status) = (Unix.waitpid [] child_pid) in 
+  let (_, process_status) = (Unix.waitpid [] child_pid) in
   (events.process_status <- Some process_status);
   match process_status with 
   | Unix.WEXITED   code   -> () (* return *)
@@ -446,16 +447,15 @@ let rec wait_child child_pid events =
  let (stdout, stdout_must_be_closed)  = Sink.to_file_descr stdout    in
  let (stderr, stderr_must_be_closed)  = Sink.to_file_descr stderr    in
 
+ let events = new_waiting_events () in
  let name = match pseudo with None -> program | Some name -> name in
  let argv = (Array.of_list (name :: arguments)) in
  let child_pid = (Unix.create_process program argv stdin stdout stderr) in
-
- let events = new_waiting_events () in
  let handler = new_handler child_pid events in
  let handler_backups = List.map  (fun s -> (s, (Sys.signal s handler))) forward in
  let restore_handlers () = List.iter (fun (s,h) -> Sys.set_signal s h) handler_backups in
  (wait_child child_pid events);
- (restore_handlers ()); 
+(restore_handlers ());
 
  (if  stdin_must_be_closed then Unix.close stdin); 
  (if stdout_must_be_closed then Unix.close stdout); 
@@ -506,6 +506,7 @@ let run ?shell ?(trace:bool=false) ?input (cmd:command) : string * Unix.process_
       flush stderr;
       end);
   (out, Unix.WEXITED code)
+;;
 
 (** As [run], but ignoring the exit-code. This function is
     simply a shortcut for the composition of [run] with [fst]. {b Examples}:
@@ -523,6 +524,33 @@ let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
   fst(run ~shell:(shell_of_string_option shell) ~trace ~input cmd) 
 ;;
 
+(** A Unix future is a future containing the exit code and the two strings outcoming from stdout and stderr. *)
+type future = (int * string * string) Future.t ;;
+
+let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) argv_list : future =
+ begin
+ let stdin  = match stdin  with None -> Source.Empty | Some x -> x
+ in
+ let define_sink_and_string_maker optional_sink =
+   (match optional_sink with
+    | Some x -> (x, fun () -> "")
+    | None   ->
+        let q = String_queue.create () in
+        (Sink.String_queue q), (fun () -> String_queue.concat q)
+    )
+ in
+ let (stdout, stdout_string_maker) = define_sink_and_string_maker stdout in
+ let (stderr, stderr_string_maker) = define_sink_and_string_maker stderr in
+ let future = Future.future (fun () ->
+     begin
+      let code = create_process_and_wait ~stdin ~stdout ~stderr ~pseudo ~forward program argv_list in
+      let stdout_string = stdout_string_maker () in
+      let stderr_string = stderr_string_maker () in
+      (code, stdout_string, stderr_string)
+     end) () in
+ future
+ end
+;;
 
 end;; (* module Extra *)
 

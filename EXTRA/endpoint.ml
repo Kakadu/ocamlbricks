@@ -1,3 +1,19 @@
+(* This file is part of our reusable OCaml BRICKS library
+   Copyright (C) 2009  Jean-Vincent Loddo
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
+
 (** Abstract channel endpoints (sources and sinks). *)
 
 (** Abstract source (or negative) channel endpoints. *)
@@ -9,6 +25,7 @@ type t =
   | In_channel of in_channel       (** An already opened pervasives input channel. *)
   | Filename   of string           (** A file name. *)
   | String     of string           (** A string content. *)  
+  | Empty                          (** A shorthand for [String ""] *)
 
 (** Source to string conversion. Useful for generate printers with {!PreludeExtra.Extra.Printers0} *)
 let to_string = function
@@ -18,6 +35,7 @@ let to_string = function
  | In_channel  c -> "in_channel"
  | Filename    f -> f
  | String      s -> "String \""^s^"\""
+ | Empty         -> "Empty"
 
 (** Create a unix file descriptor from a source if necessary.
     The function returns also a flag indicating if the descriptor must be closed. 
@@ -37,6 +55,7 @@ let to_file_descr =
  | In_channel  c -> ((Unix.descr_of_in_channel c), false)
  | Filename    s -> ((Unix.openfile s [Unix.O_RDONLY] 0o640), true)
  | String      s -> ((in_descr_of_string s),true)
+ | Empty         -> ((in_descr_of_string ""),true)
 
 end
 
@@ -51,6 +70,7 @@ type t =
   | Filename     of string                     (** A file name. *)
   | Fun_thread   of (Unix.file_descr -> unit)  (** A consumer function. *)
   | String_queue of String_queue.t             (** A string queue. *)
+  | Trash                                      (** A sort of /dev/null. *)
 
 (** Sink to string conversion. Useful for generate printers with {!PreludeExtra.Extra.Printers0} *)
 let to_string = function
@@ -63,6 +83,7 @@ let to_string = function
  | Filename    f -> f
  | Fun_thread   _ -> "Fun_thread"
  | String_queue _ -> "String_queue"
+ | Trash          -> "Trash"
 
 (** Create a unix file descriptor from a sink if necessary.
     The function returns also a flag indicating if the descriptor must be closed. 
@@ -85,5 +106,13 @@ let to_file_descr =
  | String_queue q ->
     let f = fun fd -> String_queue.append_from_descr ~release:true q fd; in
     ((out_descr_of_fun_thread f),true)
+ | Trash ->
+    let block_size = 1024 in
+    let buff = String.create block_size in
+    let rec trash_loop fd =
+      let n = (Unix.read fd buff 0 block_size) in
+      if (n=0) then () else trash_loop fd
+    in
+    ((out_descr_of_fun_thread trash_loop),true)
 
 end
