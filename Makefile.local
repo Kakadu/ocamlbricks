@@ -29,9 +29,6 @@ C_OBJECTS_TO_LINK += does_process_exist
 
 UNDOCUMENTED=stupidprogram.ml modelExtra.ml
 
-# We have to build our C modules sooner or later:
-main-local: _build/does_process_exist.o
-
 _build/does_process_exist.o: does_process_exist.c
 	(mkdir _build &> /dev/null || true) && \
 	gcc -g -O3 -o $@ -c $^
