@@ -553,7 +553,7 @@ let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) argv_l
 ;;
 
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
-external does_process_exist : int -> bool = "does_process_exist_c";;
+(*external does_process_exist : int -> bool = "does_process_exist_c";;*)
 
 end;; (* module Extra *)
 

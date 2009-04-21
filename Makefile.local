@@ -25,7 +25,12 @@ BYTE_PROGRAMS = stupidprogram.byte
 NATIVE_LIBRARIES = ocamlbricks.cmxa
 BYTE_LIBRARIES = ocamlbricks.cma
 
-C_OBJECTS_TO_LINK += does_process_exist
+# C_OBJECTS_TO_LINK += does_process_exist
+
+# OTHER_LIBRARY_FILES_TO_INSTALL = _build/dll_does_process_exist.so
+
+# _build/dll_does_process_exist.so: _build/does_process_exist.o
+# 	ocamlmklib  -o does_process_exist  $<
 
 UNDOCUMENTED=stupidprogram.ml modelExtra.ml
 
