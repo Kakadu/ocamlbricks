@@ -87,7 +87,7 @@ let concat ?(blit:blit_function=String.blit) t : string =
 end
 
 (* Mutex equipped by with_mutex. *)
-module Mutex = MutexExtra.Mutex
+module Mutex = MutexExtra.Extend (Mutex)
 
 (** Append the content of the [Unix] file descriptor into a string queue. By default, the queue is built then
     released [?(release=true)], then is ready to be catenated by a reader. *)

@@ -32,7 +32,7 @@ BYTE_LIBRARIES = ocamlbricks.cma
 # _build/dll_does_process_exist.so: _build/does_process_exist.o
 # 	ocamlmklib  -o does_process_exist  $<
 
-UNDOCUMENTED=stupidprogram.ml modelExtra.ml
+UNDOCUMENTED=stupidprogram.ml
 
 _build/does_process_exist.o: does_process_exist.c
 	(mkdir _build &> /dev/null || true) && \

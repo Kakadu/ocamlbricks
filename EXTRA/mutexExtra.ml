@@ -19,18 +19,10 @@
  * - Jean-Vincent Loddo: functorization
  *)
 
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
-(** Additional features for the standard module [Mutex].
-
-{b Usage}:
--    {[ open MutexExtra;; ]}
--    {[ module Mutex = MutexExtra.Mutex;; ]}
-The previous phrases are equivalent and allow you to access to additional features for Mutex.
-
-You can give a look to the {!MutexExtra.Extend} functor for more informations about these features.
-*)
-
-(** Extra definitions for Mutex. *)
+(** Make extra definitions for Mutex. *)
 module Extend
  (Mutex : sig
   type t 
@@ -55,10 +47,4 @@ module Extend
     raise e;
   end
 
-end
-
-(** Redefinition of the standard [Mutex]. *)
-module Mutex = struct
- include Mutex
- include Extend (Mutex)
 end
