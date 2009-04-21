@@ -35,7 +35,6 @@ ListExtra
 Memo
 Mrproper
 MutexExtra
-#ModelExtra # This is just a boilerplate!
 Oomarshal
 Option
 PreludeExtra

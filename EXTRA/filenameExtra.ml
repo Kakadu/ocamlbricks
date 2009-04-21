@@ -14,9 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Additional features for the standard module [Filename]. 
-    Open this module in order to use the extended version of [Filename] instead of
-    the standard one. *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 (** [add_extension_if_absent filename ext] append to the string [filename]
     the extension [ext] but only if the filename has no already an extension. 
