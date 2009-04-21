@@ -14,18 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Additional features for the standard module [Array].
-
-{b Usage}:
--    {[ open ArrayExtra;; ]}
--    {[ module Array = ArrayExtra.Array;; ]}
-The previous phrases are equivalent and allow you to access to additional features for arrays.
-
-You can give a look to the {!ArrayExtra.Extra} module documentation for more informations on these features.
-*)
-
-(** Extra definitions for arrays. *)
-module Extra = struct
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 (** Equivalent to the standard [Array.of_list] but the list is not scanned twice. The function raises [Invalid_argument]
     if the real length of the list differs from the announced. *)
@@ -59,7 +49,7 @@ let exists p s =
   (p i s.(i)) || loop (i+1)
  in loop 0
 
-(** As the function {!ArrayExtra.Extra.exists}, but provides the index that verifies the predicate. *)
+(** As the function [exists], but provides the index that verifies the predicate. *)
 let lexists p s =
  let l = Array.length s in
  let rec loop i =
@@ -74,12 +64,3 @@ let rexists p s =
   if i<0 then None else
   if (p i s.(i)) then (Some i) else loop (i-1)
  in loop (l-1)
-
-end;; (* module Extra *)
-
-(** Redefinition of the standard [Array]. *)
-module Array = struct
-  include Array;;
-  include Extra;;
-end
-
