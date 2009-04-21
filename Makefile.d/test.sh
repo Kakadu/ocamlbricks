@@ -46,7 +46,7 @@ for i in $LIST; do
  INCLUDE_LIBS+=" -I +$i"
 done
 
-INCLUDES=$(find _build/ -type d -printf "-I %p\n")
+INCLUDES=$(cd _build ; find -type d -printf "-I %p\n")
 
 ################################
 #         Preamble             #
@@ -76,15 +76,17 @@ EOF
  cd ..
 }
 
-
 PREAMBLE=/tmp/$(basename $0).preamble.$RANDOM.ml;
 make_preamble
 
+cd _build
+ocamlmktop -o toplevel -custom $INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES ocamlbricks.cma
+
 if which rlwrap >/dev/null; then
- rlwrap ocaml $INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES _build/ocamlbricks.cma -init $PREAMBLE || true
+ rlwrap ./toplevel $INCLUDES -init $PREAMBLE || true
 else
  echo "Suggestion: install rlwrap for testing with readline (on debian/ubuntu: apt-get install rlwrap)"
- ocaml $INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES _build/ocamlbricks.cma -init $PREAMBLE || true
+ ./toplevel $INCLUDES -init $PREAMBLE || true
 fi
 
 sleep 0.5
