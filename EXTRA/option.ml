@@ -19,7 +19,7 @@ let extract ?(fallback=(fun () -> failwith "Option.extract")) =
   | None   -> fallback ()
   | Some x -> x
 
-include PreludeExtra.Extra.Printers1 (struct
+include PervasivesExtra.Printers1 (struct
   type 'a t = 'a option
   let string_of string_of_alpha = function
   | None   -> "None"

@@ -370,7 +370,7 @@ The result is 'Unix.WEXITED 127'
 # Process_status.printf "The result is '%s'\n" (snd (run "ls"));;
 The result is 'Unix.WEXITED 0'
  : unit = () ]} *)
-module Process_status = PreludeExtra.Extra.Printers0 (struct
+module Process_status = PervasivesExtra.Printers0 (struct
     type t = Unix.process_status
     let string_of = function
     | Unix.WEXITED   code   -> (Printf.sprintf "Unix.WEXITED %d" code)

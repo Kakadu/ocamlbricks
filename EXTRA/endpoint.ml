@@ -27,7 +27,7 @@ type t =
   | String     of string           (** A string content. *)  
   | Empty                          (** A shorthand for [String ""] *)
 
-(** Source to string conversion. Useful for generate printers with {!PreludeExtra.Extra.Printers0} *)
+(** Source to string conversion. Useful for generate printers with {!PervasivesExtra.Printers0} *)
 let to_string = function
  | Unix_descr  c when c=Unix.stdin -> "stdin"
  | Unix_descr  _ -> "Unix descriptor"
@@ -72,7 +72,7 @@ type t =
   | String_queue of String_queue.t             (** A string queue. *)
   | Trash                                      (** A sort of /dev/null. *)
 
-(** Sink to string conversion. Useful for generate printers with {!PreludeExtra.Extra.Printers0} *)
+(** Sink to string conversion. Useful for generate printers with {!PervasivesExtra.Printers0} *)
 let to_string = function
  | Unix_descr  c when c=Unix.stdout -> "stdout"
  | Unix_descr  c when c=Unix.stderr -> "stderr"
