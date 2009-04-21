@@ -25,8 +25,6 @@ You can give a look to the {!StringExtra.Extra} module documentation for more in
 *)
 
 
-open ListExtra;;
-
 (** Extra definitions for strings. *)
 module Extra = struct
 
@@ -473,7 +471,7 @@ type binop = string -> string -> string ;;
 
    This function is adequate for most common cases. Use the module [Big] when 
    maximum generality is requested. *)
-let big (f:binop) (l:string list) : 'a = try List.big f l with Failure "big" -> "" ;;
+let big (f:binop) (l:string list) : 'a = try ListExtra.big f l with Failure "big" -> "" ;;
 
 (** [merge_map f l] maps the function [f] on the list [l] 
     then merge the result with the separator ([sep=" "] by default). *)
@@ -515,7 +513,7 @@ end;; (* module Fold *)
   : string = "ccc/eee"
 ]}*)
 let rec merge_fields sep (fieldlist:int list) (l:string list) = 
- let l'=(List.select l fieldlist) in (big (merge sep) l')
+ let l'=(ListExtra.select l fieldlist) in (big (merge sep) l')
 ;;
 
 (** {2 Text} *)

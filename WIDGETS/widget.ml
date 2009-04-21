@@ -19,7 +19,6 @@
 (** Some generic tools for building GUIs *)
 
 open Sugar;;
-open ListExtra;;
 
 
 open Environment;;
@@ -222,7 +221,7 @@ class comboTextTree = fun
   (** Set the current active (selected) choice by its value (instead of its index) *)
   method set_active_value (v:string) =
     try
-      let i = raise_when_none (List.indexOf v self#choices) in
+      let i = raise_when_none (ListExtra.indexOf v self#choices) in
       self#box#set_active i ;
       self#childs_rebuild ()
     with _ -> ()
@@ -261,7 +260,7 @@ class comboTextTree = fun
       self#set_env msg ;
 
       (* Try to restore the previous selected value (or select the index 0) *)
-      let i = ((List.indexOf previous self#choices) |=> 0) in
+      let i = ((ListExtra.indexOf previous self#choices) |=> 0) in
       (self#box#set_active i) ;
 
       (* Propagate to its childs. *)
