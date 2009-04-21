@@ -18,10 +18,7 @@
     Open this module in order to use the extended version of [Filename] instead of
     the standard one. *)
 
-(** Extra definitions. *)
-module Extra = struct
-
-(** [add_extension_if_absent filename ext] append to the string [filename] 
+(** [add_extension_if_absent filename ext] append to the string [filename]
     the extension [ext] but only if the filename has no already an extension. 
     This operation just works on strings and doesn't modify anything in the filesystem.
 
@@ -38,13 +35,3 @@ let add_extension_if_absent filename ext =
   filename                      (* because the filename already has an extension *)
  with _ -> (filename^"."^ext)    (* because the filename has no extension *)
 ;;
-
-
-end;; (* module Extra *)
-
-
-(** Redefinition of module [Filename]. *)
-module Filename = struct
-  include Filename;;
-  include Extra;;
-end;;
