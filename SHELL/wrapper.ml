@@ -146,8 +146,8 @@ let textfilter
 
     = make 
        ~at ~script
-       ~it:(Some String.Text.to_string) 
-       ~ot:String.Text.of_string cmd 
+       ~it:(Some StringExtra.Text.to_string) 
+       ~ot:StringExtra.Text.of_string cmd 
        ~opt ~args ~input:(Some x) ();;
 
 
@@ -169,7 +169,7 @@ module Treat = struct
  (* {b Output treatments} *) 
 
  (** Make your boolean scripts with this output treatment *) 
- let is_true = (String.chop || ((=) "true")) ;;
+ let is_true = (StringExtra.chop || ((=) "true")) ;;
 
 end;; (* module Treat *)
 

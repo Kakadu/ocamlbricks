@@ -21,7 +21,12 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
-open StringExtra;;
+(* Replacement for calls to [StringExtra.big (^)].
+   I define this function in order to break the dependency from StringExtra. Jean 2009-04-22. *)
+let concat (l:string list) : string = match l with
+ | []   -> ""
+ | [x]  -> x
+ | x::r -> List.fold_left (^) x r
 
 (** {b Meaning:} the result of a matching of a regular expression with a string may be:
     
@@ -67,9 +72,9 @@ open StringExtra;;
 *)
 let mkregexp ?(strict:bool=true) pl gl sl : Str.regexp = 
 
-   let prefix = String.big (^) pl in
-   let groups = String.big (^) (List.map (fun x->("\\(" ^ x ^ "\\)")) gl) in
-   let suffix = String.big (^) sl in
+   let prefix = concat pl in
+   let groups = concat (List.map (fun x->("\\(" ^ x ^ "\\)")) gl) in
+   let suffix = concat sl in
    let expr = prefix ^ groups ^ suffix in
    let expr = if strict then ("^" ^ expr ^ "$") else expr in
    Str.regexp expr
@@ -163,7 +168,7 @@ let minus x y =
  let pattern=("\\(.*\\)"^y^"\\(.*\\)") in 
  match (extract_groups (Str.regexp pattern) x) with 
  | [] -> x 
- | l  -> String.big (^) l 
+ | l  -> concat l
 ;; 
 
 (** Grep on string lists: only strings matching the pattern are selected.  

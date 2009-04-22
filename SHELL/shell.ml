@@ -21,7 +21,6 @@
 
 open Sugar;;
 open UnixExtra;;
-open StringExtra;;
 open Wrapper;;
 
 (** A {e filename} is a string. *)
@@ -121,8 +120,8 @@ let tail ?(opt="") text = textfilter "tail" ~opt text ;;
   : string = "Salut\nHello\nCiao\n"]
 ]}*)
 let tee ?(opt="") (files:filename list) text = 
-  let args = List.map String.quote files in 
-  let args = String.big (String.merge " ") args in
+  let args = List.map StringExtra.quote files in 
+  let args = StringExtra.big (StringExtra.merge " ") args in
   textfilter ~at:Treat.identity "tee" ~opt ~args:(Some args) text ;;
 
 
@@ -131,9 +130,9 @@ let tee ?(opt="") (files:filename list) text =
   : string list = ["SAlut"; "Hello"; "CiAo"]
 ]}*)
 let tr ?(opt="") c1 c2 text = 
- let s1 = String.quote (Char.escaped c1) in
- let s2 = String.quote (Char.escaped c2) in
- let args = String.merge " " s1 s2 in
+ let s1 = StringExtra.quote (Char.escaped c1) in
+ let s2 = StringExtra.quote (Char.escaped c2) in
+ let args = StringExtra.merge " " s1 s2 in
   textfilter ~at:Treat.identity "tr" ~opt ~args:(Some args) text ;;
 
 (** Wrapper for the {b uniq} unix filter. {b Example}:
@@ -149,8 +148,8 @@ let uniq ?(opt="") text = textfilter "uniq" ~opt text ;;
   : int = 5
 ]}*)
 let wc text : int = 
- make  ~it:(Some String.Text.to_string) 
-       ~ot:(String.chop || int_of_string) 
+ make  ~it:(Some StringExtra.Text.to_string) 
+       ~ot:(StringExtra.chop || int_of_string) 
        "wc -w"
        ~input:(Some text) () ;;
 
@@ -168,9 +167,9 @@ let wc text : int =
   : int = 7
 ]}*)
 let cc ?(strict=false) text : int = 
- let it = Some(if strict then (String.big (^)) else (String.Text.to_string)) in
+ let it = Some(if strict then (StringExtra.big (^)) else (StringExtra.Text.to_string)) in
  make  ~it 
-       ~ot:(String.chop || int_of_string) 
+       ~ot:(StringExtra.chop || int_of_string) 
        "wc -c"
        ~input:(Some text) () ;;
 
@@ -189,7 +188,7 @@ module Files = struct
 let glob ?(null=false) (args:filexpr) = 
   let shopt = ("shopt "^(if null then "-s" else "-u")^" nullglob\n") in
   let cmd = shopt^"for i in \"$@\"; do echo $i; done" in
-  make ~at:Treat.identity ~ot:String.Text.of_string cmd ~script:true ~args:(Some args) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string cmd ~script:true ~args:(Some args) ();;
 
 (** The following functions are wrappers of the homonymous unix command. 
     The difference from the [Shell] versions is that they ignore their input
@@ -203,28 +202,28 @@ let glob ?(null=false) (args:filexpr) =
 # wc (Files.cat ~opt:"-n" "/etc/*tab");;
   : int = 1691]}*)
  let cat ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:String.Text.of_string "cat" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cat" ~opt ~args:(Some arg) ();;
 
  let cut  ?(opt="") (arg:filexpr) = 
-   make ~at:Treat.identity ~ot:String.Text.of_string "cut" ~opt ~args:(Some arg) ();;
+   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cut" ~opt ~args:(Some arg) ();;
 
  let head ?(opt="") (arg:filexpr) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "head" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "head" ~opt ~args:(Some arg) ();;
 
  let nl ?(opt="") (arg:filexpr) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "nl" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "nl" ~opt ~args:(Some arg) ();;
 
  let sort ?(opt="") (arg:filexpr) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "sort" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "sort" ~opt ~args:(Some arg) ();;
 
  let tac  ?(opt="") (arg:filexpr) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "tac" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tac" ~opt ~args:(Some arg) ();;
 
  let tail ?(opt="") (arg:filexpr) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "tail" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tail" ~opt ~args:(Some arg) ();;
 
  let uniq ?(opt="") (arg:filexpr) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "uniq" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "uniq" ~opt ~args:(Some arg) ();;
 
 
 end;;
@@ -239,7 +238,7 @@ end;;
   : string = "17-04-2007.21h06"
 ]}*)
 let date ?(opt="") ?(arg="") () = 
-  make ~at:Treat.identity ~ot:String.chop "date" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.chop "date" ~opt ~args:(Some arg) ();;
 
 
 (** Wrapper for the {b id} unix command. {b Examples}:
@@ -250,7 +249,7 @@ let date ?(opt="") ?(arg="") () =
   : string = "1031"
 ]}*)
 let id ?(opt="") ?(arg="") () = 
-  make ~at:Treat.identity ~ot:String.chop "id" ~opt ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.chop "id" ~opt ~args:(Some arg) ();;
 
 (** Wrapper for the {b uname} unix command. {b Examples}:
 {[# uname ();;
@@ -259,13 +258,13 @@ let id ?(opt="") ?(arg="") () =
 # uname ~opt:"-r" ();;
   : string = "2.6.16.27-0.6-smp"
 ]}*)
-let uname ?(opt="") () = make ~ot:String.chop "uname" ~opt ();;
+let uname ?(opt="") () = make ~ot:StringExtra.chop "uname" ~opt ();;
 
 (** Wrapper for the {b whoami} unix command. {b Example}:
 {[# whoami ();;
  : string = "loddo"
 ]}*)
-let whoami () = make ~ot:String.chop "whoami" ();;
+let whoami () = make ~ot:StringExtra.chop "whoami" ();;
 
 
 (** {2 Stuff} *)
@@ -277,7 +276,7 @@ let whoami () = make ~ot:String.chop "whoami" ();;
   : string list = ["/etc/crontab"; "/etc/inittab"]
 ]}*)
  let find (arg:arg) = 
-  make ~at:Treat.identity ~ot:String.Text.of_string "find" ~args:(Some arg) ();;
+  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "find" ~args:(Some arg) ();;
 
 
 (** {3 dd} *)
@@ -300,8 +299,8 @@ let whoami () = make ~ot:String.chop "whoami" ();;
 let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) ?(count=None) ?(conv=None) 
  (x:filename) (y:filename) =
 
- let iF   = " if="^(String.quote x) in
- let oF   = " of="^(String.quote y) in
+ let iF   = " if="^(StringExtra.quote x) in
+ let oF   = " of="^(StringExtra.quote y) in
  let ibs  = match ibs   with (Some n) -> " ibs="  ^ (string_of_int n) | _ -> "" in
  let obs  = match obs   with (Some n) -> " obs="  ^ (string_of_int n) | _ -> "" in
  let  bs  = match  bs   with (Some n) -> "  bs="  ^ (string_of_int n) | _ -> "" in
@@ -324,7 +323,7 @@ let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) 
   : unit = ()
 ]}*)
 let tgz_create ?(opt="") (fname:filename) (files:filexpr) = 
-  let at (t,e) = ((String.quote t)^" "^e) in
+  let at (t,e) = ((StringExtra.quote t)^" "^e) in
   make ~at:(Some at) ~ot:ignore ("tar "^opt^" -czf $@") ~script:true ~args:(Some (fname,files)) ()
 ;;
 
@@ -336,7 +335,7 @@ let tgz_create ?(opt="") (fname:filename) (files:filexpr) =
   : unit = ()
 ]}*)
 let tgz_extract ?(opt="") (fname:filename) (rep:foldername) = 
-  let at (t,r) = ((String.quote t)^" "^(String.quote r)) in
+  let at (t,r) = ((StringExtra.quote t)^" "^(StringExtra.quote r)) in
   make ~at:(Some at) ~ot:ignore ("tar "^opt^" -C $2 -xzf $1") ~script:true ~args:(Some (fname,rep)) ()
 ;;
 

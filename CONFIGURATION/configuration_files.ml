@@ -16,7 +16,6 @@
 
 
 open UnixExtra;;
-open StringExtra;;
 
 (** This module contains a simple implementation of application-wise configuration
     files, implemented as shell scripts. Configuration files are looked for (by
@@ -85,7 +84,7 @@ let output_of_file_name file_name variables =
     strings: first the variable name, then the value, possibly made of several
     tokens: *)
 let matrix_of_output output =
-  String.Text.Matrix.of_string output;;
+  StringExtra.Text.Matrix.of_string output;;
 
 (** Extract only the variable names from the matrix, disregarding values: *)
 let variables_of_matrix matrix =
@@ -118,7 +117,7 @@ let alist_of_matrix row_to_element matrix =
     ignored: *)
 let scalar_alist_of_matrix string_to_element =
   alist_of_matrix
-    (fun values -> string_to_element (String.Fold.blankcat values));;
+    (fun values -> string_to_element (StringExtra.Fold.blankcat values));;
 
 (** Turn a matrix into an alist mapping each variable name into the list of
     the tokens of its value: *)
