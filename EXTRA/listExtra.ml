@@ -51,7 +51,7 @@ let intersection a b = substract a (substract a b)
 let foreach l f = List.iter f l
 
 (** Returns a list with no duplicates.
-    For large lists we suggest to use Hashset.uniq instead. *)
+    For large lists we suggest to use {!Hashset.uniq} instead. *)
 let rec uniq = function
   | []   -> []
   | x::r -> if (List.mem x r) then (uniq r) else x::(uniq r) 
@@ -91,7 +91,7 @@ let rmindex l i =
   | (_,[])    -> failwith "rmindex: index out of bounds" in
  rmindex [] (i,l)
 
-(** Heuristic searching for the index of an element satisfying a property. *)
+(** Search for the first index of an element satisfying a property. *)
 let indexSuchThat (pred:'a->bool) (l:'a list) : (int option) =
   let rec indexOf pred l i = (match l with 
   | []                  -> None
@@ -99,13 +99,13 @@ let indexSuchThat (pred:'a->bool) (l:'a list) : (int option) =
   | y::r                -> indexOf pred r (i+1) ) 
   in indexOf pred l 0
 
-(** Heuristic searching the first index of an element in a list *)
+(** Search for the first index of an element in a list *)
 let indexOf (x:'a) (l:'a list) : (int option) = indexSuchThat ((=)x) l
 
 (** Alias for [indexOf]. *)
 let firstIndexOf = indexOf
 
-(** Heuristic searching the last index of an element in a list *)
+(** Search for the last index of an element in a list *)
 let lastIndexOf x l =
   let n = List.length l in
   match indexOf x (List.rev l) with
@@ -123,10 +123,10 @@ let rec shuffle l = if l = [] then [] else
     In other words [permute f l] is the list [\[(f 0) ; (f 1) ; (f 2) ; ... \] ].  *)
 let permute f l = List.map (fun i -> List.nth l (f i)) (indexes l)
 
-(** Returns a random permutation function for the given list. *)
+(** Return a random permutation function for the given list. *)
 let shuffler l = l => (indexes || shuffle || asFunction )
 
-(** Returns a random list of indexes for the given list. *)
+(** Return a random list of indexes for the given list. *)
 let shuffleIndexes l = l => (indexes || shuffle)
 
 (** The {e folding} of lists is simply a [List.fold_left] specialization:
@@ -149,18 +149,16 @@ let max (l:'a list) : 'a = big max l;;
 (** The polymorphic minimum of a list. *)
 let min (l:'a list) : 'a = big min l;;
 
-(** Transpose the matrix (list of lists). Example:
-{[# List.transpose [[1;2;3]; [4;5;6]; [7;8;9]];;
+(** Transpose the matrix (list of lists). Raise [Invalid_argument "transpose"] if the argument is not a matrix.
+{b Example}:
+{[# ListExtra.transpose [[1;2;3]; [4;5;6]; [7;8;9]];;
   : int list list = [[1; 4; 7]; [2; 5; 8]; [3; 6; 9]]
 ]}*)
-let transpose l = 
- let get_nths i l = List.map (fun x->List.nth x i) l in
- match l with
- | []   -> []
- | x::l' -> 
-     begin
-     let n = (List.length x) in match List.for_all (fun y -> n = List.length y) l' with
-     | false -> raise (Invalid_argument "transpose")
-     | true  -> List.map (fun j->get_nths j l) (range 0 (n-1))
-     end
+let transpose ll =
+ let aa  = ArrayExtra.Matrix.of_list ll    in
+ let aa' = ArrayExtra.Matrix.transpose  aa in
+ let ll' = ArrayExtra.Matrix.to_list aa'   in
+ ll'
+ 
+
 

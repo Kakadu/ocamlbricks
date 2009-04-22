@@ -64,3 +64,34 @@ let rexists p s =
   if i<0 then None else
   if (p i s.(i)) then (Some i) else loop (i-1)
  in loop (l-1)
+
+(** Tools for matrices (arrays of arrays). *)
+module Matrix = struct
+
+ type 'a t = 'a array array
+
+ (** [init m n f] returns a fresh [m] x [n] matrix with element [(i,j)] initialized to the result of [(f i j)].  *)
+ let init m n f =
+  Array.init m (fun i -> Array.init n (f i))
+
+ (** Make a matrix from a list of lists. *)
+ let of_list ll =
+  if ll = [] then [||] else
+  let rows = List.length ll in
+  Array.init rows (fun row -> Array.of_list (List.nth ll row))
+
+ (** Make a list of lists from a matrix. *)
+ let to_list aa =
+  let al = Array.map Array.to_list aa in
+  Array.to_list al
+
+ (** Transpose the matrix. *)
+ let transpose aa =
+  let m = Array.length aa     in
+  let n = Array.length aa.(0) in
+  if (for_all (fun i a -> (Array.length a) = n) aa)
+  then init n m (fun i j -> aa.(j).(i))
+  else invalid_arg "transpose: the argument is not a matrix."
+
+end
+
