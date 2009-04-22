@@ -14,18 +14,18 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-module Stack :
-  sig
-    type 'a t
-    exception Empty
-    val create : unit -> 'a t
-    val clear : 'a t -> unit
-    val copy : 'a t -> 'a t
-    val push : 'a -> 'a t -> unit
-    val pop : 'a t -> 'a
-    val top : 'a t -> 'a
-    val is_empty : 'a t -> bool
-    val length : 'a t -> int
-    val iter : ('a -> unit) -> 'a t -> unit
-    val to_list : 'a t -> 'a list
-  end
+(** Replacement for the standard module [Stack]. The unique difference with the standard [Stack]
+    is the function [to_list] that transforms the stack in a list in O(1). *)
+
+type 'a t
+exception Empty
+val create   : unit -> 'a t
+val clear    : 'a t -> unit
+val copy     : 'a t -> 'a t
+val push     : 'a -> 'a t -> unit
+val pop      : 'a t -> 'a
+val top      : 'a t -> 'a
+val is_empty : 'a t -> bool
+val length   : 'a t -> int
+val iter     : ('a -> unit) -> 'a t -> unit
+val to_list  : 'a t -> 'a list
