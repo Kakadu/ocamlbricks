@@ -18,20 +18,16 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Additional features for the standard library [Str]. 
-    Open this module in order to use the extended version of [Str] instead of
-    the standard one. *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 open StringExtra;;
 
-(** Extra definitions. *)
-module Extra = struct
-
- (** The result of a matching of a regular expression with a string may be:
+(** {b Meaning:} the result of a matching of a regular expression with a string may be:
     
-    [None] which means that the matching have failed 
+    [None] when the matching fails
 
-    [Some(a,x,gl,b)] which means that:
+    [Some(a,x,gl,b)] when:
 
 	- there exists a substring [x] of the input string 
 	  that matches the regular expression;
@@ -194,21 +190,3 @@ let wellFormedName ?(allow_dash=false) =
     Bool.match_string "^[a-zA-Z][a-zA-Z0-9_\\-]*$"
   else
     Bool.match_string "^[a-zA-Z][a-zA-Z0-9_]*$";;
-
-end;; (* module Extra *)
-
-
-(** Redefinition of module [Str]. *)
-module Str = struct
-
-(** {2 Standard} *)
-
- include Str;;
-
-(** {2 Extra} *)
-
-(** For more details on additional definitions see the documentation 
-    of the module {!module: StrExtra.Extra} *)
- include Extra;;
-
-end;;
