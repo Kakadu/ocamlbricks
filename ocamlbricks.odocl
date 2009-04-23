@@ -19,6 +19,7 @@
 # documentation should be generated:
 ArrayExtra
 Configuration_files
+Counter
 Egg
 Endpoint
 Environment
@@ -28,7 +29,6 @@ Future
 Hashmap
 Hashmmap
 Hashset
-Identifier
 Ledgrid
 ListExtra
 Memo
