@@ -14,23 +14,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Additional features for the standard module [Sys].
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
-{b Usage}:
--    {[ open SysExtra;; ]}
--    {[ module Sys = SysExtra.Sys;; ]}
-The previous phrases are equivalent and allow you to access to additional features for system operations.
-
-You can give a look to the {!SysExtra.Extra} module documentation for more informations on these features.
-*)
-
-
-(** Extra definitions for system operations. *)
-module Extra = struct
-
-(** {2 Reading directories } *)
-  
- (** Reads a given directory, thus select and convert names. Returns the list of formatted names. *)
+(** Reads a given directory, thus select and convert names. Returns the list of formatted names. *)
 let readdir_into_list ?(namefilter:(string->bool)=(fun x -> true)) ?(nameconverter:(string->string)=(fun x->x)) (dir:string) =
   try 
     let filelist  = (Array.to_list (Sys.readdir dir)) in
@@ -38,8 +25,6 @@ let readdir_into_list ?(namefilter:(string->bool)=(fun x -> true)) ?(nameconvert
     let selection = (List.filter filter filelist) in
     (List.map nameconverter selection)
   with _ -> [] 
-
-(** {2 Rewriting files } *)
 
 (** [put content filename] rewrite [filename] with the given [content] string.
     An optional [~callback] may be provided in order to catch the
@@ -53,8 +38,6 @@ let put =
   (Printf.fprintf out_channel "%s" content);
   (close_out out_channel);
  with Sys_error msg -> callback msg)
-
-(** {2 Signals} *)
 
 (** Convert the signal in an integer as indicated by the unix command [kill -l]. *)
 let int_of_signal = function
@@ -106,12 +89,3 @@ let string_of_signal = function
  | x when x=Sys.sigvtalrm -> "SIGVTALRM"
  | x when x=Sys.sigprof -> "SIGPROF"
  | x -> (string_of_int (int_of_signal x))
-
-end;; (* module Extra *)
-
-
-(** Redefinition of the standard [Sys]. *)
-module Sys = struct
-  include Sys;;
-  include Extra;;
-end;;
