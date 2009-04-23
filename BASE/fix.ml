@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2007  Jean-Vincent Loddo
+   Copyright (C) 2007 Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Poor man fix point operators. *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
-(** Basic fix point operators. 
+(** Basic fix point operators.
 
 {b Example}:
 {[# let fact self = fun x -> if (x=0) then 1 else x * (self (x-1)) ;;
@@ -29,7 +30,7 @@ val f : int -> int = <fun>
   : int = 120
 ]}*)
 let rec fix f = 
-f (fun x -> (fix f) x);;
+ f (fun x -> (fix f) x)
 
 
 (** Fix point operator for making function requiring a parameter (the "{e environment}"). 
@@ -48,7 +49,7 @@ val f : int -> int -> int = <fun>
   : int = 360
 ]}*)
 let rec efix f e = 
-(f e) (fun y x -> (efix f y) x);;
+(f e) (fun y x -> (efix f y) x)
 
 
 (** Fix point operator with an environment and a treatment (a "{e cure}") 
@@ -87,5 +88,5 @@ val f : int -> int -> int = <fun>
   : int = 240
 ]}*)
 let rec ecfix c f e = 
- (fun g -> c ((f e) g)) (fun y x -> (ecfix c f y) x);;
+ (fun g -> c ((f e) g)) (fun y x -> (ecfix c f y) x)
 
