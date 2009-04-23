@@ -14,9 +14,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-
-open UnixExtra;;
-
 (** This module contains a simple implementation of application-wise configuration
     files, implemented as shell scripts. Configuration files are looked for (by
     default) in "standard" places like /etc, the user's home directory and the
@@ -46,7 +43,7 @@ let output_of_environment variables =
       ""
       variables in
   (* Printf.printf "The command line is\n%s\n" command_line; *)
-  let (output, exit_code) = Unix.run command_line in
+  let (output, exit_code) = UnixExtra.run command_line in
   assert(exit_code = Unix.WEXITED 0);
   (* Printf.printf "The output is:\n-------------------------\n%s\n-------------------------\n" output; *)
   output;;
@@ -68,7 +65,7 @@ let output_of_file_name file_name variables =
         variables in
     let command_line = command_line ^ " true) 2> /dev/null" in
     (* Printf.printf "The command line is %s\n" command_line; *)
-    let (output, exit_code) = Unix.run command_line in
+    let (output, exit_code) = UnixExtra.run command_line in
     if not (exit_code = Unix.WEXITED 0) then
       failwith ("Failed when source'ing the configuration file " ^ file_name)
     else begin

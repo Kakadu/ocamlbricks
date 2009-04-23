@@ -17,9 +17,6 @@
 (* Do not remove the following line: it's an ocamldoc workaround!*)
 (** *)
 
-(** Extra definitions. *)
-module Extra = struct
-
 (** A {e filename} is a string. *)
 type filename = string;;
 
@@ -37,47 +34,38 @@ let current_umask =
 ;;
 
 (** Create a file if necessary with the given permissions 
-   (by default equal to [0o640]). *)
-let touch ?(perm=0o640) (fname:filename) : unit = 
+   (by default equal to [0o644]). *)
+let touch ?(perm=0o644) (fname:filename) : unit =
   let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in (Unix.close fd)
 ;;
 
-(* {2 Copying} *)
+(** Copy or append a file into another. Optional permissions (by default [0o644]) concern of course the target.
+    -- Adapted from {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
+let file_copy_or_append ?(flag=Unix.O_TRUNC) ?(buffer_size=8192) ?(perm=0o644) input_name output_name =
+  let buffer = String.create buffer_size in
+  let fd_in  = Unix.openfile input_name  [Unix.O_RDONLY] 0 in
+  let fd_out = Unix.openfile output_name [Unix.O_WRONLY; Unix.O_CREAT; flag] perm in
+  let rec copy_loop () =
+   match Unix.read fd_in buffer 0 buffer_size with
+     0 -> ()
+   | r -> ignore (Unix.write fd_out buffer 0 r); copy_loop () in
+  copy_loop ();
+  Unix.close fd_in;
+  Unix.close fd_out
+;;
 
-(** Support for copying files. 
--- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
-module Copylib = struct
+(** Copy a file into another. Defaults are [buffer_size=8192] and [perm=0o644]. Permissions are used
+    only if the target file must be created. *)
+let file_copy   = file_copy_or_append ~flag:Unix.O_TRUNC  ;;
 
-    open Unix;;
-    
-    let buffer_size = 8192;;
-    let buffer = String.create buffer_size;;
-    
-    let file_copy ?(perm=0o666) ?(flag=O_TRUNC) input_name output_name =
-      let fd_in = openfile input_name [O_RDONLY] 0 in
-      let fd_out = openfile output_name [O_WRONLY; O_CREAT; flag] perm in
-      let rec copy_loop () =
-        match read fd_in buffer 0 buffer_size with
-          0 -> ()
-        | r -> ignore (write fd_out buffer 0 r); copy_loop () in
-      copy_loop ();
-      close fd_in;
-      close fd_out;;
+(** Append a file into another. Defaults are [buffer_size=8192] and [perm=0o644]. Permissions are used
+    only if the target file must be created. *)
+let file_append = file_copy_or_append ~flag:Unix.O_APPEND ;;
 
-end;; (* module Copylib *)
-
-(** Copy a file into another. Optional permissions (by default [0o640]) concern of course the target. *)
-let file_copy ?(perm=0o640) (x:filename) (y:filename) = Unix.handle_unix_error (Copylib.file_copy ~perm x) y ;;
-
-(** Append a file into another. Optional permissions (by default [0o640]) concern of course the target. *)
-let file_append ?(perm=0o640) (x:filename) (y:filename) = Unix.handle_unix_error (Copylib.file_copy ~perm ~flag:Unix.O_APPEND x) y ;;
-
-(* {2 Saving strings} *)
-
-(** Write or rewrite the file with the given content. 
+(** Write or rewrite the file with the given content.
     If the file does not exists, it is created with the given permission 
-   (set by default to [0o640]). *)
-let put ?(perm=0o640) (fname:filename) (x:content) : unit = 
+   (set by default to [0o644]). *)
+let put ?(perm=0o644) (fname:filename) (x:content) : unit =
   let fd = (Unix.openfile fname [Unix.O_CREAT; Unix.O_WRONLY; Unix.O_TRUNC] perm) in 
   let n = String.length x in
   ignore (Unix.write fd x 0 n);
@@ -88,24 +76,22 @@ let put ?(perm=0o640) (fname:filename) (x:content) : unit =
 let rewrite = put;;
 
 (** Similar to the function [put] described above, but the content is {b appended} instead of rewrited.
-    If the file doesn't exists, it is created with the given permissions (set by default to [0o640]). *)
-let append ?(perm=0o640) (fname:filename) (x:content) = 
+    If the file doesn't exists, it is created with the given permissions (set by default to [0o644]). *)
+let append ?(perm=0o644) (fname:filename) (x:content) =
   let fd = (Unix.openfile fname [Unix.O_CREAT; Unix.O_WRONLY; Unix.O_APPEND] perm) in 
   let n  = String.length x in
   ignore (Unix.write fd x 0 n);
   (Unix.close fd)
 ;;
 
-(* {2 Loading strings} *)
-
-(** Return the {b whole} content (caution!) of the file 
+(** Return the {b whole} content (caution!) of the file
     as a string. Use only for small files. 
     Great for making pipelines. For instance, 
     the following pipeline catches the first line of [/etc/fstab] containing 
     the substring "hda1": 
 {[# "/etc/fstab" => ( cat || String.to_list || Str.grep ".*hda1.*" || hd ) ]}*)
 let rec cat (fname:filename) = 
-  let fd = (Unix.openfile fname [Unix.O_RDONLY] 0o640) in 
+  let fd = (Unix.openfile fname [Unix.O_RDONLY] 0o644) in
   let len = 16*1024 in
   let buff = String.create len in
   let rec boucle () = 
@@ -118,8 +104,6 @@ let rec cat (fname:filename) =
   boucle ()
 ;;
 
-
-(* {2 Temporary files} *)
 
 (** Support for this section. *)
 module Templib = struct
@@ -143,7 +127,8 @@ let rec temp_name ~(dir:bool) ~(perm:Unix.file_perm) ~(parent:string) ~(prefix:s
 ;;
 end;; (* module Templib *)
 
-(** Create a temporary directory in a parent directory. By default:
+(** Create a temporary directory in a parent directory using a random name in the range [0..2^30].
+    By default:
    - permissions [perm] are set to [0o755]
    - the parent directory is set to ["/tmp"]
    - the prefix and suffix of the name are the empty string
@@ -172,13 +157,14 @@ let rec temp_file ?(perm=0o644) ?(parent="/tmp") ?(prefix="") ?(suffix="") ?(con
   fname
 ;;
 
-(** More secure functions using the [TMPDIR] environment variable and implemented as wrappers of [Filename.open_temp]. *)
+(** More safe (quite paranoic) functions using the [TMPDIR] environment variable
+    and implemented as [Filename.open_temp] wrappers. *)
 module TMPDIR = struct
 
 let default_prefix = (Filename.basename Sys.executable_name)^".";;
 
 let rec open_temp 
-  ?(perm=0o640) 
+  ?(perm=0o644) 
   ?(prefix=default_prefix) 
   ?(suffix="") () =
   (try
@@ -192,7 +178,7 @@ let rec open_temp
      raise e)
 
 let temp_file
- ?(perm=0o640) 
+ ?(perm=0o644)
  ?(prefix=default_prefix) 
  ?(suffix="") () =
  let (filename,fd) = open_temp ~perm ~prefix ~suffix () in
@@ -201,9 +187,7 @@ let temp_file
 
 end;;
 
-(* {2 Kind} *)
-
-(** Heuristic that tries to convert a char into a value of the type: 
+(** Heuristic that tries to convert a char into a value of the type:
 
     [Unix.file_kind = S_REG | S_DIR | S_CHR | S_BLK | S_LNK | S_FIFO | S_SOCK] 
 
@@ -221,8 +205,6 @@ let file_kind_of_char = function
  |  _        -> None
 ;;
 
-(* {2 Directories} *)
-
 (** [iter_dir f dirname] iterate the function [f] on each entry of the directory [dirname].
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
 let iter_dir f dirname =
@@ -232,9 +214,7 @@ let iter_dir f dirname =
 ;;
 
 
-(* {3 Find} *)
-
-(** Support for finding in a directory hierarchy. 
+(** Support for finding in a directory hierarchy.
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
 module Findlib = struct
 
@@ -320,10 +300,7 @@ let find ?(follow=false) ?(maxdepth=1024) ?(kind='_') ?(name="") (root:string) :
 ;;
 
 
-
-(* {2 Password} *)
-
-(** Support for input passwords. 
+(** Support for input passwords.
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
 module Passwdlib = struct
 
@@ -360,8 +337,6 @@ end;; (* Passwdlib *)
 let read_passwd prompt = Passwdlib.read_passwd prompt;;
 
 
-(* {2 Process status printers} *)
-
 (** Process status printers; {b examples}:
 {[# Process_status.printf "The result is '%s'\n" (snd (run "unexisting-program"));;
 The result is 'Unix.WEXITED 127'
@@ -377,8 +352,6 @@ module Process_status = PervasivesExtra.Printers0 (struct
     | Unix.WSIGNALED signal -> (Printf.sprintf "Unix.WSIGNALED %d" signal)
     | Unix.WSTOPPED  signal -> (Printf.sprintf "Unix.WSTOPPED %d" signal)
     end);;
-
-(* {2 Running} *)
 
 (** A {e command} is something understandable by the shell. *)
 type command = string;;
@@ -444,8 +417,8 @@ let rec wait_child child_pid events =
  program arguments =
 
  let (stdin,  stdin_must_be_closed )  = Source.to_file_descr stdin in
- let (stdout, stdout_must_be_closed)  = Sink.to_file_descr stdout    in
- let (stderr, stderr_must_be_closed)  = Sink.to_file_descr stderr    in
+ let (stdout, stdout_must_be_closed)  = Sink.to_file_descr stdout  in
+ let (stderr, stderr_must_be_closed)  = Sink.to_file_descr stderr  in
 
  let events = new_waiting_events () in
  let name = match pseudo with None -> program | Some name -> name in
@@ -527,6 +500,7 @@ let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
 (** A Unix future is a future containing the exit code and the two strings outcoming from stdout and stderr. *)
 type future = (int * string * string) Future.t ;;
 
+(** Create a {!UnixExtra.future} that you can manage as usual with functions of the module {!Future}. *)
 let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) argv_list : future =
  begin
  let stdin  = match stdin  with None -> Source.Empty | Some x -> x
@@ -554,11 +528,3 @@ let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) argv_l
 
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
 (*external does_process_exist : int -> bool = "does_process_exist_c";;*)
-
-end;; (* module Extra *)
-
-(** Redefinition of module [Unix]. *)
-module Unix = struct
-  include Unix;;
-  include Extra;;
-end;;
