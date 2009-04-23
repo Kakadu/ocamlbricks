@@ -14,7 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Polymorphic {e unbounded} maps (environments). *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 (** The default size of the hash used in the implementation *)
 let default_size = 251;;
