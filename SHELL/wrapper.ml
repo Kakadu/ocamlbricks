@@ -22,8 +22,6 @@
 *)
 
 open Sugar;;
-open UnixExtra;;
-open StringExtra;;
 
 (** A {e command} is a string. *)
 type command = string;;

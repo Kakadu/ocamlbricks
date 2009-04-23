@@ -14,18 +14,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-open Sugar;;
-open ListExtra;;
-open StringExtra;;
-open UnixExtra;;
-
-open Hashmap;;
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 (* **************************************** *
               Class Env
  * **************************************** *)
-
-(** Environments are set of bindings especially useful to express the result of a GUI dialog. *)
 
 (** The class of environments. An ('a,'b) environment is a set of
     <key,value> pairs, where key is of type 'a and value of type 'b.
@@ -35,15 +29,20 @@ class ['a,'b] env = fun () -> object (self)
   (** The internal representation of an environment. *)
   val table : ('a, 'b) Hashmap.t = Hashmap.make ()
 
-  (** Accessors, transparently converting to/from alists: *)
+  (** Convert into a list of pairs. *)
   method to_list     = Hashmap.to_list table
+
+  (** Add a list of binding to the environment. *)
   method add_list xs = Hashmap.add_list table xs
 
   (** High level accessors. *)
+
   (** Get the value associated to the given id (key). *)
   method get id    = Hashmap.lookup table id
+
   (** Add a pair (identifier,value) to the environment. *)
   method add (id,v) = Hashmap.add table id v
+
   (** Update the environment (self) by another environment which will "cover" previous links. @return self.*)
   method updatedBy (e:(('a,'b) env)) : (('a,'b) env) = List.iter (self#add) (e#to_list); (self :> (('a,'b) env))
 end;;

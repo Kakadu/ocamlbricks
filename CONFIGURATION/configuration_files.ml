@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2008  Luca Saiu
+   Copyright (C) 2008 Luca Saiu
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,14 +14,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** This module contains a simple implementation of application-wise configuration
-    files, implemented as shell scripts. Configuration files are looked for (by
-    default) in "standard" places like /etc, the user's home directory and the
-    shell environment.
-    There is a priority:
-    - System-wise files in /etc
-    - User's files in ~
-    - The shell environment at application startup time. *)
+(* Authors:
+ * - Luca Saiu: configuration_files.ml
+ * - Jean-Vincent Loddo: minor changes (public interface and comments re-organization)
+ *)
+
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 (** An alist is just a list of pairs: *)
 type 'a alist =
@@ -179,7 +178,18 @@ let merge_alists alists1 alists2 =
 
 (** Make a configuration object from a list of file name or a software name;
     in the latter case the configuration files have "reasonable" default
-    names: *)
+    names; {b Example}:
+{[let q = new configuration
+  ~file_names:["~luca/working/ocamlbricks/MYSETTINGS"; "~luca/working/ocamlbricks/MYSETTINGS2"]
+  ~software_name:"marionnet"
+  ~variables:["ZZZ"; "fortytwo";]
+  ~read_environment:true
+  ();;
+
+Printf.printf ">%s<\n" (q#string "ZZZ");;
+Printf.printf ">%i<\n" (q#int "fortytwo");;
+Printf.printf ">%f<\n" (q#float "fortytwo");;
+]} *)
 class configuration =
   fun ?software_name
       ?file_names
@@ -228,31 +238,20 @@ object(self)
     float_hashmap#add_list float_alist;
     bool_hashmap#add_list bool_alist;
     list_hashmap#add_list list_alist;
-    
-  (** Lookup a variable of the given type: *)
-  method lookup_string = string_hashmap#lookup
-  method lookup_int = int_hashmap#lookup
-  method lookup_float = float_hashmap#lookup
-  method lookup_bool = bool_hashmap#lookup
-  method lookup_list = list_hashmap#lookup
-    
-  (** Aliases for accessors: *)
-  method string = self#lookup_string
-  method int = self#lookup_int
-  method float = self#lookup_float
-  method bool = self#lookup_bool
-  method list = self#lookup_list
+
+  (** Lookup a variable of the type [string]. *)
+  method string = string_hashmap#lookup
+
+  (** Lookup a variable of the type [int]. *)
+  method int    = int_hashmap#lookup
+
+  (** Lookup a variable of the type [float]. *)
+  method float  = float_hashmap#lookup
+
+  (** Lookup a variable of the type [bool]. *)
+  method bool   = bool_hashmap#lookup
+
+  (** Lookup a variable of the type [string list]. *)
+  method list   = list_hashmap#lookup
+
 end;; (* class *)
-
-(* (\* Example *\) *)
-(* let q = *)
-(* new configuration *)
-(*   ~file_names:["~luca/working/ocamlbricks/MYSETTINGS"; "~luca/working/ocamlbricks/MYSETTINGS2"] *)
-(*   (\* ~software_name:"marionnet" *\) *)
-(*   ~variables:["ZZZ"; "fortytwo";] *)
-(*   ~read_environment:true *)
-(*   ();; *)
-
-(* Printf.printf ">%s<\n" (q#string "ZZZ");; *)
-(* Printf.printf ">%i<\n" (q#int "fortytwo");; *)
-(* Printf.printf ">%f<\n" (q#float "fortytwo");; *)
