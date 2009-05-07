@@ -34,8 +34,10 @@ BYTE_LIBRARIES = ocamlbricks.cma
 
 UNDOCUMENTED=stupidprogram.ml
 
-_build/does_process_exist.o: does_process_exist.c
-	(mkdir _build &> /dev/null || true) && \
+MANUALLY_PRE_COPY_IN_build = does_process_exist.c
+MANUALLY_PRE_MAKE_IN_build = does_process_exist.o
+
+_build/does_process_exist.o: _build/does_process_exist.c
 	gcc -g -O3 -o $@ -c $^
 
 # Remove the automatically-generated documentation on clean:
