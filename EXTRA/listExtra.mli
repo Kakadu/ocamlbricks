@@ -30,6 +30,7 @@ val subset       : 'a list -> 'a list -> bool
 val eqset        : 'a list -> 'a list -> bool
 val intersection : 'a list -> 'a list -> 'a list
 val uniq         : 'a list -> 'a list
+val remove_duplicates : ?take_first:bool -> 'a list -> 'a list
 
 (** {2 Indexes} *)
 

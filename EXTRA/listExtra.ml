@@ -56,6 +56,23 @@ let rec uniq = function
   | []   -> []
   | x::r -> if (List.mem x r) then (uniq r) else x::(uniq r) 
 
+(** As [uniq] but with the optional argument [take_first] you can set the policy for taking elements.
+    By default the policy is the opposite of [uniq], i.e. you take the first occurrence, not the last. *)
+let remove_duplicates ?(take_first=true) =
+ let rec loop acc = match take_first with
+ | true  ->
+    (function
+    | []    -> acc
+    | x::xs -> if (List.mem x acc) then (loop acc xs) else (loop (x::acc) xs)
+    )
+ | false ->
+    (function
+    | []    -> acc
+    | x::xs -> if (List.mem x xs)  then (loop acc xs) else (loop (x::acc) xs)
+    )
+  in function xs -> List.rev (loop [] xs)
+;;
+
 (** [range a b] returns the list [\[a; (a+1); .. ; (b-1); b\]] containing all the values between the given limits (included) . *)
 let range (a:int) (b:int) =
   let rec range a b acc = if a>b then acc else (range a (b-1) (b::acc)) in
