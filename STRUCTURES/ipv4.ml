@@ -31,6 +31,10 @@ let prettify_scanf_exception caller = function
  | End_of_file            -> failwith (caller^": scanf: incomplete matching")
  | e                      -> raise e
 
+(* ************************************
+         ipv4 checking and parsing 
+   ************************************ *)
+
 (** A valid ipv4 has each byte in the range [0..255]. *)
 let is_valid_ipv4 (b1,b2,b3,b4) =
  List.for_all (fun x->(x>=0) && (x<=255)) [b1; b2; b3; b4]
@@ -49,6 +53,19 @@ let check_ipv4 ?caller ?parsed_string ((b1,b2,b3,b4) as ip) =
   in failwith msg
  end
 
+(** Example: ["192.168.1.42" -> (192,168,1,42)] *)
+let ipv4_of_string str =
+ try
+  let result = Scanf.sscanf str "%i.%i.%i.%i" (fun b1 b2 b3 b4 -> (b1, b2, b3, b4)) in
+  (check_ipv4 ~caller:"ipv4_of_string" ~parsed_string:str result);
+  result
+ with
+  e -> prettify_scanf_exception "ipv4_of_string" e
+
+(* ************************************
+     cidr/netmask checking and parsing
+   ************************************ *)
+
 (** A valid CIDR is in the range [0..32]. *)
 let is_valid_cidr cidr = (cidr>=0) && (cidr<=32)
 
@@ -63,15 +80,7 @@ let check_cidr ?caller cidr =
 
 (* Return a cidr in the range [0..8] from a byte. Example: 128 -> 1. *)
 let cidr_of_byte ?caller = function
- | 0 -> 0
- | 128 -> 1
- | 192 -> 2
- | 224 -> 3
- | 240 -> 4
- | 248 -> 5
- | 252 -> 6
- | 254 -> 7
- | 255 -> 8
+ | 0   -> 0 | 128 -> 1 | 192 -> 2 | 224 -> 3 | 240 -> 4 | 248 -> 5 | 252 -> 6 | 254 -> 7 | 255 -> 8
  | x   ->
     let caller = match caller with Some x -> x | None -> "cidr_of_byte" in
     failwith (Printf.sprintf "%s: %d doesn't represent a valid CIDR netmask byte (admissible values are 0,128,192,224,240,248,252,254,255)" caller x)
@@ -102,16 +111,6 @@ let check_netmask ?caller (n1,n2,n3,n4) =
   failwith msg
  end
 
-(** Example: ["192.168.1.42" -> (192,168,1,42)] *)
-let ipv4_of_string str =
- try
-  let result = Scanf.sscanf str "%i.%i.%i.%i" (fun b1 b2 b3 b4 -> (b1, b2, b3, b4)) in
-  (check_ipv4 ~caller:"ipv4_of_string" ~parsed_string:str result);
-  result
- with
-  e -> prettify_scanf_exception "ipv4_of_string" e
-
-
 (** Example: ["255.255.248.0" -> ((255, 255, 248, 0), 21)] *)
 let netmask_with_cidr_of_string str =
  try
@@ -133,17 +132,13 @@ let byte_of_cidr x =
 
 (* Return a cidr in the range [0..8] from a byte. Example: 128 -> 1. *)
 let cidr_of_byte caller = function
- | 0   -> 0
- | 128 -> 1
- | 192 -> 2
- | 224 -> 3
- | 240 -> 4
- | 248 -> 5
- | 252 -> 6
- | 254 -> 7
- | 255 -> 8
+ | 0   -> 0 | 128 -> 1 | 192 -> 2 | 224 -> 3 | 240 -> 4 | 248 -> 5 | 252 -> 6 | 254 -> 7 | 255 -> 8
  | x   -> failwith (Printf.sprintf "%s: %d doesn't represent a valid CIDR netmask byte (admissible values are 0,128,192,224,240,248,252,254,255)" caller x)
 
+
+(* ************************************
+      cidr <-> netmask conversions
+   ************************************ *)
 
 (** Example: [23 -> (255,255,254,0)] *)
 let netmask_of_cidr x = 
@@ -165,14 +160,18 @@ let cidr_of_netmask ((n1,n2,n3,n4) as netmask) =
  check_netmask ~caller:"cidr_of_netmask" netmask
 
 
+(* ********************************************
+     config (ip/netmask) checking and parsing
+   ******************************************** *)
+
 (*  Check individual validity of ip and cidr, then verify that the ip is neither
-    the first possible (network address) nor the last possible (diffusion address). *)
+    the first possible (network address) nor the last possible (broadcast address). *)
 let is_coherent_config ?(strict=false) (i1,i2,i3,i4) cidr =
  begin
   if (cidr>=31)
    then
     (* In this case, the ip is necessarily the unique possible (cidr=32),
-       or the first or the last possible (cidr=31).
+       or either the first or the last possible (cidr=31).
        Thus, I accept this configuration iff I am not strict. *)
     (not strict)
   else
@@ -228,7 +227,9 @@ let verbose_config_of_strings ?(strict=false) str_ip str_netmask =
  (check_config ~caller:"verbose_config_of_strings" ~strict ip cidr);
  (ip,netmask)
 
-(** {2 Prova} *)
+(* ********************************************
+          String parsing then checking
+   ******************************************** *)
 
 module String = struct
 

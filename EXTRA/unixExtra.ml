@@ -501,7 +501,7 @@ let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
 type future = (int * string * string) Future.t ;;
 
 (** Create a {!UnixExtra.future} that you can manage as usual with functions of the module {!Future}. *)
-let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) argv_list : future =
+let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv_list:string list) : future =
  begin
  let stdin  = match stdin  with None -> Source.Empty | Some x -> x
  in
@@ -523,6 +523,20 @@ let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) argv_l
       (code, stdout_string, stderr_string)
      end) () in
  future
+ end
+;;
+
+(** With the {b content} provided by the user, a script file is created on the fly, executed and finally removed.
+    The result is a 3-uple with the exit code and the two strings outcoming from stdout and stderr. *)
+let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (content:content) (argv_list:string list) : (int * string * string) =
+ begin
+ let program = temp_file ~perm:0o755 ~suffix:".sh" ~content () in
+ try
+  let f = future ?stdin ?stdout ?stderr ?pseudo ~forward program argv_list in
+  let result = Future.touch f in
+  (Unix.unlink program);
+  result
+ with e -> ((Unix.unlink program); raise e)
  end
 ;;
 

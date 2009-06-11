@@ -105,6 +105,12 @@ val create_process_and_wait :
   ?stderr:Endpoint.Sink.t  ->
   ?pseudo:string option -> ?forward:int list -> string -> string list -> int
 
+val script :
+  ?stdin:Endpoint.Source.t ->
+  ?stdout:Endpoint.Sink.t  ->
+  ?stderr:Endpoint.Sink.t  ->
+  ?pseudo:string -> ?forward:int list -> content -> string list -> (int * string * string)
+
 val run   : ?shell:command -> ?trace:bool -> ?input:string -> command -> string * Unix.process_status
 val shell : ?shell:command -> ?trace:bool -> ?input:string -> command -> string
 
@@ -116,4 +122,5 @@ val future :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:program -> ?forward:int list -> program -> program list -> future
+  ?pseudo:string -> ?forward:int list -> program -> string list -> future
+

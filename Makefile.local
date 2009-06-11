@@ -25,6 +25,8 @@ BYTE_PROGRAMS = stupidprogram.byte
 NATIVE_LIBRARIES = ocamlbricks.cmxa
 BYTE_LIBRARIES = ocamlbricks.cma
 
+PP_OPTION = camlp4of
+
 # C_OBJECTS_TO_LINK += does_process_exist
 
 # OTHER_LIBRARY_FILES_TO_INSTALL = _build/dll_does_process_exist.so
