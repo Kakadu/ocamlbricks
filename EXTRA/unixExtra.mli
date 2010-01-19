@@ -124,3 +124,9 @@ val future :
   ?stderr:Endpoint.Sink.t  ->
   ?pseudo:string -> ?forward:int list -> program -> string list -> future
 
+val script :
+  ?stdin:Endpoint.Source.t ->
+  ?stdout:Endpoint.Sink.t  ->
+  ?stderr:Endpoint.Sink.t  ->
+  ?pseudo:string -> ?forward:int list -> content -> string list -> (int * string * string)
+
