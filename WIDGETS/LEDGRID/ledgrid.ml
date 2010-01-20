@@ -16,8 +16,6 @@
 
 (** Ledgrid widgets. *)
 
-open GMain
-
 (** {2 Constants} 
     Some global constant definitions, for fine-tuning. *)
 
@@ -44,9 +42,6 @@ exception Non_existing_led_light of int * int
 exception Non_existing_port of int
 
 (** {2 Utility stuff} *)
-
-(* To do: use this *)
-let tooltips = GData.tooltips ()
 
 (** Make a pixmap data structure (not a widget) from the given file: *)
 let make_pixmap_from_xpm_file ~file_name =
@@ -166,7 +161,6 @@ let useless_label = GMisc.label ()
 
 (** {2 LED grid} 
     Gtk+ simulation of a {e grid} of LED lights. *)
-
 
 (** A LED grid visually represents a matrix of LED lights, where each light is
     independently controllable. A light is identified by its 0-based coordinates,
@@ -439,3 +433,4 @@ end
 let _ = main 64 ()]} *)
 
 (* To do: should any out-of-bounds access raise a non-existing-led-light exception? *)
+

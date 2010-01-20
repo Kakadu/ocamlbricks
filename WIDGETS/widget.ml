@@ -19,8 +19,6 @@
 (** Some generic tools for building GUIs *)
 
 open Sugar;;
-
-
 open Environment;;
 
 (** {2 Image manipulations } *)
