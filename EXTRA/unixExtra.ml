@@ -359,6 +359,16 @@ type command = string;;
 (** A {e program} is a file binary (which will be found by the system in [PATH]). *)
 type program = string;;
 
+(** Run Unix.system with the given argument, and raise exception in case of failure;
+    return unit on success. *)
+let system_or_fail command_line =
+  match Unix.system command_line with
+  | Unix.WEXITED 0   -> ()
+  | Unix.WEXITED n   -> failwith (Printf.sprintf "Unix.system: the process exited with %i" n)
+  | Unix.WSIGNALED _
+  | Unix.WSTOPPED _  -> failwith "Unix.system: the process was signaled or stopped"
+;;
+
 open Endpoint;;
 
 (** [kill_safe pid signal] send the [signal] to the process [pid] ignoring exceptions. *)
@@ -539,6 +549,7 @@ let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (content:content) (argv_
  with e -> ((Unix.unlink program); raise e)
  end
 ;;
+
 
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
 (*external does_process_exist : int -> bool = "does_process_exist_c";;*)
