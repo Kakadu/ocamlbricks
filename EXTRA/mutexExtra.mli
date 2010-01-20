@@ -33,5 +33,6 @@ module Extend : functor
   end) ->
 
   sig
-    val with_mutex : Mutex.t -> (unit -> 'a) -> 'a
+    val with_mutex       : Mutex.t -> (unit -> 'a) -> 'a
+    val apply_with_mutex : Mutex.t -> ('a -> 'b) -> 'a -> 'b
   end

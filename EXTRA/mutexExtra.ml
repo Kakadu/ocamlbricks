@@ -1,4 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
+   Copyright (C) 2009  Luca Saiu
    Copyright (C) 2009  Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
@@ -46,5 +47,9 @@ module Extend
       (Printexc.to_string e));
     raise e;
   end
+
+ let apply_with_mutex mutex f x =
+  let thunk () = f x in
+  with_mutex mutex thunk
 
 end
