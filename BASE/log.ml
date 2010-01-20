@@ -38,29 +38,36 @@ module type Result = sig
   val print_newline : unit -> unit
   val print_endline : string -> unit
  end
- 
+
+(* We will use an extended version of Mutex: *)
+module Mutex = MutexExtra.Extend (Mutex)
+
 (* The out channels are shared by all threads of the program. Hence, there is a mutex
    per channel. Almost two mutex are created loading this module: one for stderr and one for stdout.
    File "/dev/stdout" (resp. File "/dev/stderr") is equivalent to Stdout (resp. Stderr).
    *)
 let get_out_channel =
  let ht = Hashtbl.create 51 in
+ let ht_mutex = Mutex.create () in
  let stdout_mutex = Mutex.create () in
  let stderr_mutex = Mutex.create () in
  let () = Hashtbl.add ht "/dev/stdout" (stdout, stdout_mutex) in
  let () = Hashtbl.add ht "/dev/stderr" (stderr, stderr_mutex) in
- function
-  | Stdout -> (stdout, stdout_mutex)
-  | Stderr -> (stderr, stderr_mutex)
-  | File f -> try Hashtbl.find ht f
+ let out_channel_and_mutex_of_filename fname =
+  (try Hashtbl.find ht fname
      with
       Not_found ->
        begin
-        let out_channel = open_out f in
+        let out_channel = open_out fname in
         let mutex = Mutex.create () in
-        (Hashtbl.add ht f (out_channel,mutex));
+        (Hashtbl.add ht fname (out_channel,mutex));
         (out_channel, mutex)
-       end
+       end)
+ in
+ function
+  | Stdout -> (stdout, stdout_mutex)
+  | Stderr -> (stderr, stderr_mutex)
+  | File fname -> Mutex.apply_with_mutex ht_mutex out_channel_and_mutex_of_filename fname
 
 
 module Make
@@ -76,7 +83,6 @@ module Make
   let get_debug_enabled () = (Tuning.get_current_verbosity ()) >= Tuning.threshold
 
   let apply_with_mutex (f:'a -> 'b) (x:'a) : 'b =
-   let module Mutex = MutexExtra.Extend (Mutex) in
    Mutex.apply_with_mutex mutex f x
 
   (* Take a format string and either use it for Printf.printf, or use it

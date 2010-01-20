@@ -28,11 +28,14 @@ module Extend : functor
 
   (Mutex : sig
      type t
+     val create : unit -> t
      val lock   : t -> unit
      val unlock : t -> unit
   end) ->
 
   sig
-    val with_mutex       : Mutex.t -> (unit -> 'a) -> 'a
-    val apply_with_mutex : Mutex.t -> ('a -> 'b) -> 'a -> 'b
+    type t = Mutex.t
+    val create : unit -> t
+    val with_mutex       : t -> (unit -> 'a) -> 'a
+    val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
   end

@@ -27,10 +27,13 @@
 module Extend
  (Mutex : sig
   type t 
+  val create   : unit -> t
   val lock     : t -> unit
   val unlock   : t -> unit
  end) = struct
 
+ include Mutex
+ 
 (** Execute thunk in a synchronized block, and return the value returned
     by the thunk. If executing thunk raises an exception the same exception
     is propagated, after correctly unlocking the mutex. *)
