@@ -42,17 +42,30 @@ module type Result = sig
 (* We will use an extended version of Mutex: *)
 module Mutex = MutexExtra.Extend (Mutex)
 
+(* The global structures are not created at loading time (except global_mutex)
+   but only if needed, at the first functor application. *)
+let global_structures = ref None
+let global_mutex = Mutex.create ()
+let get_global_structures () =
+ Mutex.with_mutex global_mutex
+ (fun () -> match !global_structures with
+  | None ->
+     let ht = Hashtbl.create 51 in
+     let ht_mutex = Mutex.create () in
+     let stdout_mutex = Mutex.create () in
+     let stderr_mutex = Mutex.create () in
+     let () = Hashtbl.add ht "/dev/stdout" (stdout, stdout_mutex) in
+     let () = Hashtbl.add ht "/dev/stderr" (stderr, stderr_mutex) in
+     let tuple = (ht, ht_mutex, stdout_mutex, stderr_mutex) in
+     let () = (global_structures := Some tuple) in
+     tuple
+  | Some tuple -> tuple
+  )
+
 (* The out channels are shared by all threads of the program. Hence, there is a mutex
-   per channel. Almost two mutex are created loading this module: one for stderr and one for stdout.
-   File "/dev/stdout" (resp. File "/dev/stderr") is equivalent to Stdout (resp. Stderr).
-   *)
-let get_out_channel =
- let ht = Hashtbl.create 51 in
- let ht_mutex = Mutex.create () in
- let stdout_mutex = Mutex.create () in
- let stderr_mutex = Mutex.create () in
- let () = Hashtbl.add ht "/dev/stdout" (stdout, stdout_mutex) in
- let () = Hashtbl.add ht "/dev/stderr" (stderr, stderr_mutex) in
+   per channel. File "/dev/stdout" (resp. File "/dev/stderr") is equivalent to Stdout (resp. Stderr). *)
+let get_out_channel log_channel =
+ let (ht, ht_mutex, stdout_mutex, stderr_mutex) = get_global_structures () in
  let out_channel_and_mutex_of_filename fname =
   (try Hashtbl.find ht fname
      with
@@ -64,7 +77,7 @@ let get_out_channel =
         (out_channel, mutex)
        end)
  in
- function
+ match log_channel with
   | Stdout -> (stdout, stdout_mutex)
   | Stderr -> (stderr, stderr_mutex)
   | File fname -> Mutex.apply_with_mutex ht_mutex out_channel_and_mutex_of_filename fname
@@ -113,7 +126,7 @@ module Make
 
   (* Here Obj.magic just avoids a warning "Warning X: this argument will not be used by the function.".
      For a misunderstood reason, we must define and call the function printf_nobanner into Obj.magic.
-     Otherwise the banner is printed... *)
+     Otherwise the banner is always printed... *)
   let printf_nobanner = printf ~banner:false
   let print_string  x  = (Obj.magic printf_nobanner (format_of_string "%s")) x
   let print_string  x  = (Obj.magic printf_nobanner (format_of_string "%s")) x
