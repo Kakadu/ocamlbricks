@@ -29,17 +29,17 @@
 
 {b Example}:
 {[(* Define your log modules: *)
-module Log1 = Log.Make (struct
-  let threshold = 1                           (* below this limit, do nothing *)
-  let get_current_verbosity () = ...          (* explain here how to read the current level of verbosity *)
-  let log_channel = Log.File "/tmp/mylog"     (* put messages in this file *)
-  let synchronized = true                     (* using threads *)
+module Log1 = Log_builder.Make (struct
+  let threshold = 1                                   (* below this limit, do nothing *)
+  let get_current_verbosity () = ...                  (* explain here how to read the current level of verbosity *)
+  let log_channel = Log_builder.File "/tmp/mylog"     (* put messages in this file *)
+  let synchronized = true                             (* using threads *)
  end);;
 
-module Log2 = Log.Make (struct
+module Log2 = Log_builder.Make (struct
   let threshold = 2
   let get_current_verbosity () = ...          
-  let log_channel = Log.File "/tmp/mylog"     (* share the same channel of Log1 *)
+  let log_channel = Log_builder.File "/tmp/mylog"     (* share the same channel of Log1 *)
   let synchronized = true               
  end);;
 
