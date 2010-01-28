@@ -361,8 +361,11 @@ type program = string;;
 
 (** Run Unix.system with the given argument, and raise exception in case of failure;
     return unit on success. *)
-let system_or_fail command_line =
-  match Unix.system command_line with
+let system_or_fail ?(hide_output=false) ?(hide_errors=false) command =
+  let suffix1 = if hide_output then " 1>/dev/null" else "" in
+  let suffix2 = if hide_errors then " 2>/dev/null" else "" in
+  let command = Printf.sprintf "%s%s%s" command suffix1 suffix2 in
+  match Unix.system command with
   | Unix.WEXITED 0   -> ()
   | Unix.WEXITED n   -> failwith (Printf.sprintf "Unix.system: the process exited with %i" n)
   | Unix.WSIGNALED _
