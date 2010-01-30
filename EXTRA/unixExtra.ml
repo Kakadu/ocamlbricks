@@ -54,7 +54,8 @@ let touch ?(perm=0o644) (fname:filename) : unit =
 
 (** Copy or append a file into another. Optional permissions (by default [0o644]) concern of course the target.
     -- Adapted from {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
-let file_copy_or_append ?(flag=Unix.O_TRUNC) ?(buffer_size=8192) ?(perm=0o644) input_name output_name =
+let file_copy_or_append ?(flag=Unix.O_TRUNC) ?(buffer_size=8192) ?perm input_name output_name =
+  let perm = match perm with Some x -> x | None -> (Unix.stat input_name).Unix.st_perm in
   let buffer = String.create buffer_size in
   let fd_in  = Unix.openfile input_name  [Unix.O_RDONLY] 0 in
   let fd_out = Unix.openfile output_name [Unix.O_WRONLY; Unix.O_CREAT; flag] perm in
