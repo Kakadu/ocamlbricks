@@ -19,7 +19,9 @@
 type filename   = string
 type foldername = string
 type content    = string
+
 val get_umask : unit -> int
+val test_access : ?r:unit -> ?w:unit -> ?x:unit -> filename -> bool
 val touch : ?perm:Unix.file_perm -> filename -> unit
 
 (** {2 Copying files} *)
@@ -106,12 +108,6 @@ val create_process_and_wait :
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
   ?pseudo:string option -> ?forward:int list -> string -> string list -> int
-
-val script :
-  ?stdin:Endpoint.Source.t ->
-  ?stdout:Endpoint.Sink.t  ->
-  ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string -> ?forward:int list -> content -> string list -> (int * string * string)
 
 val run   : ?shell:command -> ?trace:bool -> ?input:string -> command -> string * Unix.process_status
 val shell : ?shell:command -> ?trace:bool -> ?input:string -> command -> string

@@ -33,6 +33,15 @@ let get_umask () =
  old
 ;;
 
+let test_access ?r ?w ?x filename : bool =
+ let xs = [(r,Unix.R_OK); (w,Unix.W_OK); (x,Unix.X_OK)] in
+ let xs = List.filter (fun (v,_)-> v<>None) xs in
+ let xs = Unix.F_OK::(List.map snd xs) in
+ try
+   let _ = Unix.access filename xs in true
+ with Unix.Unix_error (_,_,_) -> false
+;;
+
 (** Create a file if necessary with the given permissions
    (by default equal to [0o644]). *)
 let touch ?(perm=0o644) (fname:filename) : unit =
