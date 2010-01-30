@@ -85,6 +85,17 @@ let file_copy   = file_copy_or_append ~flag:Unix.O_TRUNC  ;;
     only if the target file must be created. *)
 let file_append = file_copy_or_append ~flag:Unix.O_APPEND ;;
 
+let file_move input_name output_name =
+  try  (* try to rename *)
+    Unix.rename input_name output_name
+  with (* else copy and unlink *)
+    Unix.Unix_error (_,"rename",_) ->
+       begin
+        file_copy input_name output_name;
+        Unix.unlink input_name;
+       end
+;;
+
 (** Write or rewrite the file with the given content.
     If the file does not exists, it is created with the given permission
    (set by default to [0o644]). *)

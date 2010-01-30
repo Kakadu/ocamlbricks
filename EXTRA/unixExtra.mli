@@ -28,6 +28,7 @@ val touch : ?perm:Unix.file_perm -> filename -> unit
 
 val file_copy   : ?buffer_size:int -> ?perm:Unix.file_perm -> filename -> filename -> unit
 val file_append : ?buffer_size:int -> ?perm:Unix.file_perm -> filename -> filename -> unit
+val file_move   : filename -> filename -> unit
 
 (** {2 Saving strings} *)
 
