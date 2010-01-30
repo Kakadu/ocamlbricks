@@ -38,9 +38,9 @@ module Log1 = Log_builder.Make (struct
 
 module Log2 = Log_builder.Make (struct
   let threshold = 2
-  let get_current_verbosity () = ...          
+  let get_current_verbosity () = ...
   let log_channel = Log_builder.File "/tmp/mylog"     (* share the same channel of Log1 *)
-  let synchronized = true               
+  let synchronized = true
  end);;
 
 (* Put calls somewhere in your code : *)
@@ -67,12 +67,12 @@ toplevel 13920 [thread 0]: The result is 42
 The result is 42
    : unit = ()
 ]}*)
-  val printf : ?banner:bool -> (('a, out_channel, unit) format) -> 'a
-  val print_string  : string -> unit
-  val print_int     : int -> unit
-  val print_float   : float -> unit
-  val print_newline : unit -> unit
-  val print_endline : string -> unit
+  val printf : ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+  val print_string  : ?force:bool -> string -> unit
+  val print_int     : ?force:bool -> int -> unit
+  val print_float   : ?force:bool -> float -> unit
+  val print_newline : ?force:bool -> unit -> unit
+  val print_endline : ?force:bool -> string -> unit
  end
 
 (** {2 General construction} *)
@@ -95,7 +95,7 @@ module Make :
 
 (** {2 Simplified construction} *)
 
-(** Build a kit of printing functions using just one parameter, 
+(** Build a kit of printing functions using just one parameter,
     the thunk [is_log_enabled], that simply indicates if the debugging is currently activated in the application.
     Using this functor, the output channel is set to [stderr] and the synchronization is performed. *)
 module Make_simple :

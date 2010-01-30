@@ -16,7 +16,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 (* Authors:
- * - Jean-Vincent Loddo: migration from marionnet, synchronization, functorization 
+ * - Jean-Vincent Loddo: migration from marionnet, synchronization, functorization
  * - Luca Saiu: Original code in marionnet/log.ml
  *)
 
@@ -31,12 +31,12 @@ type log_channel =
 
 (** The signature of the module resulting from functors' applications. *)
 module type Result = sig
-  val printf : ?banner:bool -> (('a, out_channel, unit) format) -> 'a
-  val print_string  : string -> unit
-  val print_int     : int -> unit
-  val print_float   : float -> unit
-  val print_newline : unit -> unit
-  val print_endline : string -> unit
+  val printf : ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+  val print_string  : ?force:bool -> string -> unit
+  val print_int     : ?force:bool -> int -> unit
+  val print_float   : ?force:bool -> float -> unit
+  val print_newline : ?force:bool -> unit -> unit
+  val print_endline : ?force:bool -> string -> unit
  end
 
 (* We will use an extended version of Mutex: *)
@@ -101,9 +101,9 @@ module Make
   (* Take a format string and either use it for Printf.printf, or use it
      for a dummy printf-like function which does nothing, according to
      whether we're in debug mode or not: *)
-  let printf_unsynchronized ~banner frmt =
+  let printf_unsynchronized ?(force=false) ~banner frmt =
     Obj.magic
-      (if get_debug_enabled () then
+      (if force || (get_debug_enabled ()) then
        begin
          (match banner with
            | false -> ()
@@ -119,22 +119,21 @@ module Make
       else
         Printf.ifprintf out_channel frmt)
 
-  let printf ?(banner=true) frmt =
+  let printf ?(force=false) ?(banner=true) frmt =
    if not Tuning.synchronized
-    then printf_unsynchronized ~banner frmt
-    else apply_with_mutex (printf_unsynchronized ~banner) frmt
+    then printf_unsynchronized ~force ~banner frmt
+    else apply_with_mutex (printf_unsynchronized ~force ~banner) frmt
 
 
   (* Here Obj.magic just avoids a warning "Warning X: this argument will not be used by the function.".
      For a misunderstood reason, we must define and call the function printf_nobanner into Obj.magic.
      Otherwise the banner is always printed... *)
-  let printf_nobanner = printf ~banner:false
-  let print_string  x  = (Obj.magic printf_nobanner (format_of_string "%s")) x
-  let print_string  x  = (Obj.magic printf_nobanner (format_of_string "%s")) x
-  let print_int     x  = (Obj.magic printf_nobanner (format_of_string "%d")) x
-  let print_float   x  = (Obj.magic printf_nobanner (format_of_string "%f")) x
-  let print_endline x  = (Obj.magic printf_nobanner (format_of_string "%s\n")) x
-  let print_newline () = (Obj.magic printf_nobanner (format_of_string "\n"))
+  let printf_nobanner ?(force=false) = printf ~force ~banner:false
+  let print_string  ?(force=false) x  = (Obj.magic (printf_nobanner ~force (format_of_string "%s"))) x
+  let print_int     ?(force=false) x  = (Obj.magic (printf_nobanner ~force (format_of_string "%d"))) x
+  let print_float   ?(force=false) x  = (Obj.magic (printf_nobanner ~force (format_of_string "%f"))) x
+  let print_endline ?(force=false) x  = (Obj.magic (printf_nobanner ~force (format_of_string "%s\n"))) x
+  let print_newline ?(force=false) () = (Obj.magic (printf_nobanner ~force (format_of_string "\n")))
 
 end
 
