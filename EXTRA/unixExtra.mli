@@ -19,7 +19,7 @@
 type filename   = string
 type foldername = string
 type content    = string
-val current_umask : int
+val get_umask : unit -> int
 val touch : ?perm:Unix.file_perm -> filename -> unit
 
 (** {2 Copying files} *)

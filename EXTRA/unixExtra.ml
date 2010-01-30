@@ -27,13 +27,13 @@ type foldername = string;;
 type content = string;;
 
 (** The current value of umask. *)
-let current_umask = 
- let old = Unix.umask 0 in 
- let   _ = Unix.umask old in 
+let get_umask () =
+ let old = Unix.umask 0 in
+ let   _ = Unix.umask old in
  old
 ;;
 
-(** Create a file if necessary with the given permissions 
+(** Create a file if necessary with the given permissions
    (by default equal to [0o644]). *)
 let touch ?(perm=0o644) (fname:filename) : unit =
   let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in (Unix.close fd)
@@ -63,10 +63,10 @@ let file_copy   = file_copy_or_append ~flag:Unix.O_TRUNC  ;;
 let file_append = file_copy_or_append ~flag:Unix.O_APPEND ;;
 
 (** Write or rewrite the file with the given content.
-    If the file does not exists, it is created with the given permission 
+    If the file does not exists, it is created with the given permission
    (set by default to [0o644]). *)
 let put ?(perm=0o644) (fname:filename) (x:content) : unit =
-  let fd = (Unix.openfile fname [Unix.O_CREAT; Unix.O_WRONLY; Unix.O_TRUNC] perm) in 
+  let fd = (Unix.openfile fname [Unix.O_CREAT; Unix.O_WRONLY; Unix.O_TRUNC] perm) in
   let n = String.length x in
   ignore (Unix.write fd x 0 n);
   (Unix.close fd)
@@ -78,23 +78,23 @@ let rewrite = put;;
 (** Similar to the function [put] described above, but the content is {b appended} instead of rewrited.
     If the file doesn't exists, it is created with the given permissions (set by default to [0o644]). *)
 let append ?(perm=0o644) (fname:filename) (x:content) =
-  let fd = (Unix.openfile fname [Unix.O_CREAT; Unix.O_WRONLY; Unix.O_APPEND] perm) in 
+  let fd = (Unix.openfile fname [Unix.O_CREAT; Unix.O_WRONLY; Unix.O_APPEND] perm) in
   let n  = String.length x in
   ignore (Unix.write fd x 0 n);
   (Unix.close fd)
 ;;
 
 (** Return the {b whole} content (caution!) of the file
-    as a string. Use only for small files. 
-    Great for making pipelines. For instance, 
-    the following pipeline catches the first line of [/etc/fstab] containing 
-    the substring "hda1": 
+    as a string. Use only for small files.
+    Great for making pipelines. For instance,
+    the following pipeline catches the first line of [/etc/fstab] containing
+    the substring "hda1":
 {[# "/etc/fstab" => ( cat || String.to_list || Str.grep ".*hda1.*" || hd ) ]}*)
-let rec cat (fname:filename) = 
+let rec cat (fname:filename) =
   let fd = (Unix.openfile fname [Unix.O_RDONLY] 0o644) in
   let len = 16*1024 in
   let buff = String.create len in
-  let rec boucle () = 
+  let rec boucle () =
     begin
     let n = (Unix.read fd buff 0 len) in
     let s = String.sub buff 0 n in
@@ -109,17 +109,17 @@ let rec cat (fname:filename) =
 module Templib = struct
 
 (** General function for creating temporary files or directories in a parent directory
-    with some permissions and with a prefix and suffix for the name. 
+    with some permissions and with a prefix and suffix for the name.
     The function returns the name of the created file or directory.
 *)
-let rec temp_name ~(dir:bool) ~(perm:Unix.file_perm) ~(parent:string) ~(prefix:string) ~(suffix:string) () = 
+let rec temp_name ~(dir:bool) ~(perm:Unix.file_perm) ~(parent:string) ~(prefix:string) ~(suffix:string) () =
   begin
    let rnd = Random.int (1024*1024*1023) in
    let candidate = (Filename.concat parent (prefix^(string_of_int rnd)^suffix)) in
    if (Sys.file_exists candidate) then (temp_name ~dir ~perm  ~parent ~prefix ~suffix ())
-   else 
+   else
      begin
-         if dir then (Unix.mkdir candidate perm) 
+         if dir then (Unix.mkdir candidate perm)
          else (touch candidate ~perm) ;
          candidate
      end
@@ -133,7 +133,7 @@ end;; (* module Templib *)
    - the parent directory is set to ["/tmp"]
    - the prefix and suffix of the name are the empty string
 
-The function returns the name of the created directory. 
+The function returns the name of the created directory.
 
 {b Example}:
 {[# temp_dir ();;
@@ -148,8 +148,8 @@ let rec temp_dir ?(perm=0o755) ?(parent="/tmp") ?(prefix="") ?(suffix="") () =
 
 (** Create a temporary file in a parent directory. The optional parameters have the same meaning
     of the function [temp_dir]. In addition, the parameter [content] may be set in order
-    to put it in the created file. By default the [content] is the empty string. 
-    The function returns the name of the created directory. 
+    to put it in the created file. By default the [content] is the empty string.
+    The function returns the name of the created directory.
 *)
 let rec temp_file ?(perm=0o644) ?(parent="/tmp") ?(prefix="") ?(suffix="") ?(content:string="") () =
   let fname = (Templib.temp_name ~dir:false ~perm ~parent ~prefix ~suffix ()) in
@@ -163,9 +163,9 @@ module TMPDIR = struct
 
 let default_prefix = (Filename.basename Sys.executable_name)^".";;
 
-let rec open_temp 
-  ?(perm=0o644) 
-  ?(prefix=default_prefix) 
+let rec open_temp
+  ?(perm=0o644)
+  ?(prefix=default_prefix)
   ?(suffix="") () =
   (try
     let (filename,ch) = Filename.open_temp_file prefix suffix in
@@ -179,7 +179,7 @@ let rec open_temp
 
 let temp_file
  ?(perm=0o644)
- ?(prefix=default_prefix) 
+ ?(prefix=default_prefix)
  ?(suffix="") () =
  let (filename,fd) = open_temp ~perm ~prefix ~suffix () in
  (Unix.close fd);
@@ -189,9 +189,9 @@ end;;
 
 (** Heuristic that tries to convert a char into a value of the type:
 
-    [Unix.file_kind = S_REG | S_DIR | S_CHR | S_BLK | S_LNK | S_FIFO | S_SOCK] 
+    [Unix.file_kind = S_REG | S_DIR | S_CHR | S_BLK | S_LNK | S_FIFO | S_SOCK]
 
-    The input character must belong to the set ['f';'d';'c';'b';'h';'p';'s'], 
+    The input character must belong to the set ['f';'d';'c';'b';'h';'p';'s'],
     following the convention of the standard unix [test] command.
     Otherwise, the result is [None].*)
 let file_kind_of_char = function
@@ -201,7 +201,7 @@ let file_kind_of_char = function
  | 'b'       -> Some Unix.S_BLK  (*  Block device  *)
  | 'h' | 'L' -> Some Unix.S_LNK  (*  Symbolic link  *)
  | 'p'       -> Some Unix.S_FIFO (*  Named pipe  *)
- | 'S'       -> Some Unix.S_SOCK (*  Socket  *) 
+ | 'S'       -> Some Unix.S_SOCK (*  Socket  *)
  |  _        -> None
 ;;
 
@@ -250,22 +250,22 @@ end;; (* module Findlib *)
 
 
 (** Find something in an input directory. This function is an interface for the
-    tool [Findlib.find]. 
+    tool [Findlib.find].
 
-    The default assignements are: 
+    The default assignements are:
     - [follow=false]
     - [maxdepth=1024]
-    - [kind='_'] which implies no condition on kind 
-    - [name=""]  which implies no condition on name. 
-    
+    - [kind='_'] which implies no condition on kind
+    - [name=""]  which implies no condition on name.
+
     The set of characters corresponding
-    to the kind of file are the same of the standard [test] unix command (i.e. 
-    ['f';'d';'c';'b';'h';'p';'s']); see the function {!file_kind_of_char} 
-    for more details.  
+    to the kind of file are the same of the standard [test] unix command (i.e.
+    ['f';'d';'c';'b';'h';'p';'s']); see the function {!file_kind_of_char}
+    for more details.
 
     {b Warning:} use this function with caution: the good version
     of this function will be a version returning a sequence (stream) instead of
-    a list. 
+    a list.
 
 {b Examples}:
 {[# find "/etc/ssh/" ;;
@@ -284,12 +284,12 @@ end;; (* module Findlib *)
 let find ?(follow=false) ?(maxdepth=1024) ?(kind='_') ?(name="") (root:string) : string list =
       let result = ref [] in
 
-	
+
       let action = match (file_kind_of_char kind, name) with
        | (None    , ""   ) -> fun p infos -> result := (p::!result)
        | ((Some k), ""   ) -> fun p infos -> if (infos.Unix.st_kind = k)    then result := (p::!result);
        | (None    , n    ) -> fun p infos -> if ((Filename.basename p) = n) then result := (p::!result)
-       | ((Some k), n    ) -> fun p infos -> if (infos.Unix.st_kind = k) && ((Filename.basename p) = n) 
+       | ((Some k), n    ) -> fun p infos -> if (infos.Unix.st_kind = k) && ((Filename.basename p) = n)
 					       then result := (p::!result); in
 
       let action p infos = (action p infos; true) in
@@ -399,18 +399,18 @@ let rec wait_child child_pid events =
  try begin
   let (_, process_status) = (Unix.waitpid [] child_pid) in
   (events.process_status <- Some process_status);
-  match process_status with 
+  match process_status with
   | Unix.WEXITED   code   -> () (* return *)
-  | Unix.WSIGNALED signal 
+  | Unix.WSIGNALED signal
   | Unix.WSTOPPED  signal -> (events.forwarded_signal <- Some signal); wait_child child_pid events
- end with 
+ end with
  | Unix.Unix_error(_,_, _) -> (events.waitpid_exn <- true)
  ;;
 
- let new_handler child_pid events = 
-  Sys.Signal_handle 
-   (fun s -> (events.forwarded_signal <- Some s); 
-             (kill_safe child_pid s); 
+ let new_handler child_pid events =
+  Sys.Signal_handle
+   (fun s -> (events.forwarded_signal <- Some s);
+             (kill_safe child_pid s);
              (wait_child child_pid events))
  ;;
 
@@ -421,11 +421,11 @@ let rec wait_child child_pid events =
      If the process exits with [Unix.WEXITED code] the code is returned. Otherwise an exception is raised, more specifically:
      - [Signal_forward s] is raised if the father has transmitted a signal (certainly the reason of the violent termination of the child);
      - [Waitpid] is raised if the internal call to [Unix.waitpid] has failed for some unknown reasons.*)
- let create_process_and_wait 
- ?(stdin  = Source.Unix_descr Unix.stdin) 
- ?(stdout = Sink.Unix_descr   Unix.stdout) 
+ let create_process_and_wait
+ ?(stdin  = Source.Unix_descr Unix.stdin)
+ ?(stdout = Sink.Unix_descr   Unix.stdout)
  ?(stderr = Sink.Unix_descr   Unix.stderr)
- ?(pseudo = None) 
+ ?(pseudo = None)
  ?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm; Sys.sigcont])
  program arguments =
 
@@ -443,9 +443,9 @@ let rec wait_child child_pid events =
  (wait_child child_pid events);
 (restore_handlers ());
 
- (if  stdin_must_be_closed then Unix.close stdin); 
- (if stdout_must_be_closed then Unix.close stdout); 
- (if stderr_must_be_closed then Unix.close stderr); 
+ (if  stdin_must_be_closed then Unix.close stdin);
+ (if stdout_must_be_closed then Unix.close stdout);
+ (if stderr_must_be_closed then Unix.close stderr);
 
  match events with
   | { process_status   = Some (Unix.WEXITED code); forwarded_signal = None;  waitpid_exn = false } -> code
@@ -496,7 +496,7 @@ let run ?shell ?(trace:bool=false) ?input (cmd:command) : string * Unix.process_
 
 (** As [run], but ignoring the exit-code. This function is
     simply a shortcut for the composition of [run] with [fst]. {b Examples}:
- 
+
 {[# shell "date";;
   : string = "ven avr 13 18:34:02 CEST 2007\n"
 
@@ -507,7 +507,7 @@ let run ?shell ?(trace:bool=false) ?input (cmd:command) : string * Unix.process_
  ["273"; "total"]]
 ]}*)
 let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
-  fst(run ~shell:(shell_of_string_option shell) ~trace ~input cmd) 
+  fst(run ~shell:(shell_of_string_option shell) ~trace ~input cmd)
 ;;
 
 (** A Unix future is a future containing the exit code and the two strings outcoming from stdout and stderr. *)
