@@ -36,7 +36,20 @@ let get_umask () =
 (** Create a file if necessary with the given permissions
    (by default equal to [0o644]). *)
 let touch ?(perm=0o644) (fname:filename) : unit =
-  let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in (Unix.close fd)
+ try (* file exists *)
+  let stat = (Unix.stat fname) in
+  let size = stat.Unix.st_perm in
+  let perm = stat.Unix.st_size in
+  let fd = Unix.openfile fname [Unix.O_WRONLY] 0o644 in
+  Unix.ftruncate fd size;
+  Unix.close fd;
+ with
+  | Unix.Unix_error (Unix.EACCES,"open", _) -> failwith ("UnixExtra.touch: cannot open file "^fname)
+  | Unix.Unix_error (Unix.ENOENT,"stat", _) ->
+  begin (* file doesn't exist *)
+   let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in
+   (Unix.close fd)
+  end
 ;;
 
 (** Copy or append a file into another. Optional permissions (by default [0o644]) concern of course the target.
