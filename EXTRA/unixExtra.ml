@@ -26,34 +26,22 @@ type foldername = string;;
 (** A {e content} is a string. *)
 type content = string;;
 
-(** The current value of umask. *)
-let get_umask () =
- let old = Unix.umask 0 in
- let   _ = Unix.umask old in
- old
-;;
+(** The {e user}, {e group} and {e other} permissions [(r,w,x),(r,w,x),(r,w,x)]. *)
+type symbolic_mode = (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool)
 
-(** Get the permissions of a file: a triple of booleans respectively for user, group and other. *)
-let get_perm (fname:filename) : (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool) =
- let bits_of_unsigned i =
-  let exps = [256;128;64;32;16;8;4;2;1] in
-  List.rev (snd (List.fold_left (fun (r,l) x -> ((r mod x),((r/x)=1)::l)) (i,[]) exps))
- in
- try
-  let i = (Unix.stat fname).Unix.st_perm in
-  match bits_of_unsigned i with
+let list_of_symbolic_mode = function
+  ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x)) -> [u_r; u_w; u_x ; g_r; g_w; g_x; o_r; o_w; o_x ]
+
+let symbolic_mode_of_list = function
   | [u_r; u_w; u_x ; g_r; g_w; g_x; o_r; o_w; o_x ] ->  ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x))
-  | _ -> assert false
- with
-  | Unix.Unix_error (Unix.ENOENT,"stat", _) -> failwith ("UnixExtra.get_perm: cant stat the file "^fname)
-;;
+  | xs -> invalid_arg (Printf.sprintf
+                        "symbolic_mode_of_list: the length of list is %d but it expected to be 9"
+                        (List.length xs))
 
-(** Set the permissions of a file specifying who is involved: user ([?u]) and/or group ([?g])
-    and/or other ([?o]) and/or all ([?a]), and what you whant to set and how ([true/false]) : read ([?r]) and/or write ([?w])
-    and/or execution ([?x]). *)
-let set_perm ?u ?g ?o ?a ?r ?w ?x (fname:filename) =
+(** Update a symbolic mode using optial parameters with a meaning similar to the command
+    line options of the unix utility [chmod]. *)
+let update_symbolic_mode ?u ?g ?o ?a ?r ?w ?x ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x)) =
  let extract = function Some x -> x | None -> assert false in
- let ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x)) = get_perm fname in
  let user_involved = (u<>None || a<>None) in
  let u_r = if user_involved && r<>None then (extract r) else u_r in
  let u_w = if user_involved && w<>None then (extract w) else u_w in
@@ -66,10 +54,46 @@ let set_perm ?u ?g ?o ?a ?r ?w ?x (fname:filename) =
  let o_r = if other_involved && r<>None then (extract r) else o_r in
  let o_w = if other_involved && w<>None then (extract w) else o_w in
  let o_x = if other_involved && x<>None then (extract x) else o_x in
- let file_perm =
-  let xs = List.combine [u_r; u_w; u_x ; g_r; g_w; g_x; o_r; o_w; o_x ] [256;128;64;32;16;8;4;2;1] in
-  List.fold_left (fun acc (x,y) -> acc + if x then y else 0) 0 xs
- in
+ ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x))
+
+(** The current value of umask. *)
+let get_umask () : symbolic_mode =
+ let current = Unix.umask 0 in
+ let   _     = Unix.umask current in
+ symbolic_mode_of_list (List.map not (Bit.bits_as_booleans_of_int ~length:9 current))
+;;
+
+(** Set umask using (a currified version of) a symbolic mode. *)
+let set_umask um gm om =
+ let i = Bit.int_of_bits_as_booleans (List.map not (list_of_symbolic_mode (um,gm,om))) in
+ ignore (Unix.umask i)
+;;
+
+(** Update the default file creation mask specifying who is updated: user ([?u]) and/or group ([?g])
+    and/or other ([?o]) and/or all ([?a]), and what you whant to update and how ([true/false]):
+    read ([?r]) and/or write ([?w]) and/or execution ([?x]). *)
+let update_umask ?u ?g ?o ?a ?r ?w ?x () =
+ let sm = get_umask () in
+ let (um,gm,om) = update_symbolic_mode ?u ?g ?o ?a ?r ?w ?x sm in
+ set_umask um gm om
+;;
+
+(** Get the permissions of a file: a triple of booleans respectively for user, group and other. *)
+let get_perm (fname:filename) : symbolic_mode =
+ try
+  let i = (Unix.stat fname).Unix.st_perm in
+  symbolic_mode_of_list (Bit.bits_as_booleans_of_int ~length:9 i)
+ with
+  | Unix.Unix_error (Unix.ENOENT,"stat", _) -> failwith ("UnixExtra.get_perm: cant stat the file "^fname)
+;;
+
+(** Set the permissions of a file specifying who is involved: user ([?u]) and/or group ([?g])
+    and/or other ([?o]) and/or all ([?a]), and what you whant to set and how ([true/false]):
+    read ([?r]) and/or write ([?w]) and/or execution ([?x]). *)
+let set_perm ?u ?g ?o ?a ?r ?w ?x (fname:filename) =
+ let sm = get_perm fname in
+ let sm = update_symbolic_mode ?u ?g ?o ?a ?r ?w ?x sm in
+ let file_perm = Bit.int_of_bits_as_booleans (list_of_symbolic_mode sm) in
  Unix.chmod fname file_perm
  ;;
 

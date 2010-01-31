@@ -20,12 +20,27 @@ type filename   = string
 type foldername = string
 type content    = string
 
-val get_umask : unit -> int
+(** {2 File permissions} *)
+
+type symbolic_mode = (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool)
+
+val update_symbolic_mode :
+  ?u:unit -> ?g:unit -> ?o:unit -> ?a:unit -> ?r:bool -> ?w:bool -> ?x:bool ->
+  symbolic_mode -> symbolic_mode
+
+val get_umask : unit -> symbolic_mode
+val set_umask : (bool*bool*bool) -> (bool*bool*bool) -> (bool*bool*bool) -> unit
+val update_umask :
+  ?u:unit -> ?g:unit -> ?o:unit -> ?a:unit -> ?r:bool -> ?w:bool -> ?x:bool ->
+  unit -> unit
+
 val test_access : ?r:unit -> ?w:unit -> ?x:unit -> filename -> bool
 val touch : ?perm:Unix.file_perm -> filename -> unit
 
-val get_perm : filename -> (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool)
-val set_perm : ?u:unit -> ?g:unit -> ?o:unit -> ?a:unit -> ?r:bool -> ?w:bool -> ?x:bool -> filename -> unit
+val get_perm : filename -> symbolic_mode
+val set_perm :
+  ?u:unit -> ?g:unit -> ?o:unit -> ?a:unit -> ?r:bool -> ?w:bool -> ?x:bool ->
+  filename -> unit
 
 (** {2 Copying files} *)
 
