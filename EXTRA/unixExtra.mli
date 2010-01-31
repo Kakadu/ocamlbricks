@@ -20,6 +20,8 @@ type filename   = string
 type foldername = string
 type content    = string
 
+val apply_ignoring_Unix_error : ('a -> unit) -> 'a -> unit
+
 (** {2 File permissions} *)
 
 type symbolic_mode = (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool)

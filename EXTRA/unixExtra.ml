@@ -26,6 +26,10 @@ type foldername = string;;
 (** A {e content} is a string. *)
 type content = string;;
 
+let apply_ignoring_Unix_error f x =
+ try f x with Unix.Unix_error (_,_, _) -> ()
+;;
+
 (** The {e user}, {e group} and {e other} permissions [(r,w,x),(r,w,x),(r,w,x)]. *)
 type symbolic_mode = (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool)
 
