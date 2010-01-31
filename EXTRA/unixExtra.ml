@@ -33,6 +33,48 @@ let get_umask () =
  old
 ;;
 
+(** Get the permissions of a file: a triple of booleans respectively for user, group and other. *)
+let get_perm (fname:filename) : (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool) =
+ let bits_of_unsigned i =
+  let exps = [256;128;64;32;16;8;4;2;1] in
+  List.rev (snd (List.fold_left (fun (r,l) x -> ((r mod x),((r/x)=1)::l)) (i,[]) exps))
+ in
+ try
+  let i = (Unix.stat fname).Unix.st_perm in
+  match bits_of_unsigned i with
+  | [u_r; u_w; u_x ; g_r; g_w; g_x; o_r; o_w; o_x ] ->  ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x))
+  | _ -> assert false
+ with
+  | Unix.Unix_error (Unix.ENOENT,"stat", _) -> failwith ("UnixExtra.get_perm: cant stat the file "^fname)
+;;
+
+(** Set the permissions of a file specifying who is involved: user ([?u]) and/or group ([?g])
+    and/or other ([?o]) and/or all ([?a]), and what you whant to set and how ([true/false]) : read ([?r]) and/or write ([?w])
+    and/or execution ([?x]). *)
+let set_perm ?u ?g ?o ?a ?r ?w ?x (fname:filename) =
+ let extract = function Some x -> x | None -> assert false in
+ let ((u_r, u_w, u_x), (g_r, g_w, g_x), (o_r, o_w, o_x)) = get_perm fname in
+ let user_involved = (u<>None || a<>None) in
+ let u_r = if user_involved && r<>None then (extract r) else u_r in
+ let u_w = if user_involved && w<>None then (extract w) else u_w in
+ let u_x = if user_involved && x<>None then (extract x) else u_x in
+ let group_involved = (g<>None || a<>None) in
+ let g_r = if group_involved && r<>None then (extract r) else g_r in
+ let g_w = if group_involved && w<>None then (extract w) else g_w in
+ let g_x = if group_involved && x<>None then (extract x) else g_x in
+ let other_involved = (o<>None || a<>None) in
+ let o_r = if other_involved && r<>None then (extract r) else o_r in
+ let o_w = if other_involved && w<>None then (extract w) else o_w in
+ let o_x = if other_involved && x<>None then (extract x) else o_x in
+ let file_perm =
+  let xs = List.combine [u_r; u_w; u_x ; g_r; g_w; g_x; o_r; o_w; o_x ] [256;128;64;32;16;8;4;2;1] in
+  List.fold_left (fun acc (x,y) -> acc + if x then y else 0) 0 xs
+ in
+ Unix.chmod fname file_perm
+ ;;
+
+(** Could the process perform some operations on the file: read ([?r]) and/or write ([?w]) and/or
+    execution ([?x])?*)
 let test_access ?r ?w ?x filename : bool =
  let xs = [(r,Unix.R_OK); (w,Unix.W_OK); (x,Unix.X_OK)] in
  let xs = List.filter (fun (v,_)-> v<>None) xs in
@@ -47,8 +89,7 @@ let test_access ?r ?w ?x filename : bool =
 let touch ?(perm=0o644) (fname:filename) : unit =
  try (* file exists *)
   let stat = (Unix.stat fname) in
-  let size = stat.Unix.st_perm in
-  let perm = stat.Unix.st_size in
+  let size = stat.Unix.st_size in
   let fd = Unix.openfile fname [Unix.O_WRONLY] 0o644 in
   Unix.ftruncate fd size;
   Unix.close fd;
@@ -85,6 +126,7 @@ let file_copy   = file_copy_or_append ~flag:Unix.O_TRUNC  ;;
     only if the target file must be created. *)
 let file_append = file_copy_or_append ~flag:Unix.O_APPEND ;;
 
+(** Try to rename or copy-and-unlink the source file. *)
 let file_move input_name output_name =
   try  (* try to rename *)
     Unix.rename input_name output_name

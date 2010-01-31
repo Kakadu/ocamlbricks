@@ -24,6 +24,9 @@ val get_umask : unit -> int
 val test_access : ?r:unit -> ?w:unit -> ?x:unit -> filename -> bool
 val touch : ?perm:Unix.file_perm -> filename -> unit
 
+val get_perm : filename -> (bool*bool*bool)*(bool*bool*bool)*(bool*bool*bool)
+val set_perm : ?u:unit -> ?g:unit -> ?o:unit -> ?a:unit -> ?r:bool -> ?w:bool -> ?x:bool -> filename -> unit
+
 (** {2 Copying files} *)
 
 val file_copy   : ?buffer_size:int -> ?perm:Unix.file_perm -> filename -> filename -> unit

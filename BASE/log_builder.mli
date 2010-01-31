@@ -23,7 +23,7 @@
     Essentially, this module provides a function [Log.printf] printing your
     messages only when the current debugging level of your application rises
     above a fixed threshold of verbosity. Two ore more modules may be built
-    on the same {!Log.log_channel}. Actually:
+    on the same {!Log_builder.log_channel}. Actually:
     - an internal global hash table register the associations [(file,out_channel)]
     - a mutex per out_channel is created in order to preserve atomicity of each printing.
 
@@ -81,7 +81,7 @@ The result is 42
     four parameters:
     - the [threshold] starting from the printing is really performed
     - the thunk [get_current_verbosity] providing the current level of verbosity of the application
-    - the {!Log.log_channel} where messages will be put in
+    - the {!Log_builder.log_channel} where messages will be put in
     - the flag [synchronized] indicating if threads are in use, hence if synchronizations are required
       to preserve the atomicity of printing operations. *)
 module Make :
