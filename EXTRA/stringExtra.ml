@@ -122,12 +122,28 @@ let for_all p s =
   p s.[i] && loop (i+1)
  in loop 0
 
+(** Similar to {$StringExtra.for_all]} but the predicate needs also the index. *)
+let for_all_i p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then true else
+  p i s.[i] && loop (i+1)
+ in loop 0
+
 (** Similar to the standard [List.exists], considering a string as a list of characters. *)
 let exists p s =
  let l = String.length s in
  let rec loop i =
   if i>=l then false else
   p s.[i] || loop (i+1)
+ in loop 0
+
+(** Similar to {$StringExtra.exists]} but the predicate needs also the index. *)
+let exists_i p s =
+ let l = String.length s in
+ let rec loop i =
+  if i>=l then false else
+  p i s.[i] || loop (i+1)
  in loop 0
 
 (** As the function {!StringExtra.exists}, but provides the index that verifies the predicate. *)
@@ -145,6 +161,12 @@ let rexists p s =
   if i<0 then None else
   if p s.[i] then (Some i) else loop (i-1)
  in loop (l-1)
+;;
+
+let is_prefix x y =
+ try
+  for_all_i (fun i c -> c = y.[i]) x
+ with (Invalid_argument _) -> false
 ;;
 
 (** [tail s i] return the substring from the index [i] (included) to the end of [s].
@@ -259,7 +281,7 @@ let strip s =
 {[# chop "hell o \t\n";;
   : string = "hell o"]} *)
 let rec chop x =
-  let l = (String.length x) in if (l=0) then x else 
+  let l = (String.length x) in if (l=0) then x else
    begin
    let last = (String.sub x (l-1) 1) in match last with
    | "\n" | " " | "\t" -> chop (String.sub x 0 (l-1))
@@ -270,9 +292,9 @@ let rec chop x =
     of the input string. {b Example}:
 {[# to_charlist "aaabbc";;
   : char list = ['a'; 'a'; 'a'; 'b'; 'b'; 'c']]}*)
-let to_charlist (s:string) = 
+let to_charlist (s:string) =
  let l = String.length s in
- let rec loop s l = 
+ let rec loop s l =
   if l=0 then []  else
    let l' = (l-1) in
    (String.get s 0)::(loop (String.sub s 1 l') l')
@@ -285,7 +307,7 @@ let to_charlist (s:string) =
 let of_charlist = List.fold_left  (fun s c -> (s^(Char.escaped c))) "" ;;
 
 (** More efficient char list operations (assemble/disassemble). *)
-module Charlist = struct 
+module Charlist = struct
 
 (** Fold a char list into a string. *)
 let assemble (xs:char list) : string =
@@ -301,10 +323,10 @@ let assemble (xs:char list) : string =
  : char list = ['d'; 'c'; 'b'; 'a'] ]} *)
 let disassemble_reversing ?(acc=[]) (s:string) : char list =
  let n = String.length s in
- let rec loop acc i = 
+ let rec loop acc i =
   if i>=n then acc else
   loop ((String.get s i)::acc) (i+1)
- in loop acc 0 
+ in loop acc 0
 
 (** Assemble a list of char into a string reversing the order. {b Example}:
 {[# assemble_reversing ['a';'b';'c';'d'] ;;
@@ -330,9 +352,9 @@ end
 # cut ~n:3 "aabbc";;
   : string list = ["aab"; "bc"]
 ]} *)
-let cut ?(n:int=1) (s:string) = 
+let cut ?(n:int=1) (s:string) =
  let l = String.length s in
- let rec loop s l = 
+ let rec loop s l =
   if l=0 then []  else
   if l<n then [s] else
    let l' = (l-n) in
@@ -340,7 +362,7 @@ let cut ?(n:int=1) (s:string) =
  in loop s l
 
 (** Split a string into a list of strings using a char delimiter (space (blank) by default).
-    By default [squeeze=true], which means that delimiter repetitions are considered 
+    By default [squeeze=true], which means that delimiter repetitions are considered
     as single occurrences.
     The empty string is converted into the empty list. {b Example}:
 {[# split "aaa bbb ccc";;
@@ -402,25 +424,25 @@ let assemble prefix x suffix = if (x="") then "" else (prefix^x^suffix)
 (** Curryfied binary operation on strings. *)
 type binop = string -> string -> string
 
-(** The {e folding} of string lists is simply a [List.fold_left] specialization:  
+(** The {e folding} of string lists is simply a [List.fold_left] specialization:
 
-     - the first element is the {b head} of the string list 
-     - the folding is performed on the {b tail} of the string list. 
+     - the first element is the {b head} of the string list
+     - the folding is performed on the {b tail} of the string list.
      - the iterated binary operation belongs the type [string -> string -> string]
      - if the input list is empty, the result is the {b empty} string (no exception raised)
 
-   This function is adequate for most common cases. Use the module [Big] when 
+   This function is adequate for most common cases. Use the module [Big] when
    maximum generality is requested. *)
 let big (f:binop) (l:string list) : 'a = try ListExtra.big f l with Failure "big" -> ""
 
-(** [merge_map f l] maps the function [f] on the list [l] 
+(** [merge_map f l] maps the function [f] on the list [l]
     then merge the result with the separator ([sep=" "] by default). *)
-let merge_map ?(sep=" ") f l = big (merge sep) (List.map f l) 
+let merge_map ?(sep=" ") f l = big (merge sep) (List.map f l)
 
 
-(** Examples of applications of [big] constructor 
+(** Examples of applications of [big] constructor
     in conjonction with the [merge] function. *)
-module Fold = struct 
+module Fold = struct
 
  (** Merge a string list with the separator [" , "]. *)
  let commacat = big (merge " , ");;
@@ -452,7 +474,7 @@ end (* module Fold *)
 {[# merge_fields "/" [2;4] ["aaa";"bbb";"ccc";"ddd";"eee"] ;;
   : string = "ccc/eee"
 ]}*)
-let rec merge_fields sep (fieldlist:int list) (l:string list) = 
+let rec merge_fields sep (fieldlist:int list) (l:string list) =
  let l'=(ListExtra.select l fieldlist) in (big (merge sep) l')
 
 
@@ -468,14 +490,14 @@ type line = string
 
 # to_line "hello\n";;
   : line = "hello\n"]}*)
-let to_line (x:string) : line = 
- let l    = (String.length x) in 
- let last = (String.sub x (l-1) 1) in 
- match last with "\n" -> x | _ -> x^"\n"  
+let to_line (x:string) : line =
+ let l    = (String.length x) in
+ let last = (String.sub x (l-1) 1) in
+ match last with "\n" -> x | _ -> x^"\n"
 
 (** Converting raw text to list of strings and vice-versa.
-    A raw text is simply a (may be big) string, i.e. a sequence of lines 
-    collected in a unique string, where each line terminates with a newline ['\n']. 
+    A raw text is simply a (may be big) string, i.e. a sequence of lines
+    collected in a unique string, where each line terminates with a newline ['\n'].
     The last line in the text may not terminate with a newline. *)
 module Text = struct
 
@@ -485,7 +507,7 @@ type t = string list
 (** A text filter is a function from and to string lists. *)
 type filter = string list -> string list
 
-(** Convert a string list in a raw text. 
+(** Convert a string list in a raw text.
     Each string in the input list is treated by the function [to_line] in order to
     add a newline if needed, then the list is folded by a simple catenation ([^]).
     If the input list is empty, the result is the empty string. {b Examples}:
@@ -497,12 +519,12 @@ type filter = string list -> string list
 
 # Text.to_string ["AAA";"BBB\n\n";"CCC"];;
   : string = "AAA\nBBB\n\nCCC\n"]}*)
-let to_string (sl : string list) : string = 
+let to_string (sl : string list) : string =
  let ll = List.map to_line sl in
  big (^) ll
 
-(** Convert a raw text in a structured text (a string list). 
-    This function is simply an alias 
+(** Convert a raw text in a structured text (a string list).
+    This function is simply an alias
     for [split ~squeeze ~d:'\n']. {b Examples}:
 {[# Text.of_string (Unix.cat "/etc/fstab")  ;;
   : string list =
@@ -528,9 +550,9 @@ type t = string list list
 (** A text matrix filter is a function from and to string list lists. *)
 type filter = t -> t
 
-(** Convert a raw text in a matrix of words. 
+(** Convert a raw text in a matrix of words.
     By default the word delimiter is the char [d=' ']
-    and [squeeze=true]. 
+    and [squeeze=true].
 {b Example}:
 {[# Text.Matrix.of_string (Unix.shell "ls -i -w1 /etc/ssh/")  ;;
   : string list list =
@@ -539,12 +561,12 @@ type filter = t -> t
  ["274712"; "ssh_host_key"]; ["274713"; "ssh_host_key.pub"];
  ["274750"; "ssh_host_rsa_key"]; ["274751"; "ssh_host_rsa_key.pub"]]
 ]} *)
-let of_string ?(squeeze=true) ?(d=' ') x = 
+let of_string ?(squeeze=true) ?(d=' ') x =
  List.map (split ~squeeze ~d) (of_string x)
 
-(** Convert a matrix of words in a raw text. 
+(** Convert a matrix of words in a raw text.
     By default the word delimiter is the string [d=" "].
-{[# let m = Text.Matrix.of_string (Unix.shell "ls -l /etc/ssh/") 
+{[# let m = Text.Matrix.of_string (Unix.shell "ls -l /etc/ssh/")
   in print_string (Text.Matrix.to_string m);;
 total 164
 -rw------- 1 root root 132839 2006-11-11 00:12 moduli
@@ -558,7 +580,7 @@ total 164
 -rw-r--r-- 1 root root 220 2006-11-20 12:50 ssh_host_rsa_key.pub
   : unit = ()
 ]}*)
-let to_string ?(d=" ") m = 
+let to_string ?(d=" ") m =
  to_line (big (merge "\n") (List.map (big (merge d)) m))
 
 end (* module Text.Matrix *)

@@ -33,9 +33,15 @@ val nth_rindex_from : string -> int -> char -> int -> int
 val nth_index       : string -> char -> int -> int
 val nth_rindex      : string -> char -> int -> int
 val for_all         : (char -> bool) -> string -> bool
+val for_all_i       : (int -> char -> bool) -> string -> bool
 val exists          : (char -> bool) -> string -> bool
+val exists_i        : (int -> char -> bool) -> string -> bool
 val lexists         : (char -> bool) -> string -> int option
 val rexists         : (char -> bool) -> string -> int option
+
+(** {2 Relations} *)
+
+val is_prefix       : string -> string -> bool
 
 (** {2 Extracting sub-strings} *)
 
