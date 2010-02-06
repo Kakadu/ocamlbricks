@@ -20,27 +20,35 @@ COMPILE_OPTIONS += -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
-NATIVE_PROGRAMS = stupidprogram.native
-BYTE_PROGRAMS = stupidprogram.byte
+NATIVE_PROGRAMS = 
+BYTE_PROGRAMS = 
 NATIVE_LIBRARIES = ocamlbricks.cmxa
 BYTE_LIBRARIES = ocamlbricks.cma
 
 PP_OPTION = camlp4of
+GETTEXT=GETTEXT
+# MANUALLY_PRE_COPY_IN_build = $(GETTEXT)/{gettext-c-wrapper.c,gettext_extract_pot.ml}
+MANUALLY_PRE_COPY_IN_build = $(GETTEXT)/gettext-c-wrapper.c
+MANUALLY_PRE_MAKE_IN_build = gettext-c-wrapper.o
+# MANUALLY_POST_MAKE_IN_build = gettext_extract_pot.cmo
+# OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,gettext_extract_pot.cmo}
+OTHER_LIBRARY_FILES_TO_INSTALL = _build/gettext-c-wrapper.o
 
-# C_OBJECTS_TO_LINK += does_process_exist
+_build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
+	@$(call READ_CONFIG, ocaml_sources); \
+	(mkdir _build &> /dev/null || true) && \
+	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
 
-# OTHER_LIBRARY_FILES_TO_INSTALL = _build/dll_does_process_exist.so
+# _build/gettext_extract_pot.cmo: $(GETTEXT)/gettext_extract_pot.ml
+_build/gettext_extract_pot.cmo: $(GETTEXT)/gettext_extract_pot.ml
+	ocamlc -c -I +camlp4 -pp camlp4of camlp4lib.cma -o $@ $<
 
-# _build/dll_does_process_exist.so: _build/does_process_exist.o
-# 	ocamlmklib  -o does_process_exist  $<
+# idempotent
+rebuilding:
+	@chmod +x Makefile.d/ocamlmklib_wrapper.sh
+	@Makefile.d/ocamlmklib_wrapper.sh $(OTHER_LIBRARY_FILES_TO_INSTALL)
 
-UNDOCUMENTED=stupidprogram.ml
-
-# MANUALLY_PRE_COPY_IN_build = does_process_exist.c
-# MANUALLY_PRE_MAKE_IN_build = does_process_exist.o
-
-# _build/does_process_exist.o: _build/does_process_exist.c
-# 	gcc -g -O3 -o $@ -c $^
+install-libraries-local: rebuilding
 
 # Remove the automatically-generated documentation on clean:
 clean-local:
@@ -49,7 +57,7 @@ clean-local:
 
 # Test without installation
 LIBRARY_TO_TEST=_build/ocamlbricks.cma
-test:
+test: rebuilding
 	@test -f  $(LIBRARY_TO_TEST) || make
 	@chmod +x Makefile.d/test.sh
 	@Makefile.d/test.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"
