@@ -20,35 +20,34 @@ COMPILE_OPTIONS += -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
-NATIVE_PROGRAMS = 
-BYTE_PROGRAMS = 
+NATIVE_PROGRAMS =
+BYTE_PROGRAMS =
 NATIVE_LIBRARIES = ocamlbricks.cmxa
 BYTE_LIBRARIES = ocamlbricks.cma
 
 PP_OPTION = camlp4of
 GETTEXT=GETTEXT
-# MANUALLY_PRE_COPY_IN_build = $(GETTEXT)/{gettext-c-wrapper.c,gettext_extract_pot.ml}
 MANUALLY_PRE_COPY_IN_build = $(GETTEXT)/gettext-c-wrapper.c
-MANUALLY_PRE_MAKE_IN_build = gettext-c-wrapper.o
-# MANUALLY_POST_MAKE_IN_build = gettext_extract_pot.cmo
-# OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,gettext_extract_pot.cmo}
-OTHER_LIBRARY_FILES_TO_INSTALL = _build/gettext-c-wrapper.o
+MANUALLY_PRE_MAKE_IN_build = gettext-c-wrapper.o gettext_extract_pot_p4.cmo
+C_OBJECTS_TO_LINK = gettext-c-wrapper
+OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,gettext_extract_pot_p4.cmo}
 
 _build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
 	(mkdir _build &> /dev/null || true) && \
 	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
 
-# _build/gettext_extract_pot.cmo: $(GETTEXT)/gettext_extract_pot.ml
-_build/gettext_extract_pot.cmo: $(GETTEXT)/gettext_extract_pot.ml
+_build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
 	ocamlc -c -I +camlp4 -pp camlp4of camlp4lib.cma -o $@ $<
 
 # idempotent
 rebuilding:
 	@chmod +x Makefile.d/ocamlmklib_wrapper.sh
-	@Makefile.d/ocamlmklib_wrapper.sh $(OTHER_LIBRARY_FILES_TO_INSTALL)
+	@Makefile.d/ocamlmklib_wrapper.sh $(C_OBJECTS_TO_LINK)
 
-install-libraries-local: rebuilding
+preprocessors: _build/gettext_extract_pot_p4.cmo
+
+install-libraries-local: rebuilding preprocessors
 
 # Remove the automatically-generated documentation on clean:
 clean-local:
