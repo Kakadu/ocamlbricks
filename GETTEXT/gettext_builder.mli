@@ -28,8 +28,7 @@ module type Gettext = sig
   val s_ : string -> string;;
 
   (** Translate a format string: *)
-  val f_ : ('a, out_channel, unit) format -> (('a, out_channel, unit) format);;
-  
+  val f_ : (('a, 'b, 'c) format) -> (('a, 'b, 'c) format);;
 end;;
 
 (** Given the information above, we provide a Gettext module: *)

@@ -43,7 +43,7 @@ module type TextDomainAndDirectory = sig
 end;;
 module type Gettext = sig
   val s_ : string -> string;;
-  val f_ : ('a, out_channel, unit) format -> (('a, out_channel, unit) format);;
+  val f_ : (('a, 'b, 'c) format) -> (('a, 'b, 'c) format);;
 end;;
 
 module Make (TheTextDomainAndDirectory : TextDomainAndDirectory) : Gettext = struct
