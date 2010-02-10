@@ -14,6 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 (* Make the primitives implemented in C visible to the OCaml world: *)
 external non_thread_safe_dgettext_primitive : string -> string -> string = "dgettext_primitive";;

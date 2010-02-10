@@ -65,14 +65,14 @@ let from_descr ?(blit:blit_function=String.blit) (fd:Unix.file_descr) : string =
  (loop2 0);
  dst
 
-(** Similar to {!StringExtra.from_descr}) but the user provides the file name instead of the file descriptor. *)
+(** Similar to {!StringExtra.from_descr} but the user provides the file name instead of the file descriptor. *)
 let from_file ?(blit:blit_function=String.blit) (filename:string) : string =
  let fd = (Unix.openfile filename [Unix.O_RDONLY;Unix.O_RSYNC] 0o640) in
  let result = from_descr ~blit fd in
  (Unix.close fd);
  result
 
-(** Similar to {!StringExtra.from_descr}) but the user provides the [Pervasives.in_channel] instead of the file descriptor. *)
+(** Similar to {!StringExtra.from_descr} but the user provides the [Pervasives.in_channel] instead of the file descriptor. *)
 let from_channel ?(blit:blit_function=String.blit) in_channel : string =
  from_descr ~blit (Unix.descr_of_in_channel in_channel)
 
@@ -122,7 +122,7 @@ let for_all p s =
   p s.[i] && loop (i+1)
  in loop 0
 
-(** Similar to {$StringExtra.for_all]} but the predicate needs also the index. *)
+(** Similar to {!StringExtra.for_all} but the predicate needs also the index. *)
 let for_all_i p s =
  let l = String.length s in
  let rec loop i =
@@ -138,7 +138,7 @@ let exists p s =
   p s.[i] || loop (i+1)
  in loop 0
 
-(** Similar to {$StringExtra.exists]} but the predicate needs also the index. *)
+(** Similar to {!StringExtra.exists} but the predicate needs also the index. *)
 let exists_i p s =
  let l = String.length s in
  let rec loop i =

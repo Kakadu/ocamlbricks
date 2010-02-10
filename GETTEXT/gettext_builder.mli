@@ -14,6 +14,27 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** Build your application-dependent gettext wrapper.
+
+{b Example}. This example uses the translations of GNU Hello, (http://www.gnu.org/software/hello)
+   which are assumed to be found in /usr/share/locale. Of course you can change
+   this:
+{[module Gettext =
+  Gettext_builder.Make(struct
+     let text_domain = "hello"
+     let directory = "/usr/share/locale"
+    end);;
+
+(* We want to just use s_ and f_: *)
+open Gettext;;
+
+(* The strings below are really used in GNU Hello. Of course you can't replace
+   them with other messages, unless you also have translations: *)
+Printf.printf "%s" (s_ "hello, world\n");;
+Printf.printf (f_ "hello, world\n");;
+Printf.printf (f_ "Try `%s --help' for more information.\n") "foo";;
+Printf.printf (f_ "Report bugs to <%s>.\n") "foo\@foo.foo";;
+]}*)
 
 (** In order to build translators, we just need a text domain and a directory holding
     translated strings: *)
