@@ -149,3 +149,4 @@ val script :
   ?stderr:Endpoint.Sink.t  ->
   ?pseudo:string -> ?forward:int list -> content -> string list -> (int * string * string)
 
+val is_process_alive : int -> bool

@@ -659,4 +659,5 @@ let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (content:content) (argv_
 
 
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
-(*external does_process_exist : int -> bool = "does_process_exist_c";;*)
+external does_process_exist : int -> bool = "does_process_exist_c";;
+let is_process_alive = does_process_exist
