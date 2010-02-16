@@ -19,6 +19,13 @@
 # Usage:
 # ocamlmklib_wrapper $(OTHER_LIBRARY_FILES_TO_INSTALL)"
 
+set -e
+
+# Check script dependencies
+type ocamlobjinfo
+type ocamlmklib
+type awk
+
 function usage {
  echo 'Usage (in a Makefile):'
  echo '$(basename $0) $(C_OBJECTS_TO_LINK)'
@@ -30,7 +37,6 @@ INCLUDES=$(cd _build ; find -type d -printf "-I %p\n")
 CMO=$(ocamlobjinfo _build/ocamlbricks.cma | awk '/Unit name/{x=tolower(substr($3,1,1)); r=substr($3,2); printf("%s%s.cmo\n",x,r);}')
 CMX=$(ocamlobjinfo _build/ocamlbricks.cma | awk '/Unit name/{x=tolower(substr($3,1,1)); r=substr($3,2); printf("%s%s.cmx\n",x,r);}')
 
-set -e
 cd _build/
 echo "Rebuilding library with ocamlmklib..."
 set -x
