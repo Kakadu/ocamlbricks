@@ -36,7 +36,7 @@ let header =
  let project_id_version = Tool.Conf.conf file ~default:"project_id_version???" "project_id_version" in
  let report_bugs_to     = Tool.Conf.conf file ~default:"report_bugs_to???" "report_bugs_to" in
  let charset            = Tool.Conf.conf file ~default:"utf-8" "charset" in
- in Printf.sprintf
+ Printf.sprintf
 "# Copyright (C) OWNER
 # AUTHOR, YEAR.
 #
