@@ -36,12 +36,6 @@ let header =
  let project_id_version = Tool.Conf.conf file ~default:"project_id_version???" "project_id_version" in
  let report_bugs_to     = Tool.Conf.conf file ~default:"report_bugs_to???" "report_bugs_to" in
  let charset            = Tool.Conf.conf file ~default:"utf-8" "charset" in
- let pot_creation_date =
-  let gmt = Unix.gmtime (Unix.time ()) in
-    Printf.sprintf
-      "%4d-%02d-%02d %02d:%02d:%02d"
-      (1900+gmt.Unix.tm_year) (1+gmt.Unix.tm_mon) (gmt.Unix.tm_mday)
-      (gmt.Unix.tm_hour) (gmt.Unix.tm_min) (gmt.Unix.tm_sec)
  in Printf.sprintf
 "# Copyright (C) OWNER
 # AUTHOR, YEAR.
@@ -50,9 +44,8 @@ msgid \"\"
 msgstr \"\"
 \"Project-Id-Version: %s\\n\"
 \"Report-Msgid-Bugs-To: %s\\n\"
-\"POT-Creation-Date: %s\\n\"
 \"Content-Type: text/plain; charset=%s\\n\"
-" project_id_version report_bugs_to pot_creation_date charset
+" project_id_version report_bugs_to charset
 
 
 module Make (Syntax : Sig.Camlp4Syntax) = struct
