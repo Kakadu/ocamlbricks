@@ -614,14 +614,14 @@ let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
   fst(run ~shell:(shell_of_string_option shell) ~trace ~input cmd)
 ;;
 
-(** A Unix future is a future containing the exit code and the two strings outcoming from stdout and stderr. *)
+(** A Unix future is a future containing the exit code and the two strings outcoming from stdout and stderr.
+    The negative exit code (-1) means that the process didn't well exited. *)
 type future = (int * string * string) Future.t ;;
 
-(** Create a {!UnixExtra.future} that you can manage as usual with functions of the module {!Future}. *)
-let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv_list:string list) : future =
+(** Similar to {!val:UnixExtra.future}, but with a continuation executed {b within} the thread. *)
+let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv_list:string list) k =
  begin
- let stdin  = match stdin  with None -> Source.Empty | Some x -> x
- in
+ let stdin  = match stdin  with None -> Source.Empty | Some x -> x in
  let define_sink_and_string_maker optional_sink =
    (match optional_sink with
     | Some x -> (x, fun () -> "")
@@ -634,14 +634,21 @@ let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv_
  let (stderr, stderr_string_maker) = define_sink_and_string_maker stderr in
  let future = Future.future (fun () ->
      begin
-      let code = create_process_and_wait ~stdin ~stdout ~stderr ~pseudo ~forward program argv_list in
+      let code =
+        try  create_process_and_wait ~stdin ~stdout ~stderr ~pseudo ~forward program argv_list
+        with _ -> (-1)
+      in
       let stdout_string = stdout_string_maker () in
       let stderr_string = stderr_string_maker () in
-      (code, stdout_string, stderr_string)
+      (k code stdout_string stderr_string)
      end) () in
  future
  end
 ;;
+
+(** Create a {!type:UnixExtra.future} that you can manage as usual with functions of the module {!Future}. *)
+let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) program argv_list =
+ kfuture ?stdin ?stdout ?stderr ?pseudo ~forward program argv_list (fun x y z -> (x,y,z))
 
 (** With the {b content} provided by the user, a script file is created on the fly, executed and finally removed.
     The result is a 3-uple with the exit code and the two strings outcoming from stdout and stderr. *)
