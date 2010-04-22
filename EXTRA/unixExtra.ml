@@ -463,6 +463,23 @@ type command = string;;
 (** A {e program} is a file binary (which will be found by the system in [PATH]). *)
 type program = string;;
 
+(** Search the directory containing the executable. Candidates are taken from the environment variable [PATH].
+    The result [None] means not found. {b Examples}:
+{[# UnixExtra.is_executable_in_PATH "ls" ;;
+  : string option = Some "/bin"
+
+# UnixExtra.is_executable_in_PATH "foo" ;;
+  : string option = None
+]} *)
+let is_executable_in_PATH p =
+ let is_there_an_executable p d =
+   let filelist = Array.to_list (Sys.readdir d) in
+   (List.mem p filelist) && (test_access ~x:() (d^"/"^p))
+ in
+ let dirs = StringExtra.split ~d:':' (Sys.getenv "PATH") in
+ try Some(List.find (is_there_an_executable p) dirs)
+ with Not_found -> None
+
 (** Run Unix.system with the given argument, and raise exception in case of failure;
     return unit on success. *)
 let system_or_fail ?(hide_output=false) ?(hide_errors=false) command =

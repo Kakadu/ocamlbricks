@@ -117,6 +117,9 @@ module Process_status :
 type command = string
 type program = string
 
+(* val is_executable_in_PATH : program -> bool *)
+val is_executable_in_PATH : program -> string option
+
 val system_or_fail : ?hide_output:bool -> ?hide_errors:bool -> command -> unit
 
 val kill_safe : int -> int -> unit
