@@ -17,7 +17,7 @@
 
 (* Authors:
  * - Luca Saiu: function with_mutex from recursive_mutex.ml
- * - Jean-Vincent Loddo: functorization
+ * - Jean-Vincent Loddo: functorization, recursive_mutex as internal module
  *)
 
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
@@ -51,8 +51,78 @@ module Extend
     raise e;
   end
 
+ (** Similar to [with_mutex]: the argument will be given to the function in a synchronized block. *)
  let apply_with_mutex mutex f x =
   let thunk () = f x in
   with_mutex mutex thunk
 
 end
+
+
+(** A simple implementation of recursive mutexes. Non-recursive mutexes are
+    a real pain to use: *)
+module Recursive_mutex = struct
+
+ type t =
+  Mutex.t *               (* the underlying mutex *)
+  Mutex.t *               (* a mutex protecting the other fields *)
+  (Thread.t option ref) * (* the thread currently holding the mutex *)
+  (int ref);;             (* lock counter *)
+
+ (** Create a new recursive mutex: *)
+ let create () : t =
+  (Mutex.create ()),
+  (Mutex.create ()),
+  (ref None),
+  (ref 0);;
+
+(** Lock a mutex; only block if *another* thread is holding it. *)
+ let rec lock (the_mutex, fields_mutex, owning_thread_ref, lock_counter_ref) =
+  let my_thread = Thread.self () in
+  Mutex.lock fields_mutex;
+  match !owning_thread_ref with
+    None -> begin
+      owning_thread_ref := Some my_thread;
+      lock_counter_ref := !lock_counter_ref + 1;
+      Mutex.unlock fields_mutex;
+      Mutex.lock the_mutex;
+    end
+  | Some t when t = my_thread -> begin
+      lock_counter_ref := !lock_counter_ref + 1;
+      Mutex.unlock fields_mutex;
+    end
+  | Some _ -> begin
+      Mutex.unlock fields_mutex;
+      (* the_mutex is locked. Passively wait for someone to free it: *)
+      flush stderr;
+      Mutex.lock the_mutex;
+      Mutex.unlock the_mutex;
+      (* Try again: *)
+      lock (the_mutex, fields_mutex, owning_thread_ref, lock_counter_ref);
+    end;;
+
+ (** Unlock a recursive mutex owned by the calling thread. *)
+ let unlock (the_mutex, fields_mutex, owning_thread_ref, lock_counter_ref) =
+  let _ = Thread.self () in
+  Mutex.lock fields_mutex;
+  match !owning_thread_ref with
+    None ->
+      flush_all ();
+      assert false;
+  | Some t -> begin
+      if !lock_counter_ref = 1 then begin
+        lock_counter_ref := 0;
+        owning_thread_ref := None;
+        Mutex.unlock fields_mutex;
+        Mutex.unlock the_mutex;
+      end
+      else begin
+        lock_counter_ref := !lock_counter_ref - 1;
+        Mutex.unlock fields_mutex;
+      end
+    end;;
+
+end
+
+(** Extended recursive mutexes. *)
+module Recursive = Extend(Recursive_mutex)

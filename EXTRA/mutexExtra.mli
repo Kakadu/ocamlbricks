@@ -21,8 +21,15 @@
 module Mutex = MutexExtra.Extend (Mutex);;
 
 (* Use the function with_mutex: *)
-Mutex.with_mutex mutex (fun () -> ...);; ]}
- *)
+Mutex.with_mutex mutex (fun () -> ...);; 
+
+(* Idem for recursive mutexes: *)
+module Recursive_mutex = MutexExtra.Extend (MutexExtra.Recursive_mutex) ;;
+
+(* Or equivalently, you can use a predefined functor application as shortcut: *)
+module Recursive_mutex = MutexExtra.Recursive ;;
+]}
+*)
 
 module Extend : functor
 
@@ -39,3 +46,23 @@ module Extend : functor
     val with_mutex       : t -> (unit -> 'a) -> 'a
     val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
   end
+
+
+module Recursive_mutex :
+ sig
+   type t
+   val create : unit -> t
+   val lock   : t -> unit
+   val unlock : t -> unit
+ end
+
+module Recursive :
+ sig
+   type t
+   val create : unit -> t
+   val lock   : t -> unit
+   val unlock : t -> unit
+   val with_mutex       : t -> (unit -> 'a) -> 'a
+   val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
+ end
+
