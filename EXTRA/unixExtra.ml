@@ -685,3 +685,32 @@ let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (content:content) (argv_
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
 external does_process_exist : int -> bool = "does_process_exist_c";;
 let is_process_alive = does_process_exist
+
+
+module Process = struct
+
+ type process_status =
+ | WUNCHANGED        (* Used when non-blocking calls with WNOHANG return immediately without value *)
+ | WEXITED of int    (* The process terminated normally by exit; the argument is the return code. *)
+ | WSIGNALED of int  (* The process was killed by a signal; the argument is the signal number.    *)
+ | WSTOPPED of int   (* The process was stopped by a signal; the argument is the signal number.   *)
+ | WCONTINUED        (* The process was resumed *)
+
+ type wait_flag =
+ | WNOHANG           (* do not block if no child has died yet, but immediately return with a pid equal to 0. *)
+ | WUNTRACED         (*	report also the children that receive stop signals. *)
+ | WCONTINUE         (*  report also if the children resume *)
+
+ external waitpid : wait_flag list -> int -> int * process_status = "waitpid_c"
+
+ include PervasivesExtra.Printers0 (struct
+    type t = process_status
+    let string_of = function
+    | WUNCHANGED       -> (Printf.sprintf "Process.WUNCHANGED")
+    | WEXITED   code   -> (Printf.sprintf "Process.WEXITED %d" code)
+    | WSIGNALED signal -> (Printf.sprintf "Process.WSIGNALED %d" signal)
+    | WSTOPPED  signal -> (Printf.sprintf "Process.WSTOPPED %d" signal)
+    | WCONTINUED       -> (Printf.sprintf "Process.WCONTINUED")
+    end)
+
+end

@@ -159,3 +159,32 @@ val script :
   ?pseudo:string -> ?forward:int list -> content -> string list -> (int * string * string)
 
 val is_process_alive : int -> bool
+
+module Process : sig
+
+ type process_status =
+ | WUNCHANGED
+ | WEXITED of int
+ | WSIGNALED of int
+ | WSTOPPED of int
+ | WCONTINUED
+
+ type wait_flag =
+ | WNOHANG
+ | WUNTRACED
+ | WCONTINUE
+
+ val waitpid : wait_flag list -> int -> int * process_status
+
+ type t = process_status
+ val string_of     : t -> string
+ val print         : t -> unit
+ val prerr         : t -> unit
+ val print_endline : t -> unit
+ val prerr_endline : t -> unit
+ val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> t -> 'a
+ val eprintf :                (string -> 'a, out_channel, unit) format -> t -> 'a
+ val printf  :                (string -> 'a, out_channel, unit) format -> t -> 'a
+ val sprintf :                (string -> 'a, unit, string) format      -> t -> 'a
+
+end

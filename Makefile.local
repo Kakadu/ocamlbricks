@@ -27,8 +27,8 @@ BYTE_LIBRARIES = ocamlbricks.cma
 
 PP_OPTION = camlp4of
 GETTEXT=GETTEXT
-C_OBJECTS_TO_LINK = gettext-c-wrapper does-process-exist-c-wrapper
-OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-c-wrapper.o,gettext_extract_pot_p4.cmo}
+C_OBJECTS_TO_LINK = gettext-c-wrapper does-process-exist-c-wrapper waitpid-c-wrapper
+OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-c-wrapper.o,gettext_extract_pot_p4.cmo,waitpid-c-wrapper.o}
 
 _build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
@@ -43,6 +43,11 @@ _build/does-process-exist-c-wrapper.o: EXTRA/does-process-exist-c-wrapper.c
 _build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
 	ocamlc -c -I +camlp4 -pp camlp4of camlp4lib.cma -o $@ $<
 
+_build/waitpid-c-wrapper.o: EXTRA/waitpid-c-wrapper.c
+	@$(call READ_CONFIG, ocaml_sources); \
+	(mkdir _build &> /dev/null || true) && \
+	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
+
 # idempotent
 rebuilding:
 	@chmod +x Makefile.d/ocamlmklib_wrapper.sh
@@ -56,6 +61,7 @@ install-libraries-local: rebuilding preprocessors
 clean-local:
 	@(rm -rf doc/html)
 	rm -rf _build/does_process_exist.o
+	rm -rf _build/waitpid-c-wrapper.o
 
 # Test without installation
 LIBRARY_TO_TEST=_build/ocamlbricks.cma
