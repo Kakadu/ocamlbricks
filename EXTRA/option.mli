@@ -20,6 +20,10 @@
     By default [fallback] is set to [fun ()->failwith "Option.extract"].*)
 val extract           : ?fallback:(unit -> 'a) -> 'a option -> 'a
 
+val map  : ('a -> 'b) -> 'a option -> 'b option
+val bind : 'a option -> ('a -> 'b option) -> 'b option
+val return : 'a -> 'a option
+
 (** {2 Printers}
 
 The following functions act on a ['a option] value if the user is able to provide a function converting
