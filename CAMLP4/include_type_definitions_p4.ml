@@ -22,7 +22,7 @@
 
     Type definitions are, in outline, mli phrases with '=' or exception definitions.
     More precisely, only phrases of the following form will be imported:
-    1)  type ... = ...
+    1)  type ... = ... (and ... = ...)*
     2)  module type ... = ...
     3)  class type ... = ...
     4)  exception ...
@@ -61,10 +61,18 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
             | x -> [x]
            in
 
-           let t = parse_file fname in
+           let t = parse_file fname
+           in
+           let is_TyDcl_a_definition = function
+            | Ast.TyDcl (_, _, _, Ast.TyNil _, _) -> false
+            | Ast.TyDcl (_, _, _,    _       , _) -> true
+            | _ -> false
+           in
            let pred = function
-             | Ast.SgTyp (_, Ast.TyDcl (_, _, _, Ast.TyNil _, _)) -> false
-             | Ast.SgTyp (_, Ast.TyDcl (_, _, _,    _       , _)) -> true
+             | Ast.SgTyp (_, (Ast.TyAnd(_,_,_) as t)) ->
+                 let xs = Ast.list_of_ctyp t [] in
+                 List.for_all is_TyDcl_a_definition xs
+             | Ast.SgTyp (_, tyDcl) when (is_TyDcl_a_definition tyDcl) -> true
              | Ast.SgExc (_,_)
              | Ast.SgMty (_,_,_)
              | Ast.SgClt (_,_) -> true
@@ -73,6 +81,7 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
            let l = List.filter pred (list_of_sgSem t) in
            let mill = function
              | Ast.SgTyp (a, Ast.TyDcl (b,c,d,e,f)) -> Ast.StTyp (a, Ast.TyDcl (b,c,d,e,f))
+             | Ast.SgTyp (a, Ast.TyAnd (b,c,d))     -> Ast.StTyp (a, Ast.TyAnd (b,c,d))
              | Ast.SgExc (a,b)                      -> Ast.StExc (a,b,Ast.ONone)
              | Ast.SgMty (a,b,c)                    -> Ast.StMty (a,b,c)
              | Ast.SgClt (a,b)                      -> Ast.StClt (a,b)
@@ -89,3 +98,4 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
 end
 
 let module M = Register.OCamlSyntaxExtension (Id) (Make) in ()
+ 
