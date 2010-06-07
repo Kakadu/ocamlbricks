@@ -34,5 +34,7 @@ module Extend = functor (S:Set.S) -> struct
 
  end
 
+module Make = functor (Ord:Set.OrderedType) -> Extend (Set.Make (Ord))
+
 module String_set = Extend (Set.Make (struct type t = string let compare = Pervasives.compare end))
 module Int_set    = Extend (Set.Make (struct type t = int    let compare = Pervasives.compare end))
