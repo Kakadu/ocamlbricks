@@ -19,6 +19,36 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+(** Filter and map in the same loop using an {e heuristic} function (i.e. a function ['a -> 'b option]). *)
+let filter_map ?acc f =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop acc = function
+  | []    -> acc
+  | x::xs ->
+     (match (f x) with
+     | None   -> (loop acc xs)
+     | Some y -> y::(loop acc xs)
+     )
+ in loop acc
+
+(** As standard [List.map] but with the possibility to provide an accumulator (which will be appended to the result). *)
+let map ?acc f =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop acc = function
+ | []    -> acc
+ | x::xs -> let y = f x in (y::(loop acc xs))
+in loop acc
+
+(** As standard [List.rev_map] but with the possibility to provide an accumulator (which will be appended to the result). *)
+let rev_map ?acc f =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop acc = function
+ | []    -> acc
+ | x::xs -> loop ((f x)::acc) xs
+  in
+ loop acc
+
+
 open Sugar
 
 

@@ -16,6 +16,12 @@
 
 (** Additional features for the standard module [List]. *)
 
+
+val filter_map : ?acc:('b list) -> ('a -> 'b option) -> 'a list -> 'b list
+
+val map     : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
+val rev_map : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
+
 val foreach      : 'a list -> ('a -> unit) -> unit
 
 (** {2 Generalizations} *)
