@@ -14,22 +14,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Include type definitions of an interface into an implementation.
-    Usage (in your .ml):
-
-      #load "include_type_definitions_p4.cmo";;
-      INCLUDE DEFINITIONS "<filename>.mli"
-
-    Type definitions are, in outline, mli phrases with '=' or exception definitions.
-    More precisely, only phrases of the following form will be imported:
-    1)  type ... = ... (and ... = ...)*
-    2)  module type ... = ...
-    3)  class type ... = ...
-    4)  exception ...
-    Any other phrase of <filename>.mli will be ignored.
-  *)
-
 (* ocamlc -c -pp camlp4of -I +camlp4 include_type_definitions_p4.ml *)
+
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
 open Camlp4 (* -*- camlp4o -*- *)
 

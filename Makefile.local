@@ -17,7 +17,7 @@
 
 
 COMPILE_OPTIONS += -thread
-DIRECTORIES_TO_INCLUDE = threads lablgtk2
+DIRECTORIES_TO_INCLUDE = threads lablgtk2 camlp4
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
 NATIVE_PROGRAMS =
@@ -31,18 +31,35 @@ C_OBJECTS_TO_LINK = gettext-c-wrapper does-process-exist-c-wrapper waitpid-c-wra
 OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-c-wrapper.o,gettext_extract_pot_p4.cmo,waitpid-c-wrapper.o,include_type_definitions_p4.cmo,include_as_string_p4.cmo}
 
 MANUALLY_PRE_COPY_IN_build =     \
-  CAMLP4/include_type_definitions_p4.ml \
-  CAMLP4/include_as_string_p4.ml
+  CAMLP4/include_type_definitions_p4.ml{,i} \
+  CAMLP4/include_as_string_p4.ml{,i}
 
 MANUALLY_PRE_MAKE_IN_build =      \
-  include_type_definitions_p4.cmo \
-  include_as_string_p4.cmo
+  include_type_definitions_p4.cm{i,o} \
+  include_as_string_p4.cm{i,o} 
+
+# include_type_definitions_p4
+
+_build/include_type_definitions_p4.cmi: CAMLP4/include_type_definitions_p4.mli
+	ocamlc -c -I +camlp4 -pp camlp4of -o $@ $<
 
 _build/include_type_definitions_p4.cmo: CAMLP4/include_type_definitions_p4.ml
+	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of -o $@ $<
+
+# include_as_string_p4
+
+_build/include_as_string_p4.cmi: CAMLP4/include_as_string_p4.mli
 	ocamlc -c -I +camlp4 -pp camlp4of -o $@ $<
 
 _build/include_as_string_p4.cmo: CAMLP4/include_as_string_p4.ml
-	ocamlc -c -I +camlp4 -pp camlp4of -o $@ $<
+	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of -o $@ $<
+
+
+# gettext_extract_pot_p4
+
+_build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
+	ocamlc -c -I +camlp4 -pp camlp4of camlp4lib.cma -o $@ $<
+
 
 _build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
@@ -53,9 +70,6 @@ _build/does-process-exist-c-wrapper.o: EXTRA/does-process-exist-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
 	(mkdir _build &> /dev/null || true) && \
 	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
-
-_build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
-	ocamlc -c -I +camlp4 -pp camlp4of camlp4lib.cma -o $@ $<
 
 _build/waitpid-c-wrapper.o: EXTRA/waitpid-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \

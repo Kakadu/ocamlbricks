@@ -14,10 +14,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** This module contains a simple implementation of application-wise configuration
-    files, implemented as shell scripts. Configuration files are looked for (by
-    default) in "standard" places like /etc, the user's home directory and the
-    shell environment.
+(** Simple implementation of application-wise configuration files, implemented as shell scripts.
+    Configuration files are looked for (by default) in "standard" places like /etc,
+    the user's home directory and the shell environment.
     There is a priority:
     - System-wise files in /etc
     - User's files in ~

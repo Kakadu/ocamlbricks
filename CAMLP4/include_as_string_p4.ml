@@ -1,4 +1,4 @@
-(*  This file is part of Marionnet, a virtual network laboratory
+(*  This file is part of our reusable OCaml BRICKS library
     Copyright (C) 2008-2009 Jean-Vincent Loddo
  
     This program is free software: you can redistribute it and/or modify
@@ -18,31 +18,6 @@
 
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
-
-(** Examples:
-{[
-let content = INCLUDE_AS_STRING "/bin/ls" in
-Printf.eprintf "The length in word of /bin/ls is %d\n" (String.length content);
-let ch = open_out "/tmp/ls_copy" in
-Printf.fprintf ch "%s" content;
-close_out ch;
-;;
-
-let put (filename,content) =   
- begin
-  Printf.eprintf "The length in word of %s is %d\n" filename (String.length content);
-  let ch = open_out ("/tmp/"^Filename.basename filename) in
-  Printf.fprintf ch "%s" content;
-  close_out ch;
- end
-;;
-
-(* Note the usage of ../ requested with ocamlbuild (because compilation happens in _build/) *)
-let xs = INCLUDE_AS_STRING_LIST "../share/images/ico.hub.*" in
-List.iter put xs
-;;
-]}
-*)
 
 open Camlp4.PreCast
 open Syntax

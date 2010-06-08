@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Thread safe, efficient concatenation string queues. *)
+(** Thread safe, efficient concatenation of string queues. *)
 
 type t
 

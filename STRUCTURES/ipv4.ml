@@ -1,4 +1,4 @@
-(* This file is part of Marionnet, a virtual network laboratory
+(* This file is part of our reusable OCaml BRICKS library
    Copyright (C) 2009 Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
