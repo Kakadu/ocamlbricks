@@ -104,7 +104,6 @@ type html_like = [ `text of text | `TABLE of table | `FONT of font ]
   [ `ALIGN of [`CENTER|`LEFT|`RIGHT]
   | `BGCOLOR of color
   | `BORDER of float
-  | `CELLBORDER of float
   | `CELLPADDING of float
   | `CELLSPACING of float
   | `FIXEDSIZE of bool
@@ -125,6 +124,8 @@ type html_like = [ `text of text | `TABLE of table | `FONT of font ]
   [ `SCALE of [`FALSE|`TRUE|`WIDTH|`HEIGHT|`BOTH]
   | `SRC of filename
   ]
+
+type label = [ `escaped of escaped_string | `html of html_like ]
 
 val graph:
 
@@ -269,7 +270,7 @@ val graph:
 
  ?fontsize:float -> (* Font size, in points, used for text. Default is 14.0, minimum is 1.0 *)
 
- ?label: [ `escaped of escaped_string | `html of html_like ] -> (* Text label attached to objects. *)
+ ?label: label -> (* Text label attached to objects. *)
  
  ?labeljust: [ `r | `l | `c ] ->
     (* Justification for cluster labels. If "r", the label is right-justified within bounding rectangle; if "l", left-justified;
@@ -339,7 +340,7 @@ val cluster:
  ?fontcolor: color  ->
  ?fontname:string   -> (* Default is "Times-Roman" *)
  ?fontsize:float -> 
- ?label: [ `escaped of escaped_string | `html of html_like ] -> 
+ ?label: label -> 
  ?labeljust: [ `r | `l | `c ] ->
  ?labelloc: [ `t | `b ] -> (* Default is "t" for clusters. *)
  ?nojustify:unit ->
@@ -403,7 +404,7 @@ val node :
          ] ->
    (* Default is ellipse. See http://www.graphviz.org/pub/scm/graphviz2/doc/info/shapes.html#polygon  *)
 
- ?label: [ `escaped of escaped_string | `html of html_like ] -> (* Internal label. Default is "N" for nodes. *)
+ ?label: label -> (* Internal label. Default is "N" for nodes. *)
  ?style: [ `dashed | `dotted | `solid | `invis | `bold | `filled | `diagonals | `rounded ] list ->
 
  ?width:float ->
@@ -454,7 +455,7 @@ val edge :
    (* If true, the head of an edge is clipped to the boundary of the head node; otherwise, the end of the edge goes to the center of the node,
       or the center of a port, if applicable. Default is true. *)
 
- ?headlabel: [ `escaped of escaped_string | `html of html_like ] ->
+ ?headlabel: label ->
    (* Text label to be placed near head of edge. *)
 
  ?headport: port_ident * ([ `n | `ne | `e | `se | `s | `sw | `w | `nw ] option) ->
@@ -469,10 +470,10 @@ val edge :
       node1:port1 -> node2:port5:nw. Default is center. *)
 
  ?tailclip:bool ->
- ?taillabel: [ `escaped of escaped_string | `html of html_like ] ->
+ ?taillabel: label ->
  ?tailport: port_ident * ([ `n | `ne | `e | `se | `s | `sw | `w | `nw ] option) ->
 
- ?label: [ `escaped of escaped_string | `html of html_like ] -> (* Default is the empty string for edges. *)
+ ?label: label -> (* Default is the empty string for edges. *)
 
  ?labelangle:float ->
    (* This, along with labeldistance, determine where the headlabel (taillabel) are placed with respect to the head (tail) in polar coordinates.
@@ -554,7 +555,7 @@ val graph_default :
  ?fontname:string   ->
  ?fontpath:string list ->
  ?fontsize:float -> 
- ?label: [ `escaped of escaped_string | `html of html_like ] -> 
+ ?label: label -> 
  ?labeljust: [ `r | `l | `c ] ->
  ?labelloc: [ `t | `b ] ->
  ?nojustify:unit ->
@@ -589,7 +590,7 @@ val node_default :
          | `epsf of filename (* shape=epsf, shapefile=filename *)
          | `polygon of int * int (* shape=polygon, sides=int, skew=int. Default are sides=4 and skew=0.0 *)
          ] ->
- ?label: [ `escaped of escaped_string | `html of html_like ] -> 
+ ?label: label -> 
  ?style: [ `dashed | `dotted | `solid | `invis | `bold | `filled | `diagonals | `rounded ] list ->
  ?width:float ->
  ?z:float ->
@@ -611,12 +612,12 @@ val edge_default :
  ?fontname:string   ->
  ?fontsize:float ->
  ?headclip:bool ->
- ?headlabel: [ `escaped of escaped_string | `html of html_like ] ->
+ ?headlabel: label ->
  ?headport: port_ident * ([ `n | `ne | `e | `se | `s | `sw | `w | `nw ] option) ->
  ?tailclip:bool ->
- ?taillabel: [ `escaped of escaped_string | `html of html_like ] ->
+ ?taillabel: label ->
  ?tailport: port_ident * ([ `n | `ne | `e | `se | `s | `sw | `w | `nw ] option) ->
- ?label: [ `escaped of escaped_string | `html of html_like ] ->
+ ?label: label ->
  ?labelangle:float ->
  ?labeldistance:float ->
  ?labelfloat:unit ->
@@ -636,8 +637,26 @@ val edge_default :
  unit -> statement
 
 
-val label_of_text  : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> text  -> [ `html of html_like ]
-val label_of_table : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> table -> [ `html of html_like ]
+val label_of_text  : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> text  -> label
+val label_of_table : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> table -> label
+val label_of_image :
+ ?align: [ `CENTER | `LEFT | `RIGHT ] ->
+ ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
+ ?bgcolor:color ->
+ ?border:float ->
+ ?cellborder:float ->
+ ?cellpadding:float ->
+ ?cellspacing:float ->
+ ?fixedsize:bool ->
+ ?height:float ->
+ ?href:string ->
+ ?port:string ->
+ ?target:string ->
+ ?title:string ->
+ ?tooltip:string ->
+ ?width:float ->
+ ?imagescale:[ `BOTH | `FALSE | `HEIGHT | `TRUE | `WIDTH ] ->
+ filename -> label
 
 val html_of_text  : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> text  -> html_like
 val html_of_table : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> table -> html_like
@@ -668,7 +687,6 @@ val cell_of_text :
  ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
  ?bgcolor:color ->
  ?border:float ->
- ?cellborder:float ->
  ?cellpadding:float ->
  ?cellspacing:float ->
  ?fixedsize:bool ->
@@ -688,7 +706,6 @@ val cell_of_table :
  ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
  ?bgcolor:color ->
  ?border:float ->
- ?cellborder:float ->
  ?cellpadding:float ->
  ?cellspacing:float ->
  ?fixedsize:bool ->
@@ -708,7 +725,6 @@ val cell_of_image :
  ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
  ?bgcolor:color ->
  ?border:float ->
- ?cellborder:float ->
  ?cellpadding:float ->
  ?cellspacing:float ->
  ?fixedsize:bool ->

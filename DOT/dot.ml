@@ -209,7 +209,7 @@ module Html_like_constructors = struct
    (!attributes, row_list)
 
 
- let cell_map f ?align ?valign ?bgcolor ?border ?cellborder ?cellpadding
+ let cell_map f ?align ?valign ?bgcolor ?border ?cellpadding
   ?cellspacing ?fixedsize ?height ?href ?port ?target ?title ?tooltip
   ?width ?colspan ?rowspan ?fontcolor ?fontname ?fontsize
   alpha : cell =
@@ -218,7 +218,6 @@ module Html_like_constructors = struct
    append (fun x -> `ALIGN x) align;
    append (fun x -> `BGCOLOR x) bgcolor;
    append (fun x -> `BORDER x) border;
-   append (fun x -> `CELLBORDER x) cellborder;
    append (fun x -> `CELLPADDING x) cellpadding;
    append (fun x -> `CELLSPACING x) cellspacing;
    append (fun x -> `FIXEDSIZE x) fixedsize;
@@ -254,7 +253,7 @@ let cell_of_table =
   cell_map f
 
 let cell_of_image
-  ?align ?valign ?bgcolor ?border ?cellborder ?cellpadding ?cellspacing
+  ?align ?valign ?bgcolor ?border ?cellpadding ?cellspacing
   ?fixedsize ?height ?href ?port ?target ?title ?tooltip ?width
   ?colspan ?rowspan ?imagescale
   filename : cell =
@@ -263,7 +262,6 @@ let cell_of_image
    append (fun x -> `ALIGN x) align;
    append (fun x -> `BGCOLOR x) bgcolor;
    append (fun x -> `BORDER x) border;
-   append (fun x -> `CELLBORDER x) cellborder;
    append (fun x -> `CELLPADDING x) cellpadding;
    append (fun x -> `CELLSPACING x) cellspacing;
    append (fun x -> `FIXEDSIZE x) fixedsize;
@@ -283,6 +281,19 @@ let cell_of_image
    append (fun x -> `SRC x)   (Some filename);
    (!attributes, `IMG !image_attributes)
 
+ let label_of_image
+  ?align ?valign ?bgcolor ?border ?cellborder ?cellpadding ?cellspacing
+  ?fixedsize ?height ?href ?port ?target ?title ?tooltip ?width
+  ?imagescale
+  filename =
+   let cell = cell_of_image
+     ?align ?valign ?bgcolor ?border ?cellpadding ?cellspacing
+     ?fixedsize ?height ?href ?port ?target ?title ?tooltip ?width
+     ?imagescale
+     filename
+   in
+   let table = table ?border ?cellborder [[cell]] in
+   `html (html_of_table table)
   
 end (* Html_like_constructors *)
 
@@ -363,10 +374,11 @@ module Html_like_printer = struct
       let xs = List.map (cell tab') cell_list in
       let cells = cat xs in
       Printf.sprintf "%s<TR>\n%s\n%s</TR>" tab cells tab
-  
+
  and cell_content tab = function
   | `html h -> html_like tab h
-  | `IMG img -> image tab img
+  (* In the case of an image, dot doesn't accept spaces among <TD> and <IMG>!!!*)
+  | `IMG img -> image img
   
  and cell tab =
   let tab' = tab ^ "  " in
@@ -375,7 +387,7 @@ module Html_like_printer = struct
       let xs = List.map (attribute tab') cell_attribute_list in
       let attrs = cat xs in
       let content = cell_content tab' html_or_image in
-      Printf.sprintf "%s<TD\n%s%s\n%s>\n%s\n%s</TD>" tab tab' attrs tab content tab
+      Printf.sprintf "%s<TD\n%s%s\n%s>%s</TD>" tab tab' attrs tab content
 
  and font tab =
   let tab' = tab ^ "  " in
@@ -386,13 +398,10 @@ module Html_like_printer = struct
       let content = html_like tab' content in
       Printf.sprintf "%s<FONT\n%s%s\n%s>\n%s\n%s</FONT>" tab tab' attrs tab content tab
 
- and image tab = 
-  let tab' = tab ^ "  " in
-  function
-    attribute_list ->
-      let xs = List.map (attribute tab') attribute_list in
+ and image attribute_list =
+      let xs = List.map (attribute "") attribute_list in
       let attrs = cat xs in
-      Printf.sprintf "%s<IMG\n%s%s\n%s>" tab tab' attrs tab
+      Printf.sprintf "<IMG %s/>" attrs
 
 end
 
@@ -496,7 +505,7 @@ module String_of = struct
 
  let gen_label label = function
   | `escaped x -> Printf.sprintf "%s=\"%s\"" label x
-  | `html h    -> Printf.sprintf "%s=\"%s\"" label (string_of_html_like h)
+  | `html h    -> Printf.sprintf "%s=<%s>" label (string_of_html_like h)
 
  let label = gen_label "label"
  let headlabel = gen_label "headlabel"
