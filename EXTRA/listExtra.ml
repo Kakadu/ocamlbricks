@@ -37,7 +37,7 @@ let map ?acc f =
  let rec loop acc = function
  | []    -> acc
  | x::xs -> let y = f x in (y::(loop acc xs))
-in loop acc
+ in loop acc
 
 (** As standard [List.rev_map] but with the possibility to provide an accumulator (which will be appended to the result). *)
 let rev_map ?acc f =
@@ -45,8 +45,17 @@ let rev_map ?acc f =
  let rec loop acc = function
  | []    -> acc
  | x::xs -> loop ((f x)::acc) xs
-  in
+ in
  loop acc
+
+(** As standard [List.flatten] but with the possibility to provide an accumulator (which will be appended to the result). *)
+let rec flatten ?acc =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop = function
+ | [] -> acc
+ | x::xs -> x @ (loop xs)
+ in
+ loop
 
 
 open Sugar
