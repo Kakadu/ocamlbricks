@@ -603,6 +603,9 @@ module String_of = struct
   | `epsf filename        -> Printf.sprintf "shape=\"epsf\", shapefile=\"%s\"" filename
   | x -> Printf.sprintf "shape=\"%s\"" (string_of_shape x)
 
+ (* For node (dot-undocumented) option "image=filename" *)
+ let image = Printf.sprintf "image=\"%s\""
+
  let string_of_arrow_type = function
   | `Open -> "open"
   | `box -> "box"
@@ -841,7 +844,7 @@ let edge_default =
 
 let map_node_options f
   ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
-  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
+  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?image ?label ?style ?width ?z
   node_ident =
   
   let node_options = ref [] in
@@ -865,6 +868,7 @@ let map_node_options f
   append (String_of.pos) pos;
   append (String_of.regular) regular;
   append (String_of.shape) shape;
+  append (String_of.image) image;
   append (String_of.label) label;
   append (String_of.style) style;
   append (String_of.width) width;
@@ -888,7 +892,7 @@ module Html = Html_like_constructors
 (* Node redefinition, in order to manage the pseudo-option "outlabel" *)
 let node
   ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
-  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
+  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?image ?label ?style ?width ?z
   ?outlabel
   node_ident =
   let super = node in (* The redefined function *)
@@ -896,7 +900,7 @@ let node
   | None ->
      super
        ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
-       ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
+       ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?image ?label ?style ?width ?z
        node_ident
   | Some outlabel ->
       let wrapped_label =
@@ -934,7 +938,7 @@ let node
       in
       super
         ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
-        ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ~label ?style ?width ?z
+        ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?image ~label ?style ?width ?z
         node_ident
 
 

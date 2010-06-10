@@ -404,6 +404,9 @@ val node :
          ] ->
    (* Default is ellipse. See http://www.graphviz.org/pub/scm/graphviz2/doc/info/shapes.html#polygon  *)
 
+ (* Undocumented, but really nice: the image act as a background for the label. *)
+ ?image:filename ->
+
  ?label: label -> (* Internal label. Default is "N" for nodes. *)
  ?style: [ `dashed | `dotted | `solid | `invis | `bold | `filled | `diagonals | `rounded ] list ->
 
@@ -592,7 +595,8 @@ val node_default :
          | `epsf of filename (* shape=epsf, shapefile=filename *)
          | `polygon of int * int (* shape=polygon, sides=int, skew=int. Default are sides=4 and skew=0.0 *)
          ] ->
- ?label: label -> 
+ ?image:filename ->
+ ?label: label ->
  ?style: [ `dashed | `dotted | `solid | `invis | `bold | `filled | `diagonals | `rounded ] list ->
  ?width:float ->
  ?z:float ->
