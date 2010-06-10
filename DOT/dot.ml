@@ -38,24 +38,12 @@ type graph = {
    | Node of node_ident * (node_option list)                  (* id [name=val,...] *)
    | Edge of node_ident * node_ident * (edge_option list)     (* id -> id [name=val,...] *)
    | Subgraph of name * (statement list)                      (* subgraph name { statements } *)
+   | Statement_list of statement list
 
  and name = string
  and graph_option = string
  and node_option = string
  and edge_option = string
-
-(*module Fold
- (F : sig
-  type statement'
-  type graph'
-  val graph : strict:bool -> digraph:bool -> name:string -> statements:(statement list statement' -> graph'
-  val statement : (statement' -> statement -> statement') * statement'
- end) = struct
-
- let graph { strict = strict; digraph = digraph; name = name; statements = statements; } =
-   F.graph ~strict ~digraph ~name ~statements:(List.fold_left (fst F.statement) (snd F.statement) statements)
- 
-end*)
 
 let catenate ~sep = function
 | [] -> ""
@@ -64,12 +52,6 @@ let catenate ~sep = function
 let commacat = catenate ~sep:","
 let newlinecat = catenate ~sep:"\n"
 
-module List_tool = struct
-let rec flatten acc = function
-  | [] -> acc
-  | x::xs -> x @ (flatten acc xs)
-end
-
 let rec cotokens_of_statement tab edge_operator = function
 | Graph_default graph_option          ->  [Printf.sprintf "%s%s" tab graph_option]
 | Graph_defaults graph_option_list    ->  [Printf.sprintf "%sgraph [%s]" tab  (commacat graph_option_list)]
@@ -77,11 +59,12 @@ let rec cotokens_of_statement tab edge_operator = function
 | Edge_defaults  edge_option_list     ->  [Printf.sprintf "%sedge [%s]" tab  (commacat edge_option_list)]
 | Node (node_ident, node_option_list) ->  [Printf.sprintf "%s%s [%s]" tab  node_ident (commacat node_option_list)]
 | Edge (n1, n2, edge_option_list)     ->  [Printf.sprintf "%s%s %s %s [%s]" tab n1 edge_operator n2 (commacat edge_option_list)]
+| Statement_list statement_list       ->  List.flatten (List.map (cotokens_of_statement tab edge_operator) statement_list)
 | Subgraph (name, statement_list)     ->
     let tab' = (tab^"  ") in  
     let first = Printf.sprintf "%ssubgraph %s {" tab name in
     let last  = Printf.sprintf "%s}" tab in
-    let rest  = List_tool.flatten [last] (List.map (cotokens_of_statement tab' edge_operator) statement_list) in
+    let rest  = ListExtra.flatten ~acc:[last] (List.map (cotokens_of_statement tab' edge_operator) statement_list) in
     first::rest
 
 let cotokens_of_graph { strict = strict; digraph = digraph; name = name; statements = statements; } =
@@ -89,7 +72,7 @@ let cotokens_of_graph { strict = strict; digraph = digraph; name = name; stateme
   let (digraph, edge_operator) = if digraph then ("digraph","->") else ("graph","--") in
   let first = Printf.sprintf "%s%s %s {" strict digraph name in
   let last  = Printf.sprintf "}" in
-  let rest = List_tool.flatten [last] (List.map (cotokens_of_statement "  " edge_operator) statements) in
+  let rest = ListExtra.flatten ~acc:[last] (List.map (cotokens_of_statement "  " edge_operator) statements) in
   first::rest
 
 let print g =
@@ -172,6 +155,12 @@ module Html_like_constructors = struct
    let f x = `TABLE x in
    html_map f
 
+ let html_of_label =
+   let f = function
+    | (`escaped s) -> (`text [`string s])
+    | (`html h)    -> h
+   in html_map f
+
  let label_of_text  ?fontcolor ?fontname ?fontsize x = `html (html_of_text  ?fontcolor ?fontname ?fontsize x)
  let label_of_table ?fontcolor ?fontname ?fontsize x = `html (html_of_table ?fontcolor ?fontname ?fontsize x)
 
@@ -252,6 +241,24 @@ let cell_of_table =
   in
   cell_map f
 
+let cell_of_html =
+  let f html = function
+   | []     -> `html html
+   | fattrs -> `html (`FONT (fattrs, html))
+  in
+  cell_map f
+
+let cell_of_label = 
+  let f label =
+    let html = match label with
+    | (`escaped s) -> (`text [`string s])
+    | (`html h)    -> h
+    in function
+    | []     -> `html html
+    | fattrs -> `html (`FONT (fattrs, html))
+  in
+  cell_map f
+   
 let cell_of_image
   ?align ?valign ?bgcolor ?border ?cellpadding ?cellspacing
   ?fixedsize ?height ?href ?port ?target ?title ?tooltip ?width
@@ -300,9 +307,9 @@ end (* Html_like_constructors *)
 module Html_like_printer = struct
 
 (*  let cat ?(tab="") = List.fold_left (fun s x -> Printf.sprintf "%s\n%s%s" s tab x) "" *)
- let cat ?(tab="") = function
+ let cat ?(sep="\n") ?(tab="") = function
  | [] -> ""
- | y::ys -> List.fold_left (fun s x -> Printf.sprintf "%s\n%s%s" s tab x) y ys
+ | y::ys -> List.fold_left (fun s x -> Printf.sprintf "%s%s%s%s" s sep tab x) y ys
  
  let string_of_color = Common.string_of_color
 
@@ -343,20 +350,19 @@ module Html_like_printer = struct
 
  let rec html_like tab =
   function
-  | `text is  -> text tab is
+  | `text is  -> text is
   | `TABLE tbl -> table tab tbl
   | `FONT html -> font tab html
 
- and string_or_br tab =
-  let tab' = tab ^ "  " in
+ and string_or_br =
   function
-  | `string s -> Printf.sprintf "%s%s" tab s
+  | `string s -> s
   | `BR attribute_list ->
-      let xs = List.map (attribute tab') attribute_list in
-      let attrs = cat xs in
-      Printf.sprintf "%s<BR\n%s%s\n%s>" tab tab' attrs tab
+      let xs = List.map (attribute "") attribute_list in
+      let br_and_attrs = cat ~sep:" " ("<BR"::xs) in
+      Printf.sprintf "%s/>" br_and_attrs
 
- and text tab string_or_br_list = cat (List.map (string_or_br tab) string_or_br_list)
+ and text string_or_br_list = cat ~sep:"" (List.map string_or_br string_or_br_list)
 
  and table tab = 
   let tab' = tab ^ "  " in
@@ -365,14 +371,15 @@ module Html_like_printer = struct
       let xs = List.map (attribute tab') attribute_list in
       let attrs = cat xs in
       let ys = List.map (row tab') row_list in
-      let rows = cat ys in
-      Printf.sprintf "%s<TABLE\n%s%s\n%s>\n%s\n%s</TABLE>" tab tab' attrs tab rows tab
+      let rows = cat ~tab:tab' ys in
+(*       Printf.sprintf "%s<TABLE\n%s%s\n%s>\n%s\n%s</TABLE>" tab tab' attrs tab rows tab *)
+      Printf.sprintf "\n%s<TABLE %s >\n%s\n%s</TABLE>" tab attrs rows tab
 
  and row tab = 
   let tab' = tab ^ "  " in
   function cell_list ->
       let xs = List.map (cell tab') cell_list in
-      let cells = cat xs in
+      let cells = cat ~tab:tab' xs in
       Printf.sprintf "%s<TR>\n%s\n%s</TR>" tab cells tab
 
  and cell_content tab = function
@@ -385,9 +392,10 @@ module Html_like_printer = struct
   function
   | (cell_attribute_list, html_or_image) ->
       let xs = List.map (attribute tab') cell_attribute_list in
-      let attrs = cat xs in
+      let attrs = cat ~tab:tab' xs in
       let content = cell_content tab' html_or_image in
-      Printf.sprintf "%s<TD\n%s%s\n%s>%s</TD>" tab tab' attrs tab content
+(*    Printf.sprintf "%s<TD\n%s%s\n%s>%s</TD>" tab tab' attrs tab content *)
+      Printf.sprintf "%s<TD %s>%s</TD>" tab attrs content
 
  and font tab =
   let tab' = tab ^ "  " in
@@ -776,53 +784,13 @@ let cluster
   Subgraph (name, !statements)
 
 
-let map_node_options f 
-  ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
-  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
-  alpha =
-  
-  let node_options = ref [] in
-  let append f x = append node_options (fun e->e) f x in
-  append (String_of.url) url;
-  append (String_of.color) color;
-  append (String_of.comment) comment;
-  append (String_of.distortion) distortion;
-  append (String_of.fillcolor) fillcolor;
-  append (String_of.fontcolor) fontcolor;
-  append (String_of.fontname) fontname;
-  append (String_of.fontsize) fontsize;
-  append (String_of.fixedsize) fixedsize;
-  append (String_of.group) group;
-  append (String_of.height) height;
-  append (String_of.layer) layer;
-  append (String_of.margin) margin;
-  append (String_of.nojustify) nojustify;
-  append (String_of.orientation) orientation;
-  append (String_of.peripheries) peripheries;
-  append (String_of.pos) pos;
-  append (String_of.regular) regular;
-  append (String_of.shape) shape;
-  append (String_of.label) label;
-  append (String_of.style) style;
-  append (String_of.width) width;
-  append (String_of.z) z;
-  f alpha node_options
-
-let node =
- let f = fun node_ident node_options -> Node (node_ident, !node_options) in
- map_node_options f
-
-let node_default =
-  let f _ node_options = (Node_defaults !node_options) in
-  map_node_options f
-
 let map_edge_options f
   ?url ?color ?comment ?arrowhead ?arrowtail ?dir ?arrowsize ?constraint_off ?decorate
   ?fontcolor ?fontname ?fontsize ?headclip ?headlabel ?headport ?tailclip ?taillabel ?tailport
   ?label ?labelangle ?labeldistance ?labelfloat ?labelfontcolor ?labelfontname ?labelfontsize
   ?layer ?lhead ?ltail ?minlen ?nojustify ?pos ?samehead ?sametail ?style ?weight
   alpha =
-  
+
   let edge_options = ref [] in
   let append f x = append edge_options (fun e->e) f x in
   append (String_of.url) url;
@@ -862,13 +830,113 @@ let map_edge_options f
   append (String_of.weight) weight;
   f alpha edge_options
 
-let edge = 
+let edge =
  let f = fun node_ident_head edge_options node_ident_tail -> Edge (node_ident_head, node_ident_tail, !edge_options) in
  map_edge_options f
 
 let edge_default =
  let f _ edge_options =  (Edge_defaults !edge_options) in
  map_edge_options f
+
+
+let map_node_options f
+  ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
+  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
+  node_ident =
+  
+  let node_options = ref [] in
+  let append f x = append node_options (fun e->e) f x in
+  append (String_of.url) url;
+  append (String_of.color) color;
+  append (String_of.comment) comment;
+  append (String_of.distortion) distortion;
+  append (String_of.fillcolor) fillcolor;
+  append (String_of.fontcolor) fontcolor;
+  append (String_of.fontname) fontname;
+  append (String_of.fontsize) fontsize;
+  append (String_of.fixedsize) fixedsize;
+  append (String_of.group) group;
+  append (String_of.height) height;
+  append (String_of.layer) layer;
+  append (String_of.margin) margin;
+  append (String_of.nojustify) nojustify;
+  append (String_of.orientation) orientation;
+  append (String_of.peripheries) peripheries;
+  append (String_of.pos) pos;
+  append (String_of.regular) regular;
+  append (String_of.shape) shape;
+  append (String_of.label) label;
+  append (String_of.style) style;
+  append (String_of.width) width;
+  append (String_of.z) z;
+  
+  f node_ident node_options
+
+let node =
+ let f = fun node_ident node_options -> Node (node_ident, !node_options) in
+ map_node_options f
+
+let node_default =
+  let f _ node_options = (Node_defaults !node_options) in
+  map_node_options f
+
+let phantom_fresh_name = Counter.make_string_generator ~prefix:"_phantom_" ()
+
+(* shorthand *)
+module Html = Html_like_constructors
+
+(* Node redefinition, in order to manage the pseudo-option "outlabel" *)
+let node
+  ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
+  ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
+  ?outlabel
+  node_ident =
+  let super = node in (* The redefined function *)
+  match outlabel with
+  | None ->
+     super
+       ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
+       ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?label ?style ?width ?z
+       node_ident
+  | Some outlabel ->
+      let wrapped_label =
+         (match label with
+         | None       -> (`escaped node_ident)
+         | Some label -> label
+         )
+      in
+      let label =
+        let table_content = match outlabel with
+        | `north label -> 
+            let l = Html.cell_of_label ~valign:`BOTTOM label in
+            let n = Html.cell_of_label ~valign:`TOP    wrapped_label in
+            [[l];[n]]
+        | `south label -> 
+            let l = Html.cell_of_label ~valign:`TOP    label in
+            let n = Html.cell_of_label ~valign:`BOTTOM wrapped_label in
+            [[n];[l]]
+        | `east label  -> 
+            let l = Html.cell_of_label ~align:`LEFT  label in
+            let n = Html.cell_of_label ~align:`RIGHT wrapped_label in
+            [[n;l]]
+        | `west label  -> 
+            let l = Html.cell_of_label ~align:`RIGHT label in
+            let n = Html.cell_of_label ~align:`LEFT  wrapped_label in
+            [[l;n]]
+        in
+        Html.label_of_table
+          (Html.table
+	      ~align:`CENTER
+	      ~border:0.
+	      ~cellborder:0.
+	      ~cellspacing:0.
+              table_content)
+      in
+      super
+        ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
+        ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ~label ?style ?width ?z
+        node_ident
+
 
 let graph_of_list nns =
  let sl = List.map (function (n1,n2) -> edge n1 n2) nns in

@@ -418,6 +418,8 @@ val node :
       Even if no z values are specified in the input, it is necessary to declare a z attribute for nodes, e.g, using node[z=""] in order to get z values on output.
       Thus, setting dim=3 but not declaring z will cause neato -Tvrml to layout the graph in 3D but project the layout onto the xy-plane for the rendering.
       If the z attribute is declared, the final rendering will be in 3D. *)
+
+ ?outlabel:[ `north of label | `south of label | `east of label | `west of label ] ->
  
  node_ident -> statement
 
@@ -660,6 +662,7 @@ val label_of_image :
 
 val html_of_text  : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> text  -> html_like
 val html_of_table : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> table -> html_like
+val html_of_label : ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> label -> html_like
 
 val text_of_string : ?br:unit -> ?align:[ `CENTER | `LEFT | `RIGHT ] -> string -> text
 val text_concat : text list -> text
@@ -719,6 +722,44 @@ val cell_of_table :
  ?colspan:int ->
  ?rowspan:int ->
  ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> table -> cell
+
+val cell_of_html :
+ ?align: [ `CENTER | `LEFT | `RIGHT ] ->
+ ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
+ ?bgcolor:color ->
+ ?border:float ->
+ ?cellpadding:float ->
+ ?cellspacing:float ->
+ ?fixedsize:bool ->
+ ?height:float ->
+ ?href:string ->
+ ?port:string ->
+ ?target:string ->
+ ?title:string ->
+ ?tooltip:string ->
+ ?width:float ->
+ ?colspan:int ->
+ ?rowspan:int ->
+ ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> html_like -> cell
+
+val cell_of_label :
+ ?align: [ `CENTER | `LEFT | `RIGHT ] ->
+ ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
+ ?bgcolor:color ->
+ ?border:float ->
+ ?cellpadding:float ->
+ ?cellspacing:float ->
+ ?fixedsize:bool ->
+ ?height:float ->
+ ?href:string ->
+ ?port:string ->
+ ?target:string ->
+ ?title:string ->
+ ?tooltip:string ->
+ ?width:float ->
+ ?colspan:int ->
+ ?rowspan:int ->
+ ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> label -> cell
 
 val cell_of_image :
  ?align: [ `CENTER | `LEFT | `RIGHT ] ->
