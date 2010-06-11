@@ -708,6 +708,25 @@ val cell_of_text :
  ?rowspan:int ->
  ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> text -> cell
 
+val cell_of_string :
+ ?align: [ `CENTER | `LEFT | `RIGHT ] ->
+ ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->
+ ?bgcolor:color ->
+ ?border:float ->
+ ?cellpadding:float ->
+ ?cellspacing:float ->
+ ?fixedsize:bool ->
+ ?height:float ->
+ ?href:string ->
+ ?port:string ->
+ ?target:string ->
+ ?title:string ->
+ ?tooltip:string ->
+ ?width:float ->
+ ?colspan:int ->
+ ?rowspan:int ->
+ ?fontcolor:color -> ?fontname:string -> ?fontsize:int -> string -> cell
+
 val cell_of_table :
  ?align: [ `CENTER | `LEFT | `RIGHT ] ->
  ?valign:[ `BOTTOM | `MIDDLE | `TOP ] ->

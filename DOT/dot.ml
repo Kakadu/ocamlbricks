@@ -234,6 +234,13 @@ let cell_of_text =
   in
   cell_map f
 
+let cell_of_string =
+  let f s = function
+   | []     -> `html (`text [`string s])
+   | fattrs -> `html (`FONT (fattrs, `text [`string s]))
+  in
+  cell_map f
+
 let cell_of_table =
   let f table = function
    | []     -> `html (`TABLE table)
@@ -394,17 +401,16 @@ module Html_like_printer = struct
       let xs = List.map (attribute tab') cell_attribute_list in
       let attrs = cat ~tab:tab' xs in
       let content = cell_content tab' html_or_image in
-(*    Printf.sprintf "%s<TD\n%s%s\n%s>%s</TD>" tab tab' attrs tab content *)
       Printf.sprintf "%s<TD %s>%s</TD>" tab attrs content
 
  and font tab =
   let tab' = tab ^ "  " in
   function
   | (attribute_list, content) ->
-      let xs = List.map (attribute tab') attribute_list in
-      let attrs = cat xs in
+      let xs = List.map (attribute "") attribute_list in
+      let attrs = cat ~sep:" " ~tab:"" xs in
       let content = html_like tab' content in
-      Printf.sprintf "%s<FONT\n%s%s\n%s>\n%s\n%s</FONT>" tab tab' attrs tab content tab
+      Printf.sprintf "<FONT %s>%s</FONT>" attrs content
 
  and image attribute_list =
       let xs = List.map (attribute "") attribute_list in
