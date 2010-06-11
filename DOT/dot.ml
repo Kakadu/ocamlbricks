@@ -363,7 +363,7 @@ module Html_like_printer = struct
 
  and string_or_br =
   function
-  | `string s -> s
+  | `string s -> StringExtra.expand (function '>' -> Some "&gt;" | '<' -> Some "&lt;" | _ -> None ) s
   | `BR attribute_list ->
       let xs = List.map (attribute "") attribute_list in
       let br_and_attrs = cat ~sep:" " ("<BR"::xs) in
