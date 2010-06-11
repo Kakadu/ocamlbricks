@@ -70,11 +70,13 @@ val chop      : string -> string
 
 val to_charlist : string -> char list
 val of_charlist : char list -> string
+val expand : (char -> string option) -> string -> string
+
 module Charlist :
   sig
     val assemble              : char list -> string
     val disassemble_reversing : ?acc:char list -> string -> char list
-    val assemble_reversing    : char list -> string
+    val assemble_reversing    : ?length:int -> char list -> string
   end
 
 (** {2 Splitting to string list} *)

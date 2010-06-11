@@ -297,16 +297,11 @@ let to_charlist (s:string) =
  let rec loop s l =
   if l=0 then []  else
    let l' = (l-1) in
-   (String.get s 0)::(loop (String.sub s 1 l') l')
+   (s.[0])::(loop (String.sub s 1 l') l')
  in loop s l
 
-(** Convert a list of chars in a string.
-{[# of_charlist ['h';'e';'l';'l';'o'];;
-  : string = "hello"
-]}*)
-let of_charlist = List.fold_left  (fun s c -> (s^(Char.escaped c))) "" ;;
 
-(** More efficient char list operations (assemble/disassemble). *)
+(** Some efficient char list operations (assemble/disassemble). *)
 module Charlist = struct
 
 (** Fold a char list into a string. *)
@@ -325,14 +320,14 @@ let disassemble_reversing ?(acc=[]) (s:string) : char list =
  let n = String.length s in
  let rec loop acc i =
   if i>=n then acc else
-  loop ((String.get s i)::acc) (i+1)
+  loop ((s.[i])::acc) (i+1)
  in loop acc 0
 
 (** Assemble a list of char into a string reversing the order. {b Example}:
 {[# assemble_reversing ['a';'b';'c';'d'] ;;
  : string = "dcba" ]} *)
-let assemble_reversing (xs:char list) : string =
- let n = List.length xs in
+let assemble_reversing ?length (xs:char list) : string =
+ let n = match length with None -> List.length xs | Some x->x in
  let s = String.make n ' ' in
  let rec loop i = function
   | []    -> ()
@@ -340,6 +335,32 @@ let assemble_reversing (xs:char list) : string =
  in (loop (n-1) xs); s
 
 end
+
+(** Convert a list of chars in a string.
+{[# of_charlist ['h';'e';'l';'l';'o'];;
+  : string = "hello"
+]}*)
+let of_charlist = Charlist.assemble
+
+(** [expand f s] expand characters of [s] with the string provided by [f], if any,
+    or leave the character unchanged if [f] returns [None]. {b Example}:
+{[
+# expand (function '>' -> Some "&gt;" | _ -> None ) "int -> bool" ;;
+  : string = "int -&gt; bool"
+]}*)
+let expand (f:char -> string option) s =
+ let n = String.length s in
+ let xs = to_charlist s in
+ let (ys,n) = 
+   List.fold_left
+     (fun (ys,n) c -> match f c with
+     | None   -> ((c::ys),n)
+     | Some x -> ((Charlist.disassemble_reversing ~acc:ys x),(n + (String.length x) - 1))
+     )
+     ([],n)
+     xs
+ in
+ Charlist.assemble_reversing ~length:n ys
 
 (** Split a string into a list of strings containing
     each one [n] characters of the input string (by default [n=1]). {b Examples}:
