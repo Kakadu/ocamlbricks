@@ -19,6 +19,8 @@
 # in the library:
 ArrayExtra
 Bit
+Cache
+Cloakroom
 Configuration_files
 Counter
 Default
