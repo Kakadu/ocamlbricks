@@ -26,7 +26,7 @@ type id = int
 val create : ?size:int -> unit -> 'a t
   
 val add    : 'a t -> 'a -> id
-val remove : 'a t -> id -> unit
+val remove : 'a t -> id -> bool
 val mem    : 'a t -> id -> bool
 val length : 'a t -> int
 val revision : 'a t -> int
@@ -48,7 +48,7 @@ module Hetero : sig
  val create : ?size:int -> unit -> t
  val add : t -> 'a -> id
  val find : t -> id -> 'a
- val remove : t -> id -> unit
+ val remove : t -> id -> bool
  val mem : t -> id -> bool
  val length : t -> int
 end

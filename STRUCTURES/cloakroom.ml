@@ -44,7 +44,8 @@ let remove (ta,ti,fresh,revision) id =
    (Hashtbl.remove ta a);
    (ti := Id_map.remove id !ti);
    (incr revision);
-  with Not_found -> ()
+   true
+  with Not_found -> false
 
 let mem      (ta,ti,fresh,revision) id = Id_map.mem id !ti
 let length   (ta,ti,fresh,revision)    = Hashtbl.length ta
@@ -116,8 +117,9 @@ module Hetero = struct
    try
     let a = Hashtbl.find ti id in
     (ta := List.remove_assq a !ta);
-    (Hashtbl.remove ti id)
-   with Not_found -> ()
+    (Hashtbl.remove ti id);
+    true
+   with Not_found -> false
 
  let find (ta,ti,fresh) id = Hashtbl.find ti id
 
