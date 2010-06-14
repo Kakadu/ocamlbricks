@@ -268,7 +268,7 @@ val graph:
        If fontpath is not set, the environment variable DOTFONTPATH is checked. If that is not set, GDFONTPATH is checked.
        If not set, libgd uses its compiled-in font path. Note that fontpath is an attribute of the root graph. *)
 
- ?fontsize:float -> (* Font size, in points, used for text. Default is 14.0, minimum is 1.0 *)
+ ?fontsize:int -> (* Font size, in points, used for text. Default is 14.0, minimum is 1.0 *)
 
  ?label: label -> (* Text label attached to objects. *)
  
@@ -339,7 +339,7 @@ val cluster:
 
  ?fontcolor: color  ->
  ?fontname:string   -> (* Default is "Times-Roman" *)
- ?fontsize:float -> 
+ ?fontsize:int ->
  ?label: label -> 
  ?labeljust: [ `r | `l | `c ] ->
  ?labelloc: [ `t | `b ] -> (* Default is "t" for clusters. *)
@@ -369,7 +369,7 @@ val node :
 
  ?fontcolor: color  ->
  ?fontname:string   ->
- ?fontsize:float ->
+ ?fontsize:int ->
 
  ?fixedsize:unit -> 
     (* If true, the node size is specified by the values of the width and height attributes only and is not expanded to contain the text label. *)
@@ -454,7 +454,7 @@ val edge :
 
  ?fontcolor: color  ->
  ?fontname:string   ->
- ?fontsize:float -> (* Default is 14.0, minimum is 1.0. *)
+ ?fontsize:int -> (* Default is 14.0, minimum is 1.0. *)
 
  ?headclip:bool ->
    (* If true, the head of an edge is clipped to the boundary of the head node; otherwise, the end of the edge goes to the center of the node,
@@ -499,7 +499,7 @@ val edge :
  ?labelfontname:string -> 
    (* Font used for headlabel and taillabel. If not set, defaults to edge's fontname. *)
                   
- ?labelfontsize:float ->
+ ?labelfontsize:int ->
    (* Font size, in points, used for headlabel and taillabel. If not set, defaults to edge's fontsize. *)
 
  ?layer: layer_ident list -> (* Specifies layers in which the node or edge is present. *)
@@ -559,7 +559,7 @@ val graph_default :
  ?fontcolor: color  -> 
  ?fontname:string   ->
  ?fontpath:string list ->
- ?fontsize:float -> 
+ ?fontsize:int ->
  ?label: label -> 
  ?labeljust: [ `r | `l | `c ] ->
  ?labelloc: [ `t | `b ] ->
@@ -578,7 +578,7 @@ val node_default :
  ?fillcolor: color  ->
  ?fontcolor: color  ->
  ?fontname:string   ->
- ?fontsize:float ->
+ ?fontsize:int ->
  ?fixedsize:unit ->
  ?group:string ->
  ?height:float ->
@@ -616,7 +616,7 @@ val edge_default :
  ?decorate:unit ->
  ?fontcolor: color  ->
  ?fontname:string   ->
- ?fontsize:float ->
+ ?fontsize:int ->
  ?headclip:bool ->
  ?headlabel: label ->
  ?headport: port_ident * ([ `n | `ne | `e | `se | `s | `sw | `w | `nw ] option) ->
@@ -629,7 +629,7 @@ val edge_default :
  ?labelfloat:unit ->
  ?labelfontcolor: color ->
  ?labelfontname:string ->
- ?labelfontsize:float ->
+ ?labelfontsize:int ->
  ?layer: layer_ident list ->
  ?lhead:cluster_ident ->
  ?ltail:cluster_ident ->

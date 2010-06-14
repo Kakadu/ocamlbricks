@@ -512,8 +512,8 @@ module String_of = struct
   let ys = List.fold_left (fun s x -> s^":"^x) "" xs in
   Printf.sprintf "fontpath=\"%s\"" ys
 
- let fontsize = Printf.sprintf "fontsize=\"%f\""
- let labelfontsize = Printf.sprintf "labelfontsize=\"%f\""
+ let fontsize = Printf.sprintf "fontsize=\"%d\""
+ let labelfontsize = Printf.sprintf "labelfontsize=\"%d\""
 
  let string_of_html_like (html :html_like) = Html_like_printer.html_like "" html
 
