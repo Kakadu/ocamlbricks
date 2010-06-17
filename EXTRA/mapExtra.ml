@@ -22,8 +22,6 @@ module Extend = functor (M:Map.S) -> struct
 
   (** Extra functions: *)
 
-  let copy (m : 'a t) : 'a t = fold add m empty
-
   let filter (p : key -> 'a -> bool) (m : 'a t) : 'a t =
     fold (fun k a m' -> if p k a then add k a m' else m') m empty
 
@@ -53,4 +51,47 @@ module Make (Ord : Map.OrderedType) = Extend (Map.Make (Ord))
 
 module String_map = Make (struct type t = string let compare = Pervasives.compare end)
 module Int_map    = Make (struct type t = int    let compare = Pervasives.compare end)
+
+(** The data structure is not really re-implemented: an imperative (destructive) map
+    is simply implemented as a reference to a persistent map.
+    This reference is update by some functions ([add], [remove], [map],...). *)
+module Destructive = struct
+
+ module Make (Ord : Map.OrderedType) = struct
+  module Persistent = Make (Ord)
+  type key = Ord.t
+  type 'a t = 'a Persistent.t ref
+  let create () = ref Persistent.empty
+  let is_empty t = Persistent.is_empty (!t)
+  let add k a t = (t := Persistent.add k a !t)
+  let find k t = Persistent.find k (!t)
+  let remove k t = (t := Persistent.remove k !t)
+  let mem k t = Persistent.mem k (!t)
+  let iter f t = Persistent.iter f (!t)
+  let map f t = (t := Persistent.map f !t)
+  let mapi f t = (t := Persistent.mapi f !t)
+  let fold f t = Persistent.fold f (!t)
+  let compare f t0 t1 = Persistent.compare f (!t0) (!t1)
+  let equal f t0 t1 = Persistent.equal f (!t0) (!t1)
+
+    (* Extra functions: *)
+  let copy t = ref (!t)
+  let filter f t = (t := Persistent.filter f !t)
+
+  let of_list ?acc l =
+    let acc = match acc with None -> None | Some t -> Some (!t) in
+    ref (Persistent.of_list ?acc l)
+
+  let to_list ?acc ?reverse t  = Persistent.to_list ?acc ?reverse (!t)
+  let domain ?reverse t = Persistent.domain ?reverse (!t)
+  let codomain ?reverse t = Persistent.codomain ?reverse (!t)
+  let restrict t l = (t := Persistent.restrict (!t) l)
+  let substract t l = (t := Persistent.substract (!t) l)
+ end
+
+ module String_map = Make (struct type t = string let compare = Pervasives.compare end)
+ module Int_map    = Make (struct type t = int    let compare = Pervasives.compare end)
+
+end (* Destructive *)
+
 
