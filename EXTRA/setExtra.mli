@@ -190,5 +190,70 @@ module Make :
       val to_list : ?acc:elt list -> ?reverse:bool -> t -> elt list
     end
 
+ module String_set :
+  sig
+    type elt = string
+    type t
+    val create : unit -> t
+    val is_empty : t -> bool
+    val mem : string -> t -> bool
+    val add : string -> t -> unit
+    val singleton : string -> t
+    val remove : string -> t -> unit
+    val union : t -> t -> unit
+    val inter : t -> t -> unit
+    val diff : t -> t -> unit
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
+    val subset : t -> t -> bool
+    val iter : (string -> unit) -> t -> unit
+    val fold : (string -> 'a -> 'a) -> t -> 'a -> 'a
+    val for_all : (string -> bool) -> t -> bool
+    val exists : (string -> bool) -> t -> bool
+    val filter : (string -> bool) -> t -> unit
+    val partition : (string -> bool) -> t -> t * t
+    val cardinal : t -> int
+    val elements : t -> string list
+    val min_elt : t -> string
+    val max_elt : t -> string
+    val choose : t -> string
+    val split : string -> t -> t * bool * t
+    val copy : t -> t
+    val of_list : ?acc:t -> string list -> t
+    val to_list : ?acc:string list -> ?reverse:bool -> t -> string list
+  end
 
+  module Int_set :
+  sig
+    type elt = int
+    type t
+    val create : unit -> t
+    val is_empty : t -> bool
+    val mem : int -> t -> bool
+    val add : int -> t -> unit
+    val singleton : int -> t
+    val remove : int -> t -> unit
+    val union : t -> t -> unit
+    val inter : t -> t -> unit
+    val diff : t -> t -> unit
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
+    val subset : t -> t -> bool
+    val iter : (int -> unit) -> t -> unit
+    val fold : (int -> 'a -> 'a) -> t -> 'a -> 'a
+    val for_all : (int -> bool) -> t -> bool
+    val exists : (int -> bool) -> t -> bool
+    val filter : (int -> bool) -> t -> unit
+    val partition : (int -> bool) -> t -> t * t
+    val cardinal : t -> int
+    val elements : t -> int list
+    val min_elt : t -> int
+    val max_elt : t -> int
+    val choose : t -> int
+    val split : int -> t -> t * bool * t
+    val copy : t -> t
+    val of_list : ?acc:t -> int list -> t
+    val to_list : ?acc:int list -> ?reverse:bool -> t -> int list
+  end
+  
 end (* Persistent *)

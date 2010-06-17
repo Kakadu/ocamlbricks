@@ -85,7 +85,9 @@ module Destructive = struct
 
   let to_list ?acc ?reverse t  = Persistent.to_list ?acc ?reverse (!t)
 
-end
+ end (* Make*)
 
+ module String_set = Make (struct type t = string let compare = Pervasives.compare end)
+ module Int_set    = Make (struct type t = int    let compare = Pervasives.compare end)
 
 end (* Persistent *)
