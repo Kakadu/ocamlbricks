@@ -152,3 +152,43 @@ module Int_set :
     val to_list : ?acc:int list -> ?reverse:bool -> t -> int list
     val uniq : int list -> int list
   end
+
+
+module Destructive : sig
+
+module Make :
+  functor (Ord : Set.OrderedType) ->
+    sig
+      type elt = Ord.t
+      type t
+      val create : unit -> t
+      val is_empty : t -> bool
+      val mem : elt -> t -> bool
+      val add : elt -> t -> unit
+      val singleton : elt -> t
+      val remove : elt -> t -> unit
+      val union : t -> t -> unit
+      val inter : t -> t -> unit
+      val diff : t -> t -> unit
+      val compare : t -> t -> int
+      val equal : t -> t -> bool
+      val subset : t -> t -> bool
+      val iter : (elt -> unit) -> t -> unit
+      val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
+      val for_all : (elt -> bool) -> t -> bool
+      val exists : (elt -> bool) -> t -> bool
+      val filter : (elt -> bool) -> t -> unit
+      val partition : (elt -> bool) -> t -> t * t
+      val cardinal : t -> int
+      val elements : t -> elt list
+      val min_elt : t -> elt
+      val max_elt : t -> elt
+      val choose : t -> elt
+      val split : elt -> t -> t * bool * t
+      val copy : t -> t
+      val of_list : ?acc:t -> elt list -> t
+      val to_list : ?acc:elt list -> ?reverse:bool -> t -> elt list
+    end
+
+
+end (* Persistent *)

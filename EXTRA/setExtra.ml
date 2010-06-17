@@ -38,3 +38,54 @@ module Make = functor (Ord:Set.OrderedType) -> Extend (Set.Make (Ord))
 
 module String_set = Extend (Set.Make (struct type t = string let compare = Pervasives.compare end))
 module Int_set    = Extend (Set.Make (struct type t = int    let compare = Pervasives.compare end))
+
+module Destructive = struct
+
+ module Make (Ord : Set.OrderedType) = struct
+  module Persistent = Make (Ord)
+  type elt = Ord.t
+  type t = Persistent.t ref
+  let  create () = ref Persistent.empty
+  let is_empty t = Persistent.is_empty (!t)
+  let mem x t = Persistent.mem x (!t)
+  let add x t = (t := Persistent.add x !t)
+  let singleton x = ref (Persistent.singleton x)
+  let remove x t = (t := Persistent.remove x !t)
+  let union t0 t1 = (t0 := Persistent.union (!t0) (!t1))
+  let inter t0 t1 = (t0 := Persistent.inter (!t0) (!t1))
+  let diff  t0 t1 = (t0 := Persistent.diff  (!t0) (!t1))
+  let compare t0 t1 = Persistent.compare (!t0) (!t1)
+  let equal   t0 t1 = Persistent.equal   (!t0) (!t1)
+  let subset  t0 t1 = Persistent.subset  (!t0) (!t1)
+  let iter f t = Persistent.iter f (!t)
+  let fold f t = Persistent.fold f (!t)
+  let for_all f t = Persistent.for_all f (!t)
+  let exists f t = Persistent.exists f (!t)
+  let filter f t = (t := Persistent.filter f (!t))
+
+  let partition f t =
+    let (s0,s1) = Persistent.partition f (!t) in
+    (ref s0, ref s1)
+
+  let cardinal t = Persistent.cardinal (!t)
+  let elements t = Persistent.elements (!t)
+  let min_elt t = Persistent.min_elt (!t)
+  let max_elt t = Persistent.max_elt (!t)
+  let choose t = Persistent.choose (!t)
+
+  let split x t =
+   let (s0,b,s1) = Persistent.split x (!t) in
+   (ref s0, b, ref s1)
+
+  let copy t = ref (!t)
+
+  let of_list ?acc l =
+    let acc = match acc with None -> None | Some t -> Some (!t) in
+    ref (Persistent.of_list ?acc l)
+
+  let to_list ?acc ?reverse t  = Persistent.to_list ?acc ?reverse (!t)
+
+end
+
+
+end (* Persistent *)
