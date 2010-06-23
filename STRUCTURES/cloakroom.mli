@@ -34,6 +34,7 @@ val iter : (id -> 'a -> unit ) -> 'a t -> unit
 val fold : (id -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 val to_list : 'a t -> 'a list
 val to_assoc_list : 'a t -> (id * 'a) list
+val of_list : 'a list -> 'a t * (id list)
 
 module Cached : sig
 

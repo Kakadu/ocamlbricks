@@ -56,6 +56,11 @@ let fold f   (ta,ti,fresh,revision)    = Id_map.fold f !ti
 let to_list  (ta,ti,fresh,revision)    = Id_map.codomain !ti
 let to_assoc_list (ta,ti,fresh,revision) = Id_map.to_list !ti
 
+let of_list xs =
+ let t = create () in
+ let ys = List.map (add t) xs in
+ (t,ys)
+
 module Cached = struct
 
   let to_list t = Cache.optimize ~revision:revision to_list t
