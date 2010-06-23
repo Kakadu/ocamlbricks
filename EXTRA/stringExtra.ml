@@ -460,6 +460,10 @@ let big (f:binop) (l:string list) : 'a = try ListExtra.big f l with Failure "big
     then merge the result with the separator ([sep=" "] by default). *)
 let merge_map ?(sep=" ") f l = big (merge sep) (List.map f l)
 
+(** Merge strings with the given separator. *)
+let catenate ~sep = function
+| [] -> ""
+| y::ys -> List.fold_left (fun y x -> Printf.sprintf "%s%s%s" y sep x) y ys
 
 (** Examples of applications of [big] constructor
     in conjonction with the [merge] function. *)

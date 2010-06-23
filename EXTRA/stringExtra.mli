@@ -96,6 +96,8 @@ type binop = string -> string -> string
 val big : binop -> string list -> string
 val merge_map : ?sep:string -> ('a -> string) -> 'a list -> string
 
+val catenate : sep:string -> string list -> string
+
 module Fold :
   sig
     val commacat         : string list -> string
