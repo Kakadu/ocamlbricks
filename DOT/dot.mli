@@ -810,3 +810,35 @@ val fprint  : filename -> graph -> unit
 val sprint  : graph -> string
 val graph_of_list : (node_ident * node_ident) list -> graph
 
+type output =
+ [ `bmp                    (* Windows Bitmap Format *)
+ | `canon | `dot | `xdot   (* DOT *)
+ | `cmap                   (* Client-side imagemap (deprecated) *)
+ | `eps                    (* Encapsulated PostScript *)
+ | `fig                    (* FIG *)
+ | `gd | `gd2              (* GD/GD2 formats *)
+ | `gif                    (* GIF *)
+ | `gtk                    (* GTK canvas *)
+ | `ico                    (* Icon Image File Format *)
+ | `imap | `cmapx          (* Server-side and client-side imagemaps *)
+ | `imap_np | `cmapx_np    (* Server-side and client-side imagemaps *)
+ | `ismap                  (* Server-side imagemap (deprecated) *)
+ | `jpg                    (* JPEG *)
+ | `pdf                    (* Portable Document Format (PDF) *)
+ | `plain | `plain_ext     (* Simple text format *)
+ | `png                    (* Portable Network Graphics format *)
+ | `ps                     (* PostScript *)
+ | `ps2                    (* PostScript for PDF *)
+ | `svg | `svgz            (* Scalable Vector Graphics *)
+ | `tiff                   (* TIFF (Tag Image File Format) *)
+ | `vml | `vmlz            (* Vector Markup Language (VML) *)
+ | `vrml                   (* VRML *)
+ | `wbmp                   (* Wireless BitMap format *)
+ | `xlib                   (* Xlib canvas *)
+ ]
+
+val make_image :
+  ?dotfile:filename ->
+  ?imgfile:filename ->
+  ?imgtype:output -> (* by default `png *)
+  graph -> (filename * filename)

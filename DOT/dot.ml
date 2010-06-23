@@ -87,6 +87,54 @@ let fprint filename g =
  
 let sprint g = newlinecat (cotokens_of_graph g)
 
+let string_of_output = function
+|`bmp-> "bmp"
+|`canon->"canon"
+|`dot->"dot"
+|`xdot->"xdot"
+|`cmap->"cmap"
+|`eps->"eps"
+|`fig->"fig"
+|`gd->"gd"
+|`gd2->"gd2"
+|`gif->"gif"
+|`gtk->"gtk"
+|`ico->"ico"
+|`imap->"imap"
+|`cmapx->"cmapx"
+|`imap_np->"imap_np"
+|`cmapx_np->"cmapx_np"
+|`ismap->"ismap"
+|`jpg->"jpg"
+|`pdf->"pdf"
+|`plain->"plain"
+|`plain_ext->"plain_ext"
+|`png->"png"
+|`ps->"ps"
+|`ps2->"ps2"
+|`svg->"svg"
+|`svgz->"svgz"
+|`tiff->"tiff"
+|`vml->"vml"
+|`vmlz->"vmlz"
+|`vrml->"vrml"
+|`wbmp->"wbmp"
+|`xlib->"xlib"
+
+
+let make_image ?dotfile ?imgfile ?(imgtype=`png) g =
+ begin
+ let imgtype = string_of_output imgtype in
+ let dotfile = match dotfile with Some x -> x | None -> Filename.temp_file "Dot.make_image." ".dot" in
+ let imgfile = match imgfile with Some x -> x | None -> Filename.temp_file "Dot.make_image." ("."^imgtype) in
+ fprint dotfile g;
+ let cmd = Printf.sprintf "dot -T%s -o %s %s" imgtype imgfile dotfile in
+ if (Sys.command cmd) <> 0
+   then failwith (Printf.sprintf "Dot.make_image: dot doesn't like this graph (file: %s)" dotfile)
+   else ();
+ (dotfile, imgfile)
+ end
+
 let display_fg g =
  begin
  let dotfile = Filename.temp_file "Dot.display." ".dot" in
