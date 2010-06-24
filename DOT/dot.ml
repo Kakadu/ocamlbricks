@@ -513,9 +513,10 @@ module String_of = struct
    | `source -> "rank=\"source\""
 
  let rankdir = function
-  | `BT -> "rankdir=BT"
-  | `LR -> "rankdir=LR"
-  | `RL -> "rankdir=RL"
+  | `TB -> "rankdir=\"TB\""
+  | `BT -> "rankdir=\"BT\""
+  | `LR -> "rankdir=\"LR\""
+  | `RL -> "rankdir=\"RL\""
 
  let ranksep = Printf.sprintf "ranksep=\"%f\""
 

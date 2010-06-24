@@ -201,7 +201,7 @@ val graph:
        Analogous criteria hold for rank="max" and rank="sink". (Note: the minimum rank is topmost or leftmost, and the
        maximum rank is bottommost or rightmost.) *)
 
- ?rankdir: [`LR|`RL|`BT] -> (* rankdir=LR|RL|BT requests a left‐to‐right, right‐to‐left, or bottom‐to‐top, drawing. *)
+ ?rankdir: [`TB|`LR|`RL|`BT] -> (* rankdir=LR|RL|BT requests a left‐to‐right, right‐to‐left, or bottom‐to‐top, drawing. *)
  ?ranksep:float -> (* ranksep=f sets the minimum separation between ranks. Default 0.5. *)
 
  ?clusterrank:[ `local | `global | `none ] ->
@@ -542,7 +542,7 @@ val graph_default :
  ?ordering:[ `inp | `out ] ->
  ?outputorder: [ `breadthfirst | `nodesfirst | `edgesfirst ] ->
  ?rank: [ `same | `min | `max | `source | `sink ] ->
- ?rankdir: [`LR|`RL|`BT] -> 
+ ?rankdir: [`TB|`LR|`RL|`BT] -> 
  ?ranksep:float -> 
  ?clusterrank:[ `local | `global | `none ] ->
  ?nslimit:float -> 
