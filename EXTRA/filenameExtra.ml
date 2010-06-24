@@ -33,4 +33,38 @@ let add_extension_if_absent filename ext =
   let _ = (Filename.chop_extension filename) in 
   filename                      (* because the filename already has an extension *)
  with _ -> (filename^"."^ext)    (* because the filename has no extension *)
-;;
+
+(** {b Example}: 
+{[# get_extension "/tmp/aaa.bbb.ccc" ;;
+  : string option = Some "ccc"
+
+# get_extension "/tmp/aaa" ;;
+  : string option = None
+]}*)
+let get_extension ?with_dot filename =
+try
+  let x = (Filename.chop_extension filename) in
+  let a = String.length x in
+  let b = String.length filename in
+  (match with_dot with
+   | None    -> Some (String.sub filename (a+1) (b-a-1))
+   | Some () -> Some (String.sub filename a (b-a))
+  )
+with _ -> None
+
+(** The default is the empty string. {b Examples}:
+{[# get_extension_or_default "foo" ;;
+  : string = ""
+
+# get_extension_or_default "foo.txt" ;;
+  : string = "txt"
+
+# get_extension_or_default ~with_dot:() "foo.txt" ;;
+  : string = ".txt"
+]}
+*)
+let get_extension_or_default ?with_dot ?(default="") filename =
+ match (get_extension ?with_dot filename) with
+ | None -> default
+ | Some r -> r
+ 
