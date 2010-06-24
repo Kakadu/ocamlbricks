@@ -805,7 +805,7 @@ val cell_of_image :
  filename -> cell
 
 val  print  : graph -> unit
-val display : ?bg:unit -> graph -> unit
+val display : ?bg:unit -> ?silent:unit -> graph -> unit
 val fprint  : filename -> graph -> unit
 val sprint  : graph -> string
 val graph_of_list : (node_ident * node_ident) list -> graph
@@ -838,6 +838,7 @@ type output =
  ]
 
 val make_image :
+  ?silent:unit -> (* Hide dot errors or warnings *)
   ?dotfile:filename ->
   ?imgfile:filename ->
   ?imgtype:output -> (* by default `png *)

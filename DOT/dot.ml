@@ -122,29 +122,30 @@ let string_of_output = function
 |`xlib->"xlib"
 
 
-let make_image ?dotfile ?imgfile ?(imgtype=`png) g =
+let make_image ?silent ?dotfile ?imgfile ?(imgtype=`png) g =
  begin
  let imgtype = string_of_output imgtype in
  let dotfile = match dotfile with Some x -> x | None -> Filename.temp_file "Dot.make_image." ".dot" in
  let imgfile = match imgfile with Some x -> x | None -> Filename.temp_file "Dot.make_image." ("."^imgtype) in
  fprint dotfile g;
- let cmd = Printf.sprintf "dot -T%s -o %s %s" imgtype imgfile dotfile in
+ let silent = match silent with None -> "" | Some () -> "2>/dev/null" in
+ let cmd = Printf.sprintf "dot -T%s -o %s %s %s" imgtype imgfile dotfile silent in
  if (Sys.command cmd) <> 0
    then failwith (Printf.sprintf "Dot.make_image: dot doesn't like this graph (file: %s)" dotfile)
    else ();
  (dotfile, imgfile)
  end
 
-let display_fg g =
+let display_fg ~silent g =
  begin
  let dotfile = Filename.temp_file "Dot.display." ".dot" in
  let pngfile = Filename.temp_file "Dot.display." ".png" in
  fprint dotfile g;
- let cmd = Printf.sprintf "dot -Tpng -o %s %s" pngfile dotfile in
+ let cmd = Printf.sprintf "dot -Tpng -o %s %s %s" pngfile dotfile silent in
  if (Sys.command cmd) <> 0
   then failwith (Printf.sprintf "Dot.display (fg): dot doesn't like this graph (file: %s)" dotfile)
   else ();
- let cmd = Printf.sprintf "display %s" pngfile in
+ let cmd = Printf.sprintf "display %s %s" pngfile silent in
  if (Sys.command cmd) <> 0
   then failwith (Printf.sprintf "Dot.display (fg): display (imagemagick) doesn't like this png (file: %s)" pngfile)
   else ();
@@ -153,18 +154,19 @@ let display_fg g =
  end
 
 (* The temporary file is not deleted. The correct implementation should use threads (or futures). *)
-let display_bg g =
+let display_bg ~silent g =
  begin
  let dotfile = "Dot.display.bg.dot" in
  fprint dotfile g;
- let cmd = Printf.sprintf "dot -Tpng %s | display &" dotfile in
+ let cmd = Printf.sprintf "dot -Tpng %s %s | display %s &" dotfile silent silent in
  if (Sys.command cmd) <> 0
   then failwith (Printf.sprintf "Dot.display (bg): something goes wrong (dotfile: %s)" dotfile)
   else ();
  end
 
-let display ?bg g =
-  match bg with None -> display_fg g | Some () -> display_bg g
+let display ?bg ?silent g =
+  let silent = match silent with None -> "" | Some () -> "2>/dev/null" in
+  match bg with None -> display_fg ~silent g | Some () -> display_bg ~silent g
 
 (* Common functions for further modules. *)
 module Common = struct
