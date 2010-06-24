@@ -188,3 +188,7 @@ module Process : sig
  val sprintf :                (string -> 'a, unit, string) format      -> t -> 'a
 
 end
+
+val date : ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit
+  -> unit -> string
+
