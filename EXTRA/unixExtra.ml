@@ -718,10 +718,10 @@ end
 (** Return the current date formatted as a string like ["2010-06-24.17:34:25"].
     Dashes, dot and colons may be replaced by something else
     using the optional parameters. *)
-let date ?(dash="-") ?(dot=".") ?(colon=":") ?no_time () =
+let date ?(dash="-") ?(dot=".") ?(colon=":") ?no_time ?no_date () =
   let gmt = Unix.gmtime (Unix.time ()) in
-  match no_time with
-  | None ->
+  match no_time, no_date with
+  | None, None ->
       Printf.sprintf "%4d%s%02d%s%2d%s%02d%s%02d%s%02d"
 	(1900+gmt.Unix.tm_year) dash
 	(1+gmt.Unix.tm_mon) dash
@@ -730,9 +730,15 @@ let date ?(dash="-") ?(dot=".") ?(colon=":") ?no_time () =
 	(gmt.Unix.tm_hour) colon
 	(gmt.Unix.tm_min)  colon
 	(gmt.Unix.tm_sec)
-  | Some () ->
+  | Some (), None ->
       Printf.sprintf "%4d%s%02d%s%2d"
 	(1900+gmt.Unix.tm_year) dash
 	(1+gmt.Unix.tm_mon) dash
 	(gmt.Unix.tm_mday)
- 
+
+  | None, Some () ->
+      Printf.sprintf "%02d%s%02d%s%02d"
+	(gmt.Unix.tm_hour) colon
+	(gmt.Unix.tm_min)  colon
+	(gmt.Unix.tm_sec)
+  | Some (), Some () -> invalid_arg "UnixExtra.date: strangely called with ~no_time:() and ~no_date:()"

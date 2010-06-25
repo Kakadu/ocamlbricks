@@ -189,6 +189,6 @@ module Process : sig
 
 end
 
-val date : ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit
+val date : ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit -> ?no_date:unit
   -> unit -> string
 
