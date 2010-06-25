@@ -65,7 +65,18 @@ let exit ?(ignore_errors=false) code =
     of a local mrproper is registered into the global mrproper setting
     the optional parameter [work_at_exit] to [true].
     The value [ignore_errors] defines the default of this parameter for
-    all generated functions. *)
+    all generated functions.
+
+    {b Example}:
+{[  let window = GWindow.window () in
+  let module Mrproper = Mrproper.Make (struct let ignore_errors=true let work_at_exit = false end) in
+  ..
+  Mrproper.register (lazy ...);
+  Mrproper.register (lazy ...);
+  ..
+  let _ = window#connect#destroy ~callback:Mrproper.work in
+  ..
+]}*)
 module Make
  (Defaults: sig
     val ignore_errors : bool
