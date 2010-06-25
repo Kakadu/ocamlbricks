@@ -58,3 +58,43 @@ let register ?(ignore_errors=false) deferred =
 let exit ?(ignore_errors=false) code =
   (work ~ignore_errors ());
   (Pervasives.exit code)
+
+(** Make a {e local} mrproper structure via a functorial interface.
+    A typical use is to connect the function [work] to the destruction of
+    a temporary structure, as for instance a widget. The function [work]
+    of a local mrproper is registered into the global mrproper setting
+    the optional parameter [work_at_exit] to [true].
+    The value [ignore_errors] defines the default of this parameter for
+    all generated functions. *)
+module Make
+ (Defaults: sig
+    val ignore_errors : bool
+    val work_at_exit : bool
+  end) = struct
+
+ let global_register = register
+ 
+ let mrproper = Stack.create ()
+
+ let work ?(ignore_errors=Defaults.ignore_errors) () =
+  let action =
+    (match ignore_errors with
+    | true  -> (fun x -> try Lazy.force x with _ -> ())
+    | false -> Lazy.force
+    ) in
+  (Stack.iter action mrproper);
+  (Stack.clear mrproper)
+
+ let side_effect = match Defaults.work_at_exit with
+  | true  -> global_register (lazy (work ()))
+  | false -> ()
+
+ let register ?(ignore_errors=Defaults.ignore_errors) deferred =
+  let deferred =
+    (match ignore_errors with
+    | true  -> lazy (try Lazy.force deferred with _ -> ())
+    | false -> deferred
+    ) in
+   (Stack.push deferred mrproper)
+
+end

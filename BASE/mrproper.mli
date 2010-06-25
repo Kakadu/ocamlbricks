@@ -18,3 +18,10 @@ type action = unit lazy_t
 val register : ?ignore_errors:bool -> action -> unit
 val exit     : ?ignore_errors:bool -> int -> 'a
 val work     : ?ignore_errors:bool -> unit -> unit
+
+module Make :
+  functor (Defaults : sig val ignore_errors : bool  val work_at_exit : bool end) ->
+    sig
+      val register     : ?ignore_errors:bool -> action -> unit
+      val work         : ?ignore_errors:bool -> unit -> unit
+    end
