@@ -32,3 +32,5 @@ val future : ('a -> 'b) -> 'a -> 'b future
 
 val touch : 'a future -> 'a
 val taste : 'a future -> 'a option
+
+val thread_of : 'a future -> Thread.t

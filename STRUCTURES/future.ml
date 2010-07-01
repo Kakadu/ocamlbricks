@@ -22,34 +22,36 @@ type 'a thread_status =
 | Exception of exn
 
 (** The abstract type of a future. *)
-type 'a future = ('a thread_status) Egg.t ;;
+type 'a future = (('a thread_status) Egg.t) * Thread.t 
 
 (** Alias. *)
-type 'a t = 'a future ;;
+type 'a t = 'a future
 
 (** Create a future applying an argument to a function. The result of the function may be got later with [touch] or [taste]. *)
 let future (f:'a -> 'b) (x:'a) : 'b t =
- let future = Egg.create () in
+ let egg = Egg.create () in
  let wrap x =
    let y = (try Completed (f x)
             with e -> Exception e)
-   in Egg.release future y
+   in Egg.release egg y
  in
- let _ = Thread.create wrap x in
- future
+ let thd = Thread.create wrap x in
+ (egg,thd)
 
 (** {b Wait} until the result is ready. Re-raise [exn] if the future has been interrupted by the exception [exn]. *)
-let touch t =
- match Egg.wait t with
+let touch (egg,thd) =
+ match Egg.wait egg with
 | Completed y -> y
 | Exception e -> raise e
 
 (** Check if the result is ready (non-blocking): [None] means {e not ready}, while [Some y] means {e ready with value} [y].
 Re-raise [exn] if the future has been interrupted by the exception [exn]. *)
-let taste t : 'a option = match Egg.taste t with
+let taste (egg,thd) : 'a option = match Egg.taste egg with
  | None   -> None
  | Some v ->
     (match v with
     | Completed y -> Some y
     | Exception e -> raise e
     )
+
+let thread_of (egg,thd) = thd
