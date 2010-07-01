@@ -24,6 +24,8 @@ val map  : ('a -> 'b) -> 'a option -> 'b option
 val bind : 'a option -> ('a -> 'b option) -> 'b option
 val return : 'a -> 'a option
 
+val iter : ('a -> unit) -> 'a option -> unit
+
 (** {2 Printers}
 
 The following functions act on a ['a option] value if the user is able to provide a function converting

@@ -22,6 +22,7 @@ let extract ?(fallback=(fun () -> failwith "Option.extract")) =
 let map f = function None -> None | Some x -> Some (f x)
 let bind x f = match x with None -> None | Some x -> (f x)
 let return x = Some x
+let iter f = function None -> () | Some x -> (f x)
 
 include PervasivesExtra.Printers1 (struct
   type 'a t = 'a option
