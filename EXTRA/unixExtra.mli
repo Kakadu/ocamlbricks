@@ -131,20 +131,30 @@ val create_process_and_wait :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string option -> ?forward:int list -> string -> string list -> int
+  ?pseudo:string ->
+  ?forward:int list ->
+  program -> string list -> int
+
+type process_result = int * string * string
+
+val create_process_and_wait_then_get_result :
+  ?stdin:Endpoint.Source.t ->
+  ?stdout:Endpoint.Sink.t  ->
+  ?stderr:Endpoint.Sink.t  ->
+  ?pseudo:string ->
+  ?forward:int list ->
+  program -> string list -> process_result
 
 val run   : ?shell:command -> ?trace:bool -> ?input:string -> command -> string * Unix.process_status
 val shell : ?shell:command -> ?trace:bool -> ?input:string -> command -> string
 
 (** {b Asynchronous version} *)
 
-type future = (int * string * string) Future.t
-
 val future :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string -> ?forward:int list -> program -> string list -> future
+  ?pseudo:string -> ?forward:int list -> program -> string list -> process_result Future.t
 
 val kfuture :
   ?stdin:Endpoint.Source.t ->
@@ -156,7 +166,7 @@ val script :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string -> ?forward:int list -> content -> string list -> (int * string * string)
+  ?pseudo:string -> ?forward:int list -> content -> string list -> process_result
 
 val is_process_alive : int -> bool
 

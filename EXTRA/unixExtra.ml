@@ -546,7 +546,7 @@ let rec wait_child child_pid events =
  ?(stdin  = Source.Unix_descr Unix.stdin)
  ?(stdout = Sink.Unix_descr   Unix.stdout)
  ?(stderr = Sink.Unix_descr   Unix.stderr)
- ?(pseudo = None)
+ ?pseudo
  ?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm; Sys.sigcont])
  program arguments =
 
@@ -575,6 +575,35 @@ let rec wait_child child_pid events =
   | { waitpid_exn      = true  }                       -> (raise Waitpid)
   | _ -> (assert false)
  ;;
+
+(** High-level result: (code, stdout, stderr) *)
+type process_result = (int * string * string) ;;
+
+(** Similar to [create_process_and_wait], but the results on endpoints [stdout] and [stderr] are converted
+    in strings and returned.
+    However, if the optional parameters [stdout] and [stderr] are provided, their corresponding string in the result
+    will be empty. *)
+let create_process_and_wait_then_get_result ?stdin ?stdout ?stderr ?pseudo ?forward (program:program) (argv_list:string list) =
+ begin
+ let define_sink_and_string_maker optional_sink =
+   (match optional_sink with
+    | Some x -> (x, fun () -> "")
+    | None   ->
+        let q = String_queue.create () in
+        (Sink.String_queue q), (fun () -> String_queue.concat q)
+    )
+ in
+ let (stdout, stdout_string_maker) = define_sink_and_string_maker stdout in
+ let (stderr, stderr_string_maker) = define_sink_and_string_maker stderr in
+ let code =
+    try  create_process_and_wait ?stdin ~stdout ~stderr ?pseudo ?forward program argv_list
+    with _ -> (-1)
+ in
+ let stdout_string = stdout_string_maker () in
+ let stderr_string = stderr_string_maker () in
+ (code,stdout_string,stderr_string)
+ end
+;;
 
 (* Convert a string option into a shell specification. The shell "bash" is our default. *)
 let shell_of_string_option = function
@@ -631,14 +660,15 @@ let shell ?shell ?(trace:bool=false) ?(input:string="") cmd =
   fst(run ~shell:(shell_of_string_option shell) ~trace ~input cmd)
 ;;
 
+
 (** A Unix future is a future containing the exit code and the two strings outcoming from stdout and stderr.
     The negative exit code (-1) means that the process didn't well exited. *)
 type future = (int * string * string) Future.t ;;
 
-(** Similar to {!val:UnixExtra.future}, but with a continuation executed {b within} the thread. *)
+(** Similar to {!val:UnixExtra.future}, but with a continuation executed {b within} the thread.
+    The default for [forward] here is the empty list [[]]. *)
 let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv_list:string list) k =
  begin
- let stdin  = match stdin  with None -> Source.Empty | Some x -> x in
  let define_sink_and_string_maker optional_sink =
    (match optional_sink with
     | Some x -> (x, fun () -> "")
@@ -652,7 +682,7 @@ let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv
  let future = Future.future (fun () ->
      begin
       let code =
-        try  create_process_and_wait ~stdin ~stdout ~stderr ~pseudo ~forward program argv_list
+        try  create_process_and_wait ?stdin ~stdout ~stderr ?pseudo ~forward program argv_list
         with _ -> (-1)
       in
       let stdout_string = stdout_string_maker () in
