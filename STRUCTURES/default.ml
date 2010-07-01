@@ -17,7 +17,7 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
-module Make (Value:sig type t val create : unit -> t end) :
+module Make (Value:sig  type t  val create : unit -> t  val mutex : bool end) :
  sig
   type t = Value.t
   val get : unit -> t
@@ -29,20 +29,34 @@ type t = Value.t
 
 let default = ref None
 
-(** Set the current default. *)
-let set s = (default := Some s)
+module Unprotected = struct 
 
-(** Get the current default if exists; create, set and return it if doesn't exist. *)
-let get () = match !default with
+ (** Set the current default. *)
+ let set s = (default := Some s)
+
+ (** Get the current default if exists; create, set and return it if doesn't exist. *)
+ let get () = match !default with
  | Some s -> s
  | None ->
      let new_default = Value.create () in
      (default := Some new_default);
      new_default
 
-(** If the argument is [Some x] return [x]; if the argument is [None], return the result of [get ()]. *)
-let extract_or_get_default = function
+ (** If the argument is [Some x] return [x]; if the argument is [None], return the result of [get ()]. *)
+ let extract_or_get_default = function
  | Some s -> s
  | None -> get ()
+
+end (* Unprotected *)
+
+ let mutex = MutexExtra.Recursive.create ()
+
+ let switch f = match Value.mutex with
+  | true  -> MutexExtra.Recursive.apply_with_mutex mutex f
+  | false -> f
+
+ let set = switch Unprotected.set
+ let get = switch Unprotected.get
+ let extract_or_get_default = switch Unprotected.extract_or_get_default
 
 end

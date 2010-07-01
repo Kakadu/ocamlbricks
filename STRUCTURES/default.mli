@@ -14,9 +14,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Manage global defaults for your optional parameters. {b Example}:
+(** Manage global defaults for your optional parameters. If the field mutex is [true] the access
+    is synchronized by a mutex (thread safe). {b Example}:
 {[
-module Default_foo = Default.Make(struct type t = foo_type let create () = .. end)
+module Default_foo = Default.Make(struct type t = foo_type let create () = .. let mutex = false end)
 let my_function ?foo .. =
  let foo = Default_foo.extract_or_get_default foo in
  ...
@@ -24,7 +25,7 @@ let my_function ?foo .. =
 *)
 
 module Make :
-  functor (Value : sig type t val create : unit -> t end) ->
+  functor (Value : sig  type t  val create : unit -> t  val mutex : bool  end) ->
     sig
       type t = Value.t
       val get : unit -> t
