@@ -133,6 +133,7 @@ val create_process_and_wait :
   ?stderr:Endpoint.Sink.t  ->
   ?pseudo:string ->
   ?forward:int list ->
+  ?register_pid:(int->unit) ->
   program -> string list -> int
 
 type process_result = int * string * string
@@ -143,6 +144,7 @@ val create_process_and_wait_then_get_result :
   ?stderr:Endpoint.Sink.t  ->
   ?pseudo:string ->
   ?forward:int list ->
+  ?register_pid:(int->unit) ->
   program -> string list -> process_result
 
 val run   : ?shell:command -> ?trace:bool -> ?input:string -> command -> string * Unix.process_status
@@ -154,19 +156,28 @@ val future :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string -> ?forward:int list -> program -> string list -> process_result Future.t
+  ?pseudo:string ->
+  ?forward:int list ->
+  ?register_pid:(int->unit) ->
+  program -> string list -> process_result Future.t
 
 val kfuture :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string -> ?forward:int list -> program -> string list -> (int -> string -> string ->'a) -> 'a Future.t
+  ?pseudo:string ->
+  ?forward:int list ->
+  ?register_pid:(int->unit) ->
+  program -> string list -> (int -> string -> string ->'a) -> 'a Future.t
 
 val script :
   ?stdin:Endpoint.Source.t ->
   ?stdout:Endpoint.Sink.t  ->
   ?stderr:Endpoint.Sink.t  ->
-  ?pseudo:string -> ?forward:int list -> content -> string list -> process_result
+  ?pseudo:string ->
+  ?forward:int list ->
+  ?register_pid:(int->unit) ->
+  content -> string list -> process_result
 
 val is_process_alive : int -> bool
 

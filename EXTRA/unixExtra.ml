@@ -548,6 +548,7 @@ let rec wait_child child_pid events =
  ?(stderr = Sink.Unix_descr   Unix.stderr)
  ?pseudo
  ?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm; Sys.sigcont])
+ ?register_pid
  program arguments =
 
  let (stdin,  stdin_must_be_closed )  = Source.to_file_descr stdin in
@@ -558,6 +559,7 @@ let rec wait_child child_pid events =
  let name = match pseudo with None -> program | Some name -> name in
  let argv = (Array.of_list (name :: arguments)) in
  let child_pid = (Unix.create_process program argv stdin stdout stderr) in
+ (match register_pid with None -> () | Some f -> f child_pid);
  let handler = new_handler child_pid events in
  let handler_backups = List.map  (fun s -> (s, (Sys.signal s handler))) forward in
  let restore_handlers () = List.iter (fun (s,h) -> Sys.set_signal s h) handler_backups in
@@ -583,7 +585,7 @@ type process_result = (int * string * string) ;;
     in strings and returned.
     However, if the optional parameters [stdout] and [stderr] are provided, their corresponding string in the result
     will be empty. *)
-let create_process_and_wait_then_get_result ?stdin ?stdout ?stderr ?pseudo ?forward (program:program) (argv_list:string list) =
+let create_process_and_wait_then_get_result ?stdin ?stdout ?stderr ?pseudo ?forward ?register_pid (program:program) (argv_list:string list) =
  begin
  let define_sink_and_string_maker optional_sink =
    (match optional_sink with
@@ -596,7 +598,7 @@ let create_process_and_wait_then_get_result ?stdin ?stdout ?stderr ?pseudo ?forw
  let (stdout, stdout_string_maker) = define_sink_and_string_maker stdout in
  let (stderr, stderr_string_maker) = define_sink_and_string_maker stderr in
  let code =
-    try  create_process_and_wait ?stdin ~stdout ~stderr ?pseudo ?forward program argv_list
+    try  create_process_and_wait ?stdin ~stdout ~stderr ?pseudo ?forward ?register_pid program argv_list
     with _ -> (-1)
  in
  let stdout_string = stdout_string_maker () in
@@ -667,7 +669,7 @@ type future = (int * string * string) Future.t ;;
 
 (** Similar to {!val:UnixExtra.future}, but with a continuation executed {b within} the thread.
     The default for [forward] here is the empty list [[]]. *)
-let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv_list:string list) k =
+let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (program:program) (argv_list:string list) k =
  begin
  let define_sink_and_string_maker optional_sink =
    (match optional_sink with
@@ -682,7 +684,7 @@ let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv
  let future = Future.future (fun () ->
      begin
       let code =
-        try  create_process_and_wait ?stdin ~stdout ~stderr ?pseudo ~forward program argv_list
+        try  create_process_and_wait ?stdin ~stdout ~stderr ?pseudo ~forward ?register_pid program argv_list
         with _ -> (-1)
       in
       let stdout_string = stdout_string_maker () in
@@ -694,16 +696,16 @@ let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (program:program) (argv
 ;;
 
 (** Create a {!type:UnixExtra.future} that you can manage as usual with functions of the module {!Future}. *)
-let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) program argv_list =
- kfuture ?stdin ?stdout ?stderr ?pseudo ~forward program argv_list (fun x y z -> (x,y,z))
+let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid program argv_list =
+ kfuture ?stdin ?stdout ?stderr ?pseudo ~forward ?register_pid program argv_list (fun x y z -> (x,y,z))
 
 (** With the {b content} provided by the user, a script file is created on the fly, executed and finally removed.
     The result is a 3-uple with the exit code and the two strings outcoming from stdout and stderr. *)
-let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) (content:content) (argv_list:string list) : (int * string * string) =
+let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (content:content) (argv_list:string list) : (int * string * string) =
  begin
  let program = temp_file ~perm:0o755 ~suffix:".sh" ~content () in
  try
-  let f = future ?stdin ?stdout ?stderr ?pseudo ~forward program argv_list in
+  let f = future ?stdin ?stdout ?stderr ?pseudo ~forward ?register_pid program argv_list in
   let result = Future.touch f in
   (Unix.unlink program);
   result
