@@ -32,7 +32,7 @@ let prettify_scanf_exception caller = function
  | e                      -> raise e
 
 (* ************************************
-         ipv4 checking and parsing 
+         ipv4 checking and parsing
    ************************************ *)
 
 (** A valid ipv4 has each byte in the range [0..255]. *)
@@ -61,6 +61,12 @@ let ipv4_of_string str =
   result
  with
   e -> prettify_scanf_exception "ipv4_of_string" e
+
+(** Example: ["192.168.1.42" -> (192,168,1,42)] *)
+let string_of_ipv4 ?cidr (b1, b2, b3, b4) =
+ match cidr with
+ | None    -> Printf.sprintf "%i.%i.%i.%i" b1 b2 b3 b4
+ | Some b5 -> Printf.sprintf "%i.%i.%i.%i/%i" b1 b2 b3 b4 b5
 
 (* ************************************
      cidr/netmask checking and parsing
@@ -125,7 +131,7 @@ let netmask_with_cidr_of_string str =
 let netmask_of_string str = fst (netmask_with_cidr_of_string str)
 
 (* Return a byte from a cidr in the range [0..8]. Example: 1 -> 128 *)
-let byte_of_cidr x = 
+let byte_of_cidr x =
  let rec loop c = if c=0. then 0. else (loop (c -. 1.)) +. (2. ** (8. -. c))
  in int_of_float (loop (float_of_int x))
  ;;
@@ -141,7 +147,7 @@ let cidr_of_byte caller = function
    ************************************ *)
 
 (** Example: [23 -> (255,255,254,0)] *)
-let netmask_of_cidr x = 
+let netmask_of_cidr x =
  if not ((x>=0) && (x<=32))
    then failwith (Printf.sprintf "netmask_of_cidr: CIDR netmask %d out of the range [0..32]" x)
    else

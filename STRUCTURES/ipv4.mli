@@ -39,7 +39,9 @@ val is_valid_verbose_config : ?strict:bool -> verbose_config -> bool
 
 (** {2 Parsing} *)
 
-val ipv4_of_string              : string -> ipv4
+val ipv4_of_string : string -> ipv4
+val string_of_ipv4 : ?cidr:cidr -> ipv4 -> string
+
 val config_of_string            : ?strict:bool -> string -> config
 val verbose_config_of_strings   : ?strict:bool -> string -> string -> verbose_config
 val netmask_with_cidr_of_string : string -> netmask * cidr

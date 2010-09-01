@@ -23,8 +23,10 @@ val map     : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
 val rev_map : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
 
 val flatten : ?acc:'a list -> 'a list list -> 'a list
-
 val foreach      : 'a list -> ('a -> unit) -> unit
+
+val combine3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
+val combine4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) list
 
 (** {2 Generalizations} *)
 

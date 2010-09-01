@@ -64,10 +64,10 @@ open Sugar
 (** Similar to the standard [List.hd], but retrieve the list of first elements (by default [n=1] as in [List.hd]).
     Thus, the result is a list. *)
 let rec head ?(n:int=1) (l:'a list) : ('a list) =
-  if n<=0 then [] else let n = (n-1) in 
-  match l with 
+  if n<=0 then [] else let n = (n-1) in
+  match l with
   | []   -> []
-  | x::r -> x::(head ~n r) 
+  | x::r -> x::(head ~n r)
 
 (** Similar to the standard [List.tl], but the tail is extracted from the given index
     (by default [i=1] as in [List.tl]) *)
@@ -93,7 +93,7 @@ let foreach l f = List.iter f l
     For large lists we suggest to use {!Hashset.uniq} instead. *)
 let rec uniq = function
   | []   -> []
-  | x::r -> if (List.mem x r) then (uniq r) else x::(uniq r) 
+  | x::r -> if (List.mem x r) then (uniq r) else x::(uniq r)
 
 (** As [uniq] but with the optional argument [take_first] you can set the policy for taking elements.
     By default the policy is the opposite of [uniq], i.e. you take the first occurrence, not the last. *)
@@ -128,13 +128,13 @@ let asFunction l = fun i -> try (List.nth l i) with _ -> i;;
 
 (** Considering a list as a record and select some fields (indexes). Example:
 
-{[# select ["aaa";"bbb";"ccc"] [1;2;0;1];; 
+{[# select ["aaa";"bbb";"ccc"] [1;2;0;1];;
   : string list = ["bbb"; "ccc"; "aaa"; "bbb"]
 ]}
      *)
 let select (l:'a list) (fieldlist:int list) =
  let a = Array.of_list l in
- let rec loop a = function 
+ let rec loop a = function
  | []    -> []
  | f::fl -> (Array.get a f)::(loop a fl)
  in loop a fieldlist
@@ -143,16 +143,16 @@ let select (l:'a list) (fieldlist:int list) =
 let rmindex l i =
  let rec rmindex acc = function
   | (0,x::xs) -> List.append (List.rev acc) xs
-  | (i,x::xs) -> rmindex (x::acc) (i-1,xs)    
+  | (i,x::xs) -> rmindex (x::acc) (i-1,xs)
   | (_,[])    -> failwith "rmindex: index out of bounds" in
  rmindex [] (i,l)
 
 (** Search for the first index of an element satisfying a property. *)
 let indexSuchThat (pred:'a->bool) (l:'a list) : (int option) =
-  let rec indexOf pred l i = (match l with 
+  let rec indexOf pred l i = (match l with
   | []                  -> None
   | y::r when (pred y)  -> Some i
-  | y::r                -> indexOf pred r (i+1) ) 
+  | y::r                -> indexOf pred r (i+1) )
   in indexOf pred l 0
 
 (** Search for the first index of an element in a list *)
@@ -187,15 +187,15 @@ let shuffleIndexes l = l => (indexes || shuffle)
 
 (** The {e folding} of lists is simply a [List.fold_left] specialization:
 
-     - the first element is the {b head} of the list 
-     - the folding is performed on the {b tail} of the list. 
+     - the first element is the {b head} of the list
+     - the folding is performed on the {b tail} of the list.
 
-   This function is adequate for most common cases. Use the module [Big] when 
+   This function is adequate for most common cases. Use the module [Big] when
    maximum generality is requested. *)
 let big f = function
   | []   -> failwith "big"
   | [x]  -> x
-  | x::r -> List.fold_left f x r  
+  | x::r -> List.fold_left f x r
 
 (** {b Common foldings} *)
 
@@ -215,6 +215,15 @@ let transpose ll =
  let aa' = ArrayExtra.Matrix.transpose  aa in
  let ll' = ArrayExtra.Matrix.to_list aa'   in
  ll'
- 
+
+let rec combine3 l1 l2 l3 = match (l1,l2,l3) with
+  | []    , []    , []     -> []
+  | x1::r1, x2::r2, x3::r3 -> (x1,x2,x3)::(combine3 r1 r2 r3)
+  | _ -> raise (Invalid_argument "combine3")
+
+let rec combine4 l1 l2 l3 l4 = match (l1,l2,l3,l4) with
+  | []    , []    , []    , []     -> []
+  | x1::r1, x2::r2, x3::r3, x4::r4 -> (x1,x2,x3,x4)::(combine4 r1 r2 r3 r4)
+  | _ -> raise (Invalid_argument "combine4")
 
 
