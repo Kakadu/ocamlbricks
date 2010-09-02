@@ -44,7 +44,7 @@ let from_descr (fd:Unix.file_descr) : string =
   loop2 (dstoff+src_size)
   end in
  (loop2 0);
- (Printf.eprintf "Preprocessing: include_as_string: the length of the included string is %d\n" dst_size);
+(* (Printf.eprintf "Preprocessing: include_as_string: the length of the included string is %d\n" dst_size);*)
  dst
 ;;
 
