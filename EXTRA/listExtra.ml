@@ -57,6 +57,14 @@ let rec flatten ?acc =
  in
  loop
 
+(** Move some elements on the top of the list. {b Example}:
+{[# lift_to_the_top_positions ((=)"suggested") ["a";"b";"suggested";"c"] ;;
+  : string list = ["suggested"; "a"; "b"; "c"]
+]}*)
+let lift_to_the_top_positions pred xs =
+  let (ys,zs) = List.partition pred xs in
+  List.append ys zs
+
 
 open Sugar
 

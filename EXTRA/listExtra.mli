@@ -70,6 +70,7 @@ val shuffle : 'a list -> 'a list
 val permute : (int -> int) -> 'a list -> 'a list
 val shuffler : 'a list -> int -> int
 val shuffleIndexes : 'a list -> int list
+val lift_to_the_top_positions : ('a -> bool) -> 'a list -> 'a list
 
 (** {2 Folding} *)
 
