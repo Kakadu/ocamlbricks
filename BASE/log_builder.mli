@@ -68,6 +68,7 @@ The result is 42
    : unit = ()
 ]}*)
   val printf : ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+  val print_exn     : ?force:bool -> ?banner:bool -> exn -> unit
   val print_string  : ?force:bool -> string -> unit
   val print_int     : ?force:bool -> int -> unit
   val print_float   : ?force:bool -> float -> unit

@@ -32,6 +32,7 @@ type log_channel =
 (** The signature of the module resulting from functors' applications. *)
 module type Result = sig
   val printf : ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+  val print_exn     : ?force:bool -> ?banner:bool -> exn -> unit
   val print_string  : ?force:bool -> string -> unit
   val print_int     : ?force:bool -> int -> unit
   val print_float   : ?force:bool -> float -> unit
@@ -124,6 +125,8 @@ module Make
     then printf_unsynchronized ~force ~banner frmt
     else apply_with_mutex (printf_unsynchronized ~force ~banner) frmt
 
+  let print_exn ?force ?banner e =
+   printf ?force ?banner "%s\n" (Printexc.to_string e)
 
   (* Here Obj.magic just avoids a warning "Warning X: this argument will not be used by the function.".
      For a misunderstood reason, we must define and call the function printf_nobanner into Obj.magic.
