@@ -18,7 +18,12 @@
 
 (** {2 Reading directories } *)
 
-val readdir_into_list : ?namefilter:(string -> bool) -> ?nameconverter:(string -> string) -> string -> string list
+val readdir_as_list :
+  ?only_directories:unit -> 
+  ?only_not_directories:unit ->
+  ?name_filter:(string -> bool) ->
+  ?name_converter:(string -> string) ->
+  string -> string list
 
 (** {2 Rewriting files } *)
 

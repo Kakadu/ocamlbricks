@@ -18,13 +18,29 @@
 (** *)
 
 (** Reads a given directory, thus select and convert names. Returns the list of formatted names. *)
-let readdir_into_list ?(namefilter:(string->bool)=(fun x -> true)) ?(nameconverter:(string->string)=(fun x->x)) (dir:string) =
-  try 
+let readdir_as_list
+  ?only_directories
+  ?only_not_directories
+  ?(name_filter:(string->bool)=(fun x -> true))
+  ?(name_converter:(string->string)=(fun x->x))
+  (dir:string) =
+  try begin
     let filelist  = (Array.to_list (Sys.readdir dir)) in
-    let filter    = (fun n -> (try (namefilter n) with _ -> false)) in
-    let selection = (List.filter filter filelist) in
-    (List.map nameconverter selection)
-  with _ -> [] 
+    let first_filter =
+      match only_directories, only_not_directories with
+      | None, None    -> (fun x -> true)
+      | Some (), None -> Sys.is_directory
+      | None, Some () -> (fun x -> not (Sys.is_directory x))
+      | Some (), Some () -> invalid_arg "SystExtra.readdir_as_list: ?only_directories and ?only_not_directories both set."
+    in
+    let safe_name_filter = (fun name -> (try (name_filter name) with _ -> false)) in
+    let selected_items =
+      List.filter (fun x -> (first_filter (dir^"/"^x)) && (safe_name_filter x)) filelist
+    in
+    List.map name_converter selected_items
+  end with
+  | (Invalid_argument msg) as e -> raise e
+  |  _ -> []
 
 (** [put content filename] rewrite [filename] with the given [content] string.
     An optional [~callback] may be provided in order to catch the
