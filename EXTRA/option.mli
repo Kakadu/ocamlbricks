@@ -26,6 +26,8 @@ val return : 'a -> 'a option
 
 val iter : ('a -> unit) -> 'a option -> unit
 
+val of_fallible_application : ?fallback:(exn -> unit) -> ('a -> 'b) -> 'a -> 'b option
+
 (** {2 Printers}
 
 The following functions act on a ['a option] value if the user is able to provide a function converting
