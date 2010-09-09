@@ -610,3 +610,39 @@ let to_string ?(d=" ") m =
 
 end (* module Text.Matrix *)
 end (* module Text *)
+
+(** By default the maximum line length is determined by [~width].
+   However, setting ?count_all this limit will be the sum of
+   [~width] and the lengths of [?tab] and [?prefix]. *)
+let fmt ?tab ?prefix ?count_all ?(width=75) s =
+ let tab_prefix = match tab with
+ | None -> ""
+ | Some n when n>=0 -> (String.make n ' ')
+ | _ -> invalid_arg "StringExtra.fmt: ?tab must be positive"
+ in
+ let prefix = match prefix with
+ | None        -> tab_prefix
+ | Some prefix -> tab_prefix ^ prefix
+ in
+ let tab_len = String.length prefix in
+ let tab_cost = match count_all with
+ | None -> 0
+ | Some () -> tab_len
+ in
+ let xs = List.flatten (Text.Matrix.of_string ~squeeze:true ~d:' ' s) in
+ let rec loop acc = function
+   | [] -> []
+   | (x::xs) when acc = 0 (* first word *) && tab_len=0 ->
+        let acc' = String.length x in
+        x::(loop acc' xs)
+   | (x::xs) when acc = 0 (* first word *) ->
+        let acc' = tab_cost + (String.length x) in
+        prefix::x::(loop acc' xs)
+   | (x::xs) as ys ->
+        let acc' = acc + 1 + (String.length x) in
+        if acc'>width then "\n"::(loop 0 ys) else " "::x::(loop acc' xs)
+ in
+ let ys = loop 0 xs in
+ catenate ~sep:"" ys
+ 
+

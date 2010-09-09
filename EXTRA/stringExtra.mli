@@ -129,3 +129,5 @@ module Text :
         val to_string : ?d:string -> line list list -> line
       end
   end
+
+val fmt : ?tab:int -> ?prefix:string -> ?count_all:unit -> ?width:int -> string -> string

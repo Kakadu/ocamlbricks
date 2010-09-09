@@ -81,8 +81,10 @@ libraries: c-modules libraries-local
 	@($(call BUILD_NATIVE_ANDOR_BYTECODE,libraries) ) # Spaces are ok
 
 # Build programs; bytecode, native, or both:
+# Force the meta.ml regeneration at next make call
 programs: c-modules programs-local
 	@($(call BUILD_NATIVE_ANDOR_BYTECODE,programs) ) # Spaces are ok
+	touch META
 
 # Build the native and/or bytecode version of $(1). $(1) may be either
 # "libraries" or "programs". *Don't* put a space before the argument.
