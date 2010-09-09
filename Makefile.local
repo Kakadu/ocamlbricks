@@ -38,6 +38,11 @@ MANUALLY_PRE_MAKE_IN_build =      \
   include_type_definitions_p4.cm{i,o} \
   include_as_string_p4.cm{i,o} 
 
+main-local: meta_ocamlbricks.ml
+
+meta_ocamlbricks.ml: meta.ml
+	cp $< meta_ocamlbricks.ml
+
 # include_type_definitions_p4
 
 _build/include_type_definitions_p4.cmi: CAMLP4/include_type_definitions_p4.mli
@@ -88,6 +93,7 @@ install-libraries-local: rebuilding preprocessors
 # Remove the automatically-generated documentation on clean:
 clean-local:
 	@(rm -rf doc/html)
+	rm -f meta_ocamlbrics.ml _build/meta_ocamlbrics.ml
 	rm -rf _build/does_process_exist.o
 	rm -rf _build/waitpid-c-wrapper.o
 

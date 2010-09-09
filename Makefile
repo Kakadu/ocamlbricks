@@ -906,6 +906,10 @@ meta.ml: META
 	echo -e "let libraryprefix = \"$$libraryprefix\";;" >> $@ && \
 	echo -e "let configurationprefix = \"$$configurationprefix\";;" >> $@ && \
 	echo -e "let documentationprefix = \"$$documentationprefix\";;" >> $@ && \
+	echo -e "let revision = \"$(shell bzr revno)\";;" >> $@ && \
+	echo -e "let build_date = \"$(shell date '+%Y-%m-%d %k:%M:%S %z')\";;" >> $@ && \
+	echo -e "let source_date = \"$(shell bzr info --verbose | /bin/grep 'latest revision' | cut -d: -f2- | cut -d' ' -f3-)\";;" >> $@ && \
+	echo -e "let uname = \"$(shell uname -srvmo)\";;" >> $@ && \
 	echo "Success.")
 
 ###########################################################################
