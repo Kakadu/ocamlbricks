@@ -195,20 +195,20 @@ let is_coherent_config ?(strict=false) (i1,i2,i3,i4) cidr =
     The optional parameter [?strict=false] determines the
     policy to adopt when the network capacity is lesser than 4 (this happen when [cidr>=31]):
     if we are {e strict} we consider this value as a wrong configuration. *)
-let is_valid_config ?(strict=false) (((i1,i2,i3,i4) as ip),cidr) =
- (is_valid_ipv4 ip) && (is_valid_cidr cidr) && (is_coherent_config ip cidr)
+let is_valid_config ?strict (((i1,i2,i3,i4) as ip),cidr) =
+ (is_valid_ipv4 ip) && (is_valid_cidr cidr) && (is_coherent_config ?strict ip cidr)
 
 (** As [is_valid_config] but using a verbose netmask definition instead of the CIDR notation. *)
-let is_valid_verbose_config ?(strict=false) (ip,netmask) =
+let is_valid_verbose_config ?strict (ip,netmask) =
  (is_valid_netmask netmask) &&
  begin
   let cidr = cidr_of_netmask netmask in
-  is_valid_config ~strict (ip,cidr)
+  is_valid_config ?strict (ip,cidr)
  end
 
-let check_config ?(strict=false) ?caller ((i1,i2,i3,i4) as ip) cidr =
+let check_config ?strict ?caller ((i1,i2,i3,i4) as ip) cidr =
  begin
-  if is_coherent_config ~strict ip cidr
+  if is_coherent_config ?strict ip cidr
    then ()
    else
     let caller = match caller with Some x -> x | None -> "check_config" in
@@ -216,12 +216,12 @@ let check_config ?(strict=false) ?caller ((i1,i2,i3,i4) as ip) cidr =
  end
 
 (** Example: ["192.168.1.42/24" -> ((192,168,1,42),24)] *)
-let config_of_string ?(strict=false) str =
+let config_of_string ?strict str =
  try
   let (ip,cidr) = Scanf.sscanf str "%i.%i.%i.%i/%i" (fun b1 b2 b3 b4 b5 -> ((b1, b2, b3, b4),b5)) in
   (check_ipv4   ~caller:"config_of_string" ~parsed_string:str ip);
   (check_cidr   ~caller:"config_of_string" cidr);
-  (check_config ~caller:"config_of_string" ~strict ip cidr);
+  (check_config ~caller:"config_of_string" ?strict ip cidr);
   (ip,cidr)
  with
   e -> prettify_scanf_exception "config_of_string" e
