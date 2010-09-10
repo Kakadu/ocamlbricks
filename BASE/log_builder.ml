@@ -38,7 +38,20 @@ module type Result = sig
   val print_float   : ?force:bool -> float -> unit
   val print_newline : ?force:bool -> unit -> unit
   val print_endline : ?force:bool -> string -> unit
- end
+
+  module Tuning:sig
+     val threshold             : unit -> int
+     val get_current_verbosity : unit -> int
+     val is_debug_enabled      : unit -> bool
+     val log_channel           : log_channel
+     val synchronized          : bool
+     module Set : sig
+       val threshold             : int -> unit
+       val get_current_verbosity : (unit -> int) -> unit
+     end
+   end
+
+end
 
 (* We will use an extended version of Mutex: *)
 module Mutex = MutexExtra.Extend (Mutex)
@@ -93,18 +106,41 @@ module Make
    end) : Result =
  struct
 
+  (** We redefine Tuning in order to provide it a modifiable state: *)
+  module Tuning = struct
+   module Variable = Stateful_modules.Thread_shared_variable
+   module Threshold             = Variable (struct type t = int end)
+   module Get_current_verbosity = Variable (struct type t = unit -> int end)
+   let () = begin (* Variables initialization: *)
+     Threshold.set Tuning.threshold;
+     Get_current_verbosity.set Tuning.get_current_verbosity;
+   end
+
+   let threshold = Threshold.get
+   let get_current_verbosity () = Get_current_verbosity.get () ()
+   let is_debug_enabled () = (get_current_verbosity ()) >= (threshold ())
+   let log_channel  = Tuning.log_channel
+   let synchronized = Tuning.synchronized
+
+   module Set = struct
+    let threshold = Threshold.set
+    let get_current_verbosity = Get_current_verbosity.set
+   end
+
+  end (* Tuning redefinition. *)
+
   let (out_channel, mutex) = get_out_channel Tuning.log_channel
-  let get_debug_enabled () = (Tuning.get_current_verbosity ()) >= Tuning.threshold
 
   let apply_with_mutex (f:'a -> 'b) (x:'a) : 'b =
    Mutex.apply_with_mutex mutex f x
+
 
   (* Take a format string and either use it for Printf.printf, or use it
      for a dummy printf-like function which does nothing, according to
      whether we're in debug mode or not: *)
   let printf_unsynchronized ?(force=false) ~banner frmt =
     Obj.magic
-      (if force || (get_debug_enabled ()) then
+      (if force || (Tuning.is_debug_enabled ()) then
        begin
          (match banner with
            | false -> ()

@@ -74,6 +74,19 @@ The result is 42
   val print_float   : ?force:bool -> float -> unit
   val print_newline : ?force:bool -> unit -> unit
   val print_endline : ?force:bool -> string -> unit
+
+  module Tuning:sig
+     val threshold             : unit -> int
+     val get_current_verbosity : unit -> int
+     val is_debug_enabled      : unit -> bool
+     val log_channel           : log_channel
+     val synchronized          : bool
+     module Set : sig
+       val threshold             : int -> unit
+       val get_current_verbosity : (unit -> int) -> unit
+     end
+   end
+
  end
 
 (** {2 General construction} *)
