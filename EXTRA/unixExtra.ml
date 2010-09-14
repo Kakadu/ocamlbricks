@@ -774,3 +774,25 @@ let date ?(dash="-") ?(dot=".") ?(colon=":") ?no_time ?no_date () =
 	(gmt.Unix.tm_min)  colon
 	(gmt.Unix.tm_sec)
   | Some (), Some () -> invalid_arg "UnixExtra.date: strangely called with ~no_time:() and ~no_date:()"
+
+
+(** Resolve a symbolic link if the argument is a symbolic link, otherwise
+   return the argument (identity). {b Example}:
+{[
+# resolve_symlink "/initrd.img" ;;
+  : string = "//boot/initrd.img-2.6.32-24-generic"
+
+# resolve_symlink "/not/existing/file" ;;
+  : string = "/not/existing/file"
+]}
+*)
+let resolve_symlink filename =
+try
+  let target = Unix.readlink filename in
+  (match (Filename.is_relative target) with
+  | true ->
+      let dir = Filename.dirname filename in
+      Printf.sprintf "%s/%s" dir target
+  | false -> target
+  )
+with _ -> filename
