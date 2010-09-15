@@ -213,5 +213,5 @@ end
 val date : ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit -> ?no_date:unit
   -> unit -> string
 
-val resolve_symlink : string -> string
+val resolve_symlink : ?max_hops:int -> string -> string
 val is_symlink : string -> bool

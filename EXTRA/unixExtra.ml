@@ -786,16 +786,23 @@ let date ?(dash="-") ?(dot=".") ?(colon=":") ?no_time ?no_date () =
   : string = "/not/existing/file"
 ]}
 *)
-let resolve_symlink filename =
-try
-  let target = Unix.readlink filename in
-  (match (Filename.is_relative target) with
-  | true ->
-      let dir = Filename.dirname filename in
-      Printf.sprintf "%s/%s" dir target
-  | false -> target
-  )
-with _ -> filename
+let resolve_symlink ?(max_hops=64) filename =
+ let rec loop max_hops filename =
+  begin try
+    if max_hops <= 0 then filename else
+    let target = Unix.readlink filename in
+    let target =
+      (match (Filename.is_relative target) with
+      | true ->
+	  let dir = Filename.dirname filename in
+	  Printf.sprintf "%s/%s" dir target
+      | false -> target
+      )
+    in
+    if target = filename then target else (loop (max_hops-1) target)
+   with _ -> filename
+  end
+ in loop max_hops filename
 
 let is_symlink filename =
  try
