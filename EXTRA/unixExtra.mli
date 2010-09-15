@@ -214,4 +214,4 @@ val date : ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit -> ?no_
   -> unit -> string
 
 val resolve_symlink : string -> string
-
+val is_symlink : string -> bool

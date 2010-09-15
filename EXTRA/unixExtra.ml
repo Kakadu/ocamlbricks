@@ -796,3 +796,9 @@ try
   | false -> target
   )
 with _ -> filename
+
+let is_symlink filename =
+ try
+  ignore (Unix.readlink filename);
+  true
+ with _ -> false
