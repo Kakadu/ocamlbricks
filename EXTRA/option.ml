@@ -34,3 +34,11 @@ include PervasivesExtra.Printers1 (struct
   | Some x -> "Some "^(string_of_alpha x)
  end)
 
+let extract_from_list ?(acc=[]) xs =
+ let rec loop = function
+ | [] -> acc
+ | None::xs -> (loop xs)
+ | (Some x)::xs -> x::(loop xs)
+ in
+ loop xs
+ 

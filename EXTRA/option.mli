@@ -19,6 +19,7 @@
 (** Extract the encapsulated value. If the argument is [None], the optional [?fallback] is called.
     By default [fallback] is set to [fun ()->failwith "Option.extract"].*)
 val extract : ?fallback:(unit -> 'a) -> 'a option -> 'a
+val extract_from_list : ?acc:'a list -> 'a option list -> 'a list
 
 val map  : ('a -> 'b) -> 'a option -> 'b option
 val bind : 'a option -> ('a -> 'b option) -> 'b option
@@ -27,6 +28,7 @@ val return : 'a -> 'a option
 val iter : ('a -> unit) -> 'a option -> unit
 
 val of_fallible_application : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
+
 
 (** {2 Printers}
 
