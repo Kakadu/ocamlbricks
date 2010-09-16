@@ -215,3 +215,9 @@ val date : ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit -> ?no_
 
 val resolve_symlink : ?max_hops:int -> string -> string
 val is_symlink : string -> bool
+
+module Thread_unsafe : sig
+ val realpath : ?s:unit -> string -> string option
+end
+
+val realpath : ?s:unit -> string -> string option

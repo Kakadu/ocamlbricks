@@ -809,3 +809,41 @@ let is_symlink filename =
   ignore (Unix.readlink filename);
   true
  with _ -> false
+
+module Thread_unsafe = struct
+
+ (** See the unix command realpath: *)
+ let realpath ?s x =
+  let x = match s with
+  | None    -> resolve_symlink x
+  | Some () -> x
+  in
+  let cwd = Sys.getcwd () in
+  let result =
+    try
+      match (Filename.basename x) with
+      | ".." ->
+         let dir = x in
+         (Sys.chdir dir);
+         Some (Sys.getcwd ())
+      | "." ->
+         let dir = Filename.dirname x in
+         (Sys.chdir dir);
+         Some (Sys.getcwd ())
+      | basename ->
+         let dir = Filename.dirname x in
+         (Sys.chdir dir);
+         let dir' = Sys.getcwd () in
+         let y = Filename.concat dir' basename in
+         Some y
+    with _ -> None
+  in
+  (Sys.chdir cwd);
+  result
+
+end
+
+module Mutex = MutexExtra.Recursive
+let mutex = Mutex.create ()
+
+let realpath ?s x = Mutex.apply_with_mutex mutex (Thread_unsafe.realpath ?s) x
