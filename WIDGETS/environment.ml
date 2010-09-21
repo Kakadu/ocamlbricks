@@ -59,9 +59,36 @@ let make (l:('a*'b) list) = let e=(new env ()) in (e#add_list l); e;;
     The special (and quite common) case where keys are strings allows to better trace get failures. *)
 
 exception Undefined_identifier of string
-class ['b] string_env () = object
+class ['b] string_env () = object (self)
   inherit [string,'b] env () as super
   method get id = try (super#get id) with Not_found -> raise (Undefined_identifier id)
+
+  (** {b Example}:
+{[# let e = Environment.make_string_env [("aaa", 1); ("bbbbbb",2); ("c",3) ] ;;
+val e : int Environment.string_env = <obj>
+# Printf.printf "%s" (e#to_string (string_of_int)) ;;
+bbbbbb = 2
+c      = 3
+aaa    = 1
+  : unit = ()
+]}
+*)
+  method to_string string_of_alpha =
+    match self#to_list with
+    | [] -> ""
+    | xs ->
+       let domain = List.map fst xs in
+       let max_length = ListExtra.max (List.map String.length domain) in
+       let ys =
+         List.map
+           (fun (k,v) ->
+              let k' = String.make max_length ' ' in
+              String.blit k 0 k' 0 (String.length k);
+              (Printf.sprintf "%s = %s\n" k' (string_of_alpha v)))
+           xs
+       in
+       List.fold_left (^) (List.hd ys) (List.tl ys)
+
 end;;
 
 (** Simple constructor for string environments.*)

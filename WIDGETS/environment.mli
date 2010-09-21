@@ -39,6 +39,7 @@ class ['a] string_env :
     method get : string -> 'a
     method to_list : (string * 'a) list
     method updatedBy : (string, 'a) env -> (string, 'a) env
+    method to_string : ('a -> string) -> string
   end
 
 val make_string_env : (string * 'a) list -> 'a string_env
