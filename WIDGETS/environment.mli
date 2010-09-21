@@ -24,7 +24,7 @@ class ['a, 'b] env :
     method add_list : ('a * 'b) list -> unit
     method get : 'a -> 'b
     method to_list : ('a * 'b) list
-    method updatedBy : ('a, 'b) env -> ('a, 'b) env
+    method updated_by : ('a,'b) env -> unit
   end
 val make : ('a * 'b) list -> ('a, 'b) env
 
@@ -38,8 +38,9 @@ class ['a] string_env :
     method add_list : (string * 'a) list -> unit
     method get : string -> 'a
     method to_list : (string * 'a) list
-    method updatedBy : (string, 'a) env -> (string, 'a) env
     method to_string : ('a -> string) -> string
+    method updated_by : (string,'a) env -> unit
   end
 
 val make_string_env : (string * 'a) list -> 'a string_env
+val string_env_updated_by: 'a string_env -> 'a string_env -> 'a string_env

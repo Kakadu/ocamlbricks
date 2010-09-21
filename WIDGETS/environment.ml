@@ -43,8 +43,10 @@ class ['a,'b] env = fun () -> object (self)
   (** Add a pair (identifier,value) to the environment. *)
   method add (id,v) = Hashmap.add table id v
 
-  (** Update the environment (self) by another environment which will "cover" previous links. @return self.*)
-  method updatedBy (e:(('a,'b) env)) : (('a,'b) env) = List.iter (self#add) (e#to_list); (self :> (('a,'b) env))
+  (** Update the environment (self) by another environment which will "cover" previous links.*)
+  method updated_by (e:(('a,'b) env)) : unit =
+    List.iter (self#add) (e#to_list)
+
 end;;
 
 (** Simple constructor for environments.*)
@@ -93,5 +95,9 @@ end;;
 
 (** Simple constructor for string environments.*)
 let make_string_env (l:(string*'b) list) = let e=(new string_env ()) in (e#add_list l); e;;
+
+let string_env_updated_by (r:'a string_env) (r':'a string_env) =
+  let () = r#updated_by (r' :> (string,'a) env) in
+  r
 
 
