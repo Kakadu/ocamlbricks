@@ -22,12 +22,12 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <caml/mlvalues.h>
-#include <caml/alloc.h>
-#include <caml/memory.h>
-#include <caml/fail.h>
-#include <caml/callback.h>
-#include <caml/unixsupport.h>
+#include <mlvalues.h>
+#include <alloc.h>
+#include <memory.h>
+#include <fail.h>
+#include <callback.h>
+#include <unixsupport.h>
 
 #define WAITPID_NAME "waitpid"
 
