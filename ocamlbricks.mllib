@@ -31,6 +31,7 @@ Environment
 FilenameExtra
 Fix
 Future
+Gc_sync
 Gettext_builder
 Hashmap
 Hashmmap
