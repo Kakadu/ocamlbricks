@@ -19,7 +19,7 @@ class virtual destroy_methods :
   object
     val mutable destroy_callbacks : unit Lazy.t list
     method add_destroy_callback : unit Lazy.t -> unit
-    method destroy : unit
+    method private destroy : unit
   end
 
 module Gc_sync :

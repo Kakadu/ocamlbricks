@@ -20,7 +20,8 @@ class virtual destroy_methods () =
  object
   val mutable destroy_callbacks = []
   method add_destroy_callback f = (destroy_callbacks <- f::destroy_callbacks)
-  method destroy = List.iter (fun e -> Lazy.force e) destroy_callbacks
+  (* Initially private, but may became public: *)
+  method private destroy = List.iter (fun e -> Lazy.force e) destroy_callbacks
  end (* destroy_methods *)
 
 
