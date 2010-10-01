@@ -14,6 +14,18 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+
+(** Support for managing the component garbage. *)
+class virtual destroy_methods () =
+ object
+  val mutable destroy_callbacks = []
+  method add_destroy_callback f = (destroy_callbacks <- f::destroy_callbacks)
+  method destroy = List.iter (fun e -> Lazy.force e) destroy_callbacks
+ end (* destroy_methods *)
+
+
+module Gc_sync = struct
+
 let finalizer (f : int -> unit) ~oid ~finalizer_hook =
   let g = fun _ -> f oid in
   Gc.finalise g finalizer_hook
@@ -53,3 +65,4 @@ Gc_sync: instance 4 collected!!!
   : unit = ()
 ]}
 *)
+end

@@ -14,15 +14,26 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-val finalizer : (int -> unit) -> oid:int -> finalizer_hook:'a -> unit
-val notify : int -> unit
-
-class ['a] t :
-  ?destroy:(int -> unit) ->
-  'a ->
+class virtual destroy_methods :
+  unit ->
   object
-    method get : 'a
-    method set : 'a -> unit
+    val mutable destroy_callbacks : unit Lazy.t list
+    method add_destroy_callback : unit Lazy.t -> unit
+    method destroy : unit
   end
 
-val ref : ?destroy:(int -> unit) -> 'a -> 'a t
+module Gc_sync :
+sig
+  val finalizer : (int -> unit) -> oid:int -> finalizer_hook:'a -> unit
+  val notify : int -> unit
+
+  class ['a] t :
+    ?destroy:(int -> unit) ->
+    'a ->
+    object
+      method get : 'a
+      method set : 'a -> unit
+    end
+
+  val ref : ?destroy:(int -> unit) -> 'a -> 'a t
+end

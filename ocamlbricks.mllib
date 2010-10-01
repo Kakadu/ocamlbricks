@@ -31,7 +31,6 @@ Environment
 FilenameExtra
 Fix
 Future
-Gc_sync
 Gettext_builder
 Hashmap
 Hashmmap
@@ -46,6 +45,7 @@ Memo
 Meta_ocamlbricks
 Mrproper
 MutexExtra
+OoExtra
 Oomarshal
 Option
 PervasivesExtra
