@@ -45,3 +45,5 @@ let extract_from_list ?(acc=[]) xs =
 let of_bool = function
  | false -> None
  | true  -> Some ()
+
+let to_list = function None -> [] | Some x -> [x]

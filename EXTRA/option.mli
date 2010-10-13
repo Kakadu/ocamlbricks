@@ -29,6 +29,7 @@ val iter : ('a -> unit) -> 'a option -> unit
 
 val of_fallible_application : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
 val of_bool : bool -> unit option
+val to_list : 'a option -> 'a list
 
 (** {2 Printers}
 
