@@ -298,41 +298,52 @@ let rec range a b =
     lights are 'on' or 'off' (and discounting flashes and blinks).
     Notice that, as in most real-world switch and hubs, port numeration is
     1-based. *)
-class device_led_grid ~on_xpm_file_name ~off_xpm_file_name ~nothing_xpm_file_name 
-                      ?show_100_mbs:(show_100_mbs=true)
-                      ~ports ~packing ?angle:(angle=90.0) ?lines:(lines=1) () =
+class device_led_grid
+  ~on_xpm_file_name
+  ~off_xpm_file_name
+  ~nothing_xpm_file_name
+  ?(show_100_mbs=true)
+  ~ports
+  ?(port_labelling_offset=0)
+  ~packing
+  ?(angle=90.0)
+  ?(lines=1)
+  () =
 (* Let's prevent stupid errors... *)
 let _ = assert(ports > 1) in
 let _ = assert(((ports mod 2) = 0) or (lines = 1)) in
-let _ = assert((lines = 1) or (lines = 2)) in
+let _ = assert((lines = 1) or (lines = 2))
+in
 object(self)
-  inherit led_grid ~default:false ~on_xpm_file_name ~off_xpm_file_name ~nothing_xpm_file_name
-                   ~columns:(if lines = 1 then ports else ports / 2)
-                   ~angle
-                   ~rows:(match lines, show_100_mbs with
-                            1, false -> 1
-                          | 1, true  -> 2
-                          | 2, false -> 3
-                          | 2, true  -> 5
-                          | _ -> assert false)
-                   ~no_leds_at:(match lines, show_100_mbs with
-                            1, _     -> []
-                          | 2, false -> List.map (function x -> x, 1)
-                                                 (range 0 (ports - 1))
-                          | 2, true  -> List.map (function x -> x, 2)
-                                                 (range 0 (ports / 2 - 1))
-                          | _ -> assert false)
-                   ~packing () as super
+  inherit led_grid
+    ~default:false
+    ~on_xpm_file_name
+    ~off_xpm_file_name
+    ~nothing_xpm_file_name
+    ~columns:(if lines = 1 then ports else ports / 2)
+    ~angle
+    ~rows:(match lines, show_100_mbs with
+           | 1, false -> 1
+           | 1, true  -> 2
+           | 2, false -> 3
+           | 2, true  -> 5
+           | _ -> assert false)
+    ~no_leds_at:(match lines, show_100_mbs with
+           | 1, _     -> []
+           | 2, false -> List.map (function x -> x, 1) (range 0 (ports - 1))
+           | 2, true  -> List.map (function x -> x, 2) (range 0 (ports / 2 - 1))
+           | _ -> assert false)
+   ~packing () as super
 
   (** Initialize the complex state of this object: *)
   initializer
     for x = 0 to (if lines = 1 then ports - 1 else ports / 2 - 1) do
 (*       self#set_top_label x (string_of_int (x + 1)); *)
-      self#set_top_label x (string_of_int (x)); (* 0-based numbering *)
+      self#set_top_label x (string_of_int (x+port_labelling_offset)); (* 0-based numbering *)
     done;
     if lines = 2 then
     for x = ports / 2 to ports - 1 do
-      self#set_bottom_label (x - ports / 2) (string_of_int x); (* 0-based numbering *)
+      self#set_bottom_label (x - ports / 2) (string_of_int (x+port_labelling_offset)); (* 0-based numbering *)
     done;
     self#set_right_label 0 "TX/RX";
     match lines, show_100_mbs with
