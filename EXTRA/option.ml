@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-let extract ?(fallback=(fun () -> failwith "Option.extract")) =
+let extract ?(failwith_msg="Option.extract") ?(fallback=(fun () -> failwith failwith_msg)) =
  function
   | None   -> fallback ()
   | Some x -> x
