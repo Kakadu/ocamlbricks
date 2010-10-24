@@ -1,9 +1,9 @@
 (* ----------------------------------------------------------
 Compilation:
-$ ocamlc -c -pp camlp4of -I +camlp4 camlp4of.cma option_extract_traced.ml
+$ ocamlc -c -pp camlp4of -I +camlp4 camlp4of.cma option_extract_p4.ml
 
 Usage:
-$ ocamlc -c -pp "camlp4of option_extract_traced.cmo" your_source.ml
+$ ocamlc -c -pp "camlp4of option_extract_p4.cmo" your_source.ml
 ------------------------------------------------------------- *)
 module type Unit = sig end
 open Camlp4
@@ -12,7 +12,7 @@ open Camlp4
 module Option_extract_traced : Unit = struct
 
  module Id = struct
-  let name    = "option_extract_traced"
+  let name    = "option_extract_p4"
   let version = Sys.ocaml_version
  end
 

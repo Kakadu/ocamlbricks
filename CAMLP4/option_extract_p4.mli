@@ -18,7 +18,7 @@
 
 (** Usage (in your <source>.ml):
 {[
-#load "option_extract_traced.cmo"
+#load "option_extract_p4.cmo"
 ;;
 ]}
 With this directive all calls to [Option.extract] will be replaced by [Option.extract ~failwith_msg:<call location>]. In this way, when the extraction fails, the raised [Failure] exception contains the location of the caller.
