@@ -33,6 +33,8 @@ val combine4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) l
 val head : ?n:int -> 'a list -> 'a list
 val tail : ?i:int -> 'a list -> 'a list
 
+val find_assoc : 'a list -> ('a * 'b) list -> 'b
+
 (** {2 Set operations} *)
 
 val substract    : 'a list -> 'a list -> 'a list

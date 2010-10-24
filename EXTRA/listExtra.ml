@@ -234,4 +234,8 @@ let rec combine4 l1 l2 l3 l4 = match (l1,l2,l3,l4) with
   | x1::r1, x2::r2, x3::r3, x4::r4 -> (x1,x2,x3,x4)::(combine4 r1 r2 r3 r4)
   | _ -> raise (Invalid_argument "combine4")
 
+let rec find_assoc xs ys = match xs with
+| [] -> raise Not_found
+| x::xs -> try List.assoc x ys with Not_found -> find_assoc xs ys
+;;
 
