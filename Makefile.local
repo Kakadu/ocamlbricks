@@ -28,19 +28,22 @@ BYTE_LIBRARIES = ocamlbricks.cma
 PP_OPTION = camlp4of
 GETTEXT=GETTEXT
 C_OBJECTS_TO_LINK = gettext-c-wrapper does-process-exist-c-wrapper waitpid-c-wrapper
-OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-c-wrapper.o,gettext_extract_pot_p4.cmo,waitpid-c-wrapper.o,include_type_definitions_p4.cmo,include_as_string_p4.cmo,where_p4.cmo,option_extract_p4.cmo}
+OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-c-wrapper.o,gettext_extract_pot_p4.cmo,waitpid-c-wrapper.o,include_type_definitions_p4.cmo,include_as_string_p4.cmo,where_p4.cmo,option_extract_p4.cmo,raise_p4.cmo}
 
 MANUALLY_PRE_COPY_IN_build =     \
   CAMLP4/include_type_definitions_p4.ml{,i} \
   CAMLP4/include_as_string_p4.ml{,i} \
   CAMLP4/where_p4.ml{,i} \
-  CAMLP4/option_extract_p4.ml{,i}
+  CAMLP4/option_extract_p4.ml{,i} \
+  CAMLP4/common_tools_for_preprocessors.ml \
+  CAMLP4/raise_p4.ml{,i}
 
 MANUALLY_PRE_MAKE_IN_build =      \
   include_type_definitions_p4.cm{i,o} \
   include_as_string_p4.cm{i,o} \
   where_p4.cm{i,o} \
-  option_extract_p4.cm{i,o}
+  option_extract_p4.cm{i,o} \
+  raise_p4.cm{i,o}
 
 main-local: meta_ocamlbricks.ml
 
@@ -75,11 +78,16 @@ _build/option_extract_p4.cmi: CAMLP4/option_extract_p4.mli
 _build/option_extract_p4.cmo: CAMLP4/option_extract_p4.ml
 	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of -o $@ $<
 
+_build/raise_p4.cmi: CAMLP4/raise_p4.mli
+	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of -o $@ $<
+
+_build/raise_p4.cmo: CAMLP4/raise_p4.ml
+	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of -o $@ $<
+
 # gettext_extract_pot_p4
 
 _build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
 	ocamlc -c -I +camlp4 -pp camlp4of camlp4lib.cma -o $@ $<
-
 
 _build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \

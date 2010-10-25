@@ -33,4 +33,4 @@ module Option_extract_traced : Unit = struct
 
  let module M = Camlp4.Register.AstFilter(Id)(Make) in ()
 
-end (* Option_extract_traced *)
+end (* Option_extract_p4 *)

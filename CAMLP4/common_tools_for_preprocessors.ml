@@ -93,3 +93,33 @@ let rec split_equation (s:string) =
   function key -> try List.assoc key ws with Not_found -> default
 
 end
+
+module Add_directive_syntax_extension (Unit : sig end) = struct
+
+ module Id = struct
+   let name = "Directive_syntax_extension"
+   let version = Sys.ocaml_version
+ end
+
+ module Make (Syntax : Sig.Camlp4Syntax) = struct
+  open Sig
+  include Syntax
+  EXTEND Gram GLOBAL: str_item sig_item;
+
+    str_item: FIRST [[ "%"; "str_item"; directive = LIDENT; arg = OPT expr ->
+      Printf.kfprintf flush stderr "%%str_item directive \"%s\" found.\n" directive;
+      match arg with
+      | None     -> <:str_item< # $directive$ >>
+      | Some arg -> <:str_item< # $directive$ $arg$ >>
+    ]];
+
+    sig_item: FIRST [[ "%"; "sig_item"; directive = LIDENT; arg = OPT expr ->
+      Printf.kfprintf flush stderr "%%sig_item directive \"%s\" found.\n" directive;
+      match arg with
+      | None     -> <:sig_item< # $directive$ >>
+      | Some arg -> <:sig_item< # $directive$ $arg$ >>
+    ]];
+  END
+ end (* Make *)
+let module M = Register.OCamlSyntaxExtension(Id)(Make) in ()
+end (* Directive_syntax_extension *)
