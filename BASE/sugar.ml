@@ -70,18 +70,6 @@ instead of write:
 *)
 let (|=>) (x:'a option) (default:'a) = match x with Some v -> v | None -> default;;
 
-(** Return true iff the given optional value is None *)
-let is_none (x : 'a option) =
-  match x with
-    None -> true
-  | Some _ -> false;;
-
-(** Return true iff the given optional value is not None *)
-let is_some (x : 'a option) =
-  match x with
-    None -> false
-  | Some _ -> true;;
-
 (** {2 Other shortcuts} *)
 
 (** Other recurrent shortcuts. *)
@@ -99,13 +87,5 @@ type identifier = int;;
 (** A {e filter} is function that transform elements in the same domain 
    (endo-function). *)
 type 'a filter = 'a -> 'a 
-;;
-
-(** Open an ['a option] value and return its content if any. Otherwise fail with the
-    given error message or a generic one if not provided. *)
-let raise_when_none ?(msg="raise_when_none: the argument is None") (x:'a option) = 
- match x with
- | Some v -> v
- | None -> failwith msg
 ;;
 

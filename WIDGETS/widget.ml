@@ -218,7 +218,7 @@ class comboTextTree = fun
   (** Set the current active (selected) choice by its value (instead of its index) *)
   method set_active_value (v:string) =
     try
-      let i = raise_when_none (ListExtra.indexOf v self#choices) in
+      let i = Option.extract (ListExtra.indexOf v self#choices) in
       self#box#set_active i ;
       self#childs_rebuild ()
     with _ -> ()

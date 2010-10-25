@@ -46,4 +46,8 @@ let of_bool = function
  | false -> None
  | true  -> Some ()
 
+let to_bool = function
+ | None   -> false
+ | Some _ -> true
+
 let to_list = function None -> [] | Some x -> [x]
