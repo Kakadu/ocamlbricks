@@ -234,8 +234,31 @@ let rec combine4 l1 l2 l3 l4 = match (l1,l2,l3,l4) with
   | x1::r1, x2::r2, x3::r3, x4::r4 -> (x1,x2,x3,x4)::(combine4 r1 r2 r3 r4)
   | _ -> raise (Invalid_argument "combine4")
 
-let rec find_assoc xs ys = match xs with
+module Assoc = struct
+
+let mem  = List.mem_assoc
+let remove  = List.remove_assoc
+let find = List.assoc
+let add x y xys =
+  (x,y)::(List.remove_assoc x xys)
+
+let rec find_first xs ys = match xs with
 | [] -> raise Not_found
-| x::xs -> try List.assoc x ys with Not_found -> find_assoc xs ys
-;;
+| x::xs -> try List.assoc x ys with Not_found -> find_first xs ys
+
+end
+
+module Assq = struct
+
+let mem = List.mem_assq
+let remove  = List.remove_assq
+let find = List.assq
+let add x y xys =
+  (x,y)::(List.remove_assq x xys)
+
+let rec find_first xs ys = match xs with
+| [] -> raise Not_found
+| x::xs -> try List.assq x ys with Not_found -> find_first xs ys
+
+end
 
