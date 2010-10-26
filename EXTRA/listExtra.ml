@@ -57,6 +57,11 @@ let rec flatten ?acc =
  in
  loop
 
+(** Like [List.find] but returns an option. *)
+let rec search p = function
+ | [] -> None
+ | x::xs -> if p x then (Some x) else (search p xs)
+
 (** Move some elements on the top of the list. {b Example}:
 {[# lift_to_the_top_positions ((=)"suggested") ["a";"b";"suggested";"c"] ;;
   : string list = ["suggested"; "a"; "b"; "c"]
