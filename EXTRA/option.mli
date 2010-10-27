@@ -19,6 +19,7 @@
 (** Extract the encapsulated value. If the argument is [None], the optional [?fallback] is called.
     By default [fallback] is set to [fun ()->failwith "Option.extract"].*)
 val extract : ?failwith_msg:string -> ?fallback:(unit -> 'a) -> 'a option -> 'a
+val extract_or : 'a option -> 'a -> 'a
 val extract_from_list : ?acc:'a list -> 'a option list -> 'a list
 
 val map  : ('a -> 'b) -> 'a option -> 'b option
