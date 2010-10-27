@@ -19,3 +19,5 @@
 val add_extension_if_absent : string -> string -> string
 val get_extension : ?with_dot:unit -> string -> string option
 val get_extension_or_default : ?with_dot:unit -> ?default:string -> string -> string
+
+val concat_list : string list -> string

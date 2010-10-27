@@ -68,3 +68,9 @@ let get_extension_or_default ?with_dot ?(default="") filename =
  | None -> default
  | Some r -> r
 
+(** [Filename.concat] generalized to 1-length lists.  {b Examples}:
+{[# concat_all ["aaa";"bbb";"ccc"] ;;
+ : string = "aaa/bbb/ccc"
+]} *)
+let concat_list xs =
+  List.fold_left Filename.concat (List.hd xs) (List.tl xs) 
