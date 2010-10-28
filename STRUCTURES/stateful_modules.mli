@@ -14,22 +14,27 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-module type Type = sig type t end
+module type Type = sig type t val name:string option end
 
 module Variable :
   functor (Type : Type) ->
     sig
       type t = Type.t
-      val get : unit -> t
-      val set : t -> unit
+      val get     : unit -> t option
+      val extract : unit -> t
+      val set     : t -> unit
+      val unset   : unit -> unit
+      val content : t option ref
     end
 
 module Thread_shared_variable :
   functor (Type : Type) ->
     sig
       type t = Type.t
-      val get : unit -> t
-      val set : t -> unit
+      val get     : unit -> t option
+      val extract : unit -> t
+      val set     : t -> unit
+      val unset   : unit -> unit
       val apply_with_mutex : ('a -> 'b) -> 'a -> 'b
       val lock   : unit -> unit
       val unlock : unit -> unit

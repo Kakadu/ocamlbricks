@@ -15,15 +15,22 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
-module type Type = sig type t end
+module type Type = sig type t val name:string option end
 
 module Variable (Type:Type) = struct
+
+  let failmsg = match Type.name with
+  | None   -> Printf.sprintf "Stateful_modules.Variable.get: content is None"
+  | Some x -> Printf.sprintf "Stateful_modules.Variable.get: content of %s is None" x
+  
   type t = Type.t
   let content = ref None
   let set (x:t) = (content := Some x)
-  let get () = match !content with
+  let unset () = (content := None)
+  let get () = !content
+  let extract () = match !content with
    | Some x -> x
-   | None   -> failwith "Stateful_modules.Variable.get: content is None" 
+   | None   -> failwith failmsg 
 end
 
 module Thread_shared_variable (Type:Type) = struct
@@ -36,6 +43,8 @@ module Thread_shared_variable (Type:Type) = struct
   let unlock () = Mutex.unlock mutex
   (* and the thread-safe versions of accessors: *)
   let set x = apply_with_mutex set x
+  let unset () = apply_with_mutex unset ()
   let get x = apply_with_mutex get x
+  let extract x = apply_with_mutex extract x
 end
 

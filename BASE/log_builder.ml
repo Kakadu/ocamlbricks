@@ -107,15 +107,15 @@ module Make
   (** We redefine Tuning in order to provide it a modifiable state: *)
   module Tuning = struct
    module Variable = Stateful_modules.Thread_shared_variable
-   module Verbosity = Variable (struct type t = int end)
-   module Debug_level = Variable (struct type t = unit -> int end)
+   module Verbosity = Variable (struct type t = int let name=None end)
+   module Debug_level = Variable (struct type t = unit -> int let name=None end)
    let () = begin (* Variables initialization: *)
      Verbosity.set Tuning.verbosity;
      Debug_level.set Tuning.debug_level;
    end
 
-   let verbosity = Verbosity.get
-   let debug_level () = Debug_level.get () ()
+   let verbosity = Verbosity.extract
+   let debug_level () = Debug_level.extract () ()
    let is_log_enabled ?v () = match v with
     | None   -> (debug_level ()) >= (verbosity ())
     | Some v -> (debug_level ()) >= v 
