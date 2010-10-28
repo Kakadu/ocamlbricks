@@ -645,4 +645,21 @@ let fmt ?tab ?prefix ?count_all ?(width=75) s =
  let ys = loop 0 xs in
  catenate ~sep:"" ys
  
-
+let tab ?tab ?prefix s =
+ let tab_prefix = match tab with
+ | None -> ""
+ | Some n when n>=0 -> (String.make n ' ')
+ | _ -> invalid_arg "StringExtra.tab: ?tab must be positive"
+ in
+ let prefix = match prefix with
+ | None        -> tab_prefix
+ | Some prefix -> tab_prefix ^ prefix
+ in
+ let prefix = if prefix = "" then "\t" else prefix in
+ let yxs = (Text.Matrix.of_string ~squeeze:false ~d:' ' s) in
+ let yzs =
+   List.map
+     (function [] -> [prefix] | x::xs -> (Printf.sprintf "%s%s" prefix x)::xs)
+     yxs
+ in
+ (Text.Matrix.to_string ~d:" " yzs)

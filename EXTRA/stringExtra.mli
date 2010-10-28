@@ -131,3 +131,4 @@ module Text :
   end
 
 val fmt : ?tab:int -> ?prefix:string -> ?count_all:unit -> ?width:int -> string -> string
+val tab : ?tab:int -> ?prefix:string -> string -> string
