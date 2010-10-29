@@ -33,7 +33,9 @@ val combine4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) l
 val head : ?n:int -> 'a list -> 'a list
 val tail : ?i:int -> 'a list -> 'a list
 
-val search : ('a -> bool) -> 'a list -> 'a option
+val search  : ('a -> bool) -> 'a list -> 'a option
+val searchi : ('a -> bool) -> 'a list -> (int * 'a) option
+val findi   : ('a -> bool) -> 'a list -> (int * 'a)
 
 (** {2 Set operations} *)
 

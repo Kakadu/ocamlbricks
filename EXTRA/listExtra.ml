@@ -62,6 +62,17 @@ let rec search p = function
  | [] -> None
  | x::xs -> if p x then (Some x) else (search p xs)
 
+let searchi p xs =
+ let rec loop p i = function
+  | [] -> None
+  | x::xs -> if p x then (Some (i,x)) else (loop p (i+1) xs)
+ in loop p 0 xs
+
+let findi p xs =
+ match searchi p xs with
+ | None -> raise Not_found
+ | Some pair -> pair
+
 (** Move some elements on the top of the list. {b Example}:
 {[# lift_to_the_top_positions ((=)"suggested") ["a";"b";"suggested";"c"] ;;
   : string list = ["suggested"; "a"; "b"; "c"]
