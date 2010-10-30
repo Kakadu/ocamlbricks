@@ -29,6 +29,7 @@ val return : 'a -> 'a option
 val iter : ('a -> unit) -> 'a option -> unit
 
 val of_fallible_application : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
+val catch : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
 
 val of_bool : bool -> unit option
 val to_bool : 'a option -> bool

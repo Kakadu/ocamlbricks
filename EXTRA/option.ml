@@ -31,6 +31,8 @@ let iter f = function None -> () | Some x -> (f x)
 let of_fallible_application ?(fallback=fun _ _ -> ()) f x =
  try Some (f x) with e -> ((fallback e x); None)
 
+let catch = of_fallible_application
+
 include PervasivesExtra.Printers1 (struct
   type 'a t = 'a option
   let string_of string_of_alpha = function
