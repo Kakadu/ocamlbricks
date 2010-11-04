@@ -814,11 +814,13 @@ type output =
  [ `bmp                    (* Windows Bitmap Format *)
  | `canon | `dot | `xdot   (* DOT *)
  | `cmap                   (* Client-side imagemap (deprecated) *)
+ | `dia                    (* Dia diagram creation program *)
  | `eps                    (* Encapsulated PostScript *)
  | `fig                    (* FIG *)
  | `gd | `gd2              (* GD/GD2 formats *)
  | `gif                    (* GIF *)
  | `gtk                    (* GTK canvas *)
+ | `hpgl                   (* HP-GL subset of PCL *)
  | `ico                    (* Icon Image File Format *)
  | `imap | `cmapx          (* Server-side and client-side imagemaps *)
  | `imap_np | `cmapx_np    (* Server-side and client-side imagemaps *)
@@ -834,11 +836,14 @@ type output =
  | `vml | `vmlz            (* Vector Markup Language (VML) *)
  | `vrml                   (* VRML *)
  | `wbmp                   (* Wireless BitMap format *)
- | `xlib                   (* Xlib canvas *)
+(* The following provoke an long time (infinite?) execution: *)
+(*  | `xlib                   (* Xlib canvas *) *)
  ]
 
 val string_of_output : output -> string
 val output_of_string : string -> output
+
+val output_description : output -> string
 val admissible_outputs : output list
 val admissible_outputs_as_strings : string list
 
@@ -848,3 +853,6 @@ val make_image :
   ?imgfile:filename ->
   ?imgtype:output -> (* by default `png *)
   graph -> (filename * filename)
+
+(** Return a 4-tuple (output, as_string, description, file_command_output) *)
+val working_output_formats : unit -> (output * string * string * string) list

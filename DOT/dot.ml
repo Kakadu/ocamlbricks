@@ -93,12 +93,14 @@ let string_of_output = function
 |`dot->"dot"
 |`xdot->"xdot"
 |`cmap->"cmap"
+| `dia->"dia"
 |`eps->"eps"
 |`fig->"fig"
 |`gd->"gd"
 |`gd2->"gd2"
 |`gif->"gif"
 |`gtk->"gtk"
+|`hpgl->"hpgl"
 |`ico->"ico"
 |`imap->"imap"
 |`cmapx->"cmapx"
@@ -119,13 +121,14 @@ let string_of_output = function
 |`vmlz->"vmlz"
 |`vrml->"vrml"
 |`wbmp->"wbmp"
-|`xlib->"xlib"
+(* |`xlib->"xlib" *)
 
 let output_of_string = function
 | "bmp" -> `bmp
 | "canon" -> `canon
 | "dot" -> `dot
 | "xdot" -> `xdot
+| "dia" -> `dia
 | "cmap" -> `cmap
 | "eps" -> `eps
 | "fig" -> `fig
@@ -133,6 +136,7 @@ let output_of_string = function
 | "gd2" -> `gd2
 | "gif" -> `gif
 | "gtk" -> `gtk
+| "hpgl" -> `hpgl
 | "ico" -> `ico
 | "imap" -> `imap
 | "cmapx" -> `cmapx
@@ -153,16 +157,47 @@ let output_of_string = function
 | "vmlz" -> `vmlz
 | "vrml" -> `vrml
 | "wbmp" -> `wbmp
-| "xlib" -> `xlib                                                                                                                                                                                  
+(* | "xlib" -> `xlib                                                                                                                                                                                   *)
 | _ -> raise Not_found
 
 let admissible_outputs = [
-  `bmp; `canon; `dot; `xdot; `cmap; `eps; `fig; `gd; `gd2; `gif; `gtk; `ico; `imap; `cmapx; `imap_np; `cmapx_np; `ismap;
-  `jpg; `pdf; `plain; `plain_ext; `png; `ps; `ps2; `svg; `svgz; `tiff; `vml; `vmlz; `vrml; `wbmp; `xlib;
+  `bmp; `canon; `dia; `dot; `xdot; `cmap; `eps; `fig; `gd; `gd2; `gif; `gtk; `hpgl; `ico; `imap; `cmapx; `imap_np; `cmapx_np; `ismap;
+  `jpg; `pdf; `plain; `plain_ext; `png; `ps; `ps2; `svg; `svgz; `tiff; `vml; `vmlz; `vrml; `wbmp; (*`xlib;*)
    ]
 
 let admissible_outputs_as_strings =
   List.map string_of_output admissible_outputs
+
+let output_description = function
+ | `bmp                    -> "Windows Bitmap Format"
+ | `canon | `dot | `xdot   -> "DOT"
+ | `cmap                   -> "Client-side imagemap (deprecated)"
+ | `dia                    -> "Dia diagram creation program"
+ | `eps                    -> "Encapsulated PostScript"
+ | `fig                    -> "FIG"
+ | `gd                     -> "GD format"
+ | `gd2                    -> "GD2 format"
+ | `gif                    -> "GIF"
+ | `gtk                    -> "GTK canvas"
+ | `hpgl                   -> "HP-GL subset of PCL"
+ | `ico                    -> "Icon Image File Format"
+ | `imap | `cmapx          -> "Server-side and client-side imagemaps"
+ | `imap_np | `cmapx_np    -> "Server-side and client-side imagemaps"
+ | `ismap                  -> "Server-side imagemap (deprecated)"
+ | `jpg                    -> "JPEG"
+ | `pdf                    -> "Portable Document Format (PDF)"
+ | `plain | `plain_ext     -> "Simple text format"
+ | `png                    -> "Portable Network Graphics format"
+ | `ps                     -> "PostScript"
+ | `ps2                    -> "PostScript for PDF"
+ | `svg                    -> "Scalable Vector Graphics"
+ | `svgz                   -> "Compressed Scalable Vector Graphics"
+ | `tiff                   -> "TIFF (Tag Image File Format)"
+ | `vml                    -> "Vector Markup Language (VML)"
+ | `vmlz                   -> "Compressed Vector Markup Language (VML)"
+ | `vrml                   -> "VRML"
+ | `wbmp                   -> "Wireless BitMap format"
+(* | `xlib                   -> "Xlib canvas" *)
 
 let make_image ?silent ?dotfile ?imgfile ?(imgtype=`png) g =
  begin
@@ -1043,3 +1078,18 @@ let graph_of_list nns =
 
 include Html_like_constructors
 
+let working_output_formats () =
+  let g = (graph [node "good_luck"]) in
+  let dotfile = Filename.temp_file "Dot.make_image." ".dot" in
+  let imgfile = Filename.temp_file "Dot.make_image." ".img" in
+  let mill imgtype =
+    try
+      let _ = make_image ~silent:() ~imgtype ~dotfile ~imgfile g in
+      let cmd = Printf.sprintf "file -b -z %s" imgfile in
+      let file_output = UnixExtra.shell cmd in
+      Some (imgtype, (string_of_output imgtype), (output_description imgtype), file_output)
+    with _ -> None
+  in
+  let result = ListExtra.filter_map mill admissible_outputs in
+  let () = List.iter Unix.unlink [dotfile; imgfile] in
+  result
