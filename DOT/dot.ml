@@ -121,6 +121,48 @@ let string_of_output = function
 |`wbmp->"wbmp"
 |`xlib->"xlib"
 
+let output_of_string = function
+| "bmp" -> `bmp
+| "canon" -> `canon
+| "dot" -> `dot
+| "xdot" -> `xdot
+| "cmap" -> `cmap
+| "eps" -> `eps
+| "fig" -> `fig
+| "gd" -> `gd
+| "gd2" -> `gd2
+| "gif" -> `gif
+| "gtk" -> `gtk
+| "ico" -> `ico
+| "imap" -> `imap
+| "cmapx" -> `cmapx
+| "imap_np" -> `imap_np
+| "cmapx_np" -> `cmapx_np
+| "ismap" -> `ismap
+| "jpg" -> `jpg
+| "pdf" -> `pdf
+| "plain" -> `plain
+| "plain_ext" -> `plain_ext
+| "png" -> `png
+| "ps" -> `ps
+| "ps2" -> `ps2
+| "svg" -> `svg
+| "svgz" -> `svgz
+| "tiff" -> `tiff
+| "vml" -> `vml
+| "vmlz" -> `vmlz
+| "vrml" -> `vrml
+| "wbmp" -> `wbmp
+| "xlib" -> `xlib                                                                                                                                                                                  
+| _ -> raise Not_found
+
+let admissible_outputs = [
+  `bmp; `canon; `dot; `xdot; `cmap; `eps; `fig; `gd; `gd2; `gif; `gtk; `ico; `imap; `cmapx; `imap_np; `cmapx_np; `ismap;
+  `jpg; `pdf; `plain; `plain_ext; `png; `ps; `ps2; `svg; `svgz; `tiff; `vml; `vmlz; `vrml; `wbmp; `xlib;
+   ]
+
+let admissible_outputs_as_strings =
+  List.map string_of_output admissible_outputs
 
 let make_image ?silent ?dotfile ?imgfile ?(imgtype=`png) g =
  begin

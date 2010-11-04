@@ -837,6 +837,11 @@ type output =
  | `xlib                   (* Xlib canvas *)
  ]
 
+val string_of_output : output -> string
+val output_of_string : string -> output
+val admissible_outputs : output list
+val admissible_outputs_as_strings : string list
+
 val make_image :
   ?silent:unit -> (* Hide dot errors or warnings *)
   ?dotfile:filename ->
