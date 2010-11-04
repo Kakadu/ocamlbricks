@@ -23,6 +23,9 @@ val exists  : (int -> 'a -> bool) -> 'a array -> bool
 val lexists : (int -> 'a -> bool) -> 'a array -> int option
 val rexists : (int -> 'a -> bool) -> 'a array -> int option
 
+val dichotomic_search : 'a array -> 'a -> bool * int
+val dichotomic_insert : 'a array -> 'a -> 'a array
+
 module Matrix : sig
  type 'a t = 'a array array
  val init : int -> int -> (int -> int -> 'a) -> 'a t

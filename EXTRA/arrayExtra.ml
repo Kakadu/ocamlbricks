@@ -65,6 +65,30 @@ let rexists p s =
   if (p i s.(i)) then (Some i) else loop (i-1)
  in loop (l-1)
 
+
+let dichotomic_search v x =
+ let rec loop a b =
+   if a=b then a else
+   let i = (a+b)/2 in
+   if x > v.(i) then loop (i+1) b else
+   if (i>0) && (v.(i-1) >= x) then loop a (i-1) else
+   i
+ in
+ let i = loop 0 ((Array.length v)-1) in
+ ((v.(i) = x),i)
+
+let dichotomic_insert v x =
+ let l = Array.length v in
+ let last_index = l-1 in
+ match dichotomic_search v x with
+ | true, _ -> v
+ | false, index when (index = last_index) ->
+     Array.init (l+1) (fun i -> try v.(i) with _ -> x)
+ | false, index ->
+    Array.init
+      (l+1)
+      (fun i -> match compare i index with (-1) -> v.(i) | 0 -> x | _ -> v.(i-1))
+ 
 (** Tools for matrices (arrays of arrays). *)
 module Matrix = struct
 
