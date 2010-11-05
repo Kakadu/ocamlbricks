@@ -20,17 +20,24 @@ module type Type = sig type t val name:string option end
 module Variable (Type:Type) = struct
 
   let failmsg = match Type.name with
-  | None   -> Printf.sprintf "Stateful_modules.Variable.get: content is None"
-  | Some x -> Printf.sprintf "Stateful_modules.Variable.get: content of %s is None" x
+  | None   -> Printf.sprintf "Stateful_modules: undefined content"
+  | Some x -> Printf.sprintf "Stateful_modules: %s is undefined" x
   
   type t = Type.t
   let content = ref None
-  let set (x:t) = (content := Some x)
+  let set (x:t) = (content := Some (lazy x))
   let unset () = (content := None)
-  let get () = !content
+
+  let get () = match !content with
+   | Some x -> Some (Lazy.force x)
+   | None   -> None
+
   let extract () = match !content with
-   | Some x -> x
-   | None   -> failwith failmsg 
+   | Some x -> Lazy.force x
+   | None   -> failwith failmsg
+
+  let lazy_set lx = (content := Some lx)
+
 end
 
 module Thread_shared_variable (Type:Type) = struct
@@ -46,5 +53,6 @@ module Thread_shared_variable (Type:Type) = struct
   let unset () = apply_with_mutex unset ()
   let get x = apply_with_mutex get x
   let extract x = apply_with_mutex extract x
+  let lazy_set x = apply_with_mutex lazy_set x
 end
 

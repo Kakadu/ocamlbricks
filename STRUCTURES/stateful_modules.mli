@@ -24,7 +24,8 @@ module Variable :
       val extract : unit -> t
       val set     : t -> unit
       val unset   : unit -> unit
-      val content : t option ref
+      val lazy_set: t Lazy.t -> unit
+      val content : t Lazy.t option ref
     end
 
 module Thread_shared_variable :
@@ -34,6 +35,7 @@ module Thread_shared_variable :
       val get     : unit -> t option
       val extract : unit -> t
       val set     : t -> unit
+      val lazy_set: t Lazy.t -> unit
       val unset   : unit -> unit
       val apply_with_mutex : ('a -> 'b) -> 'a -> 'b
       val lock   : unit -> unit
