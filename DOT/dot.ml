@@ -87,7 +87,7 @@ let fprint filename g =
  
 let sprint g = newlinecat (cotokens_of_graph g)
 
-let string_of_output = function
+let string_of_output_format = function
 |`bmp-> "bmp"
 |`canon->"canon"
 |`dot->"dot"
@@ -123,7 +123,7 @@ let string_of_output = function
 |`wbmp->"wbmp"
 (* |`xlib->"xlib" *)
 
-let output_of_string = function
+let output_format_of_string = function
 | "bmp" -> `bmp
 | "canon" -> `canon
 | "dot" -> `dot
@@ -160,48 +160,48 @@ let output_of_string = function
 (* | "xlib" -> `xlib                                                                                                                                                                                   *)
 | _ -> raise Not_found
 
-let admissible_outputs = [
+let admissible_output_formats = [
   `bmp; `canon; `dia; `dot; `xdot; `cmap; `eps; `fig; `gd; `gd2; `gif; `gtk; `hpgl; `ico; `imap; `cmapx; `imap_np; `cmapx_np; `ismap;
   `jpg; `pdf; `plain; `plain_ext; `png; `ps; `ps2; `svg; `svgz; `tiff; `vml; `vmlz; `vrml; `wbmp; (*`xlib;*)
    ]
 
-let admissible_outputs_as_strings =
-  List.map string_of_output admissible_outputs
+let admissible_output_formats_as_strings =
+  List.map string_of_output_format admissible_output_formats
 
-let output_description = function
+let output_format_description = function
  | `bmp                    -> "Windows Bitmap Format"
- | `canon | `dot | `xdot   -> "DOT"
+ | `canon | `dot | `xdot   -> "Graphviz dot drawing program"
  | `cmap                   -> "Client-side imagemap (deprecated)"
- | `dia                    -> "Dia diagram creation program"
+ | `dia                    -> "Diagram creation program"
  | `eps                    -> "Encapsulated PostScript"
- | `fig                    -> "FIG"
- | `gd                     -> "GD format"
- | `gd2                    -> "GD2 format"
- | `gif                    -> "GIF"
+ | `fig                    -> "FIG vector drawing format"
+ | `gd                     -> "GD graphics library format"
+ | `gd2                    -> "GD2 graphics library format"
+ | `gif                    -> "GIF Graphics Interchange Format"
  | `gtk                    -> "GTK canvas"
  | `hpgl                   -> "HP-GL subset of PCL"
  | `ico                    -> "Icon Image File Format"
- | `imap | `cmapx          -> "Server-side and client-side imagemaps"
- | `imap_np | `cmapx_np    -> "Server-side and client-side imagemaps"
+ | `imap | `cmapx          -> "Server- and client-side imagemaps"
+ | `imap_np | `cmapx_np    -> "Server- and client-side imagemaps"
  | `ismap                  -> "Server-side imagemap (deprecated)"
- | `jpg                    -> "JPEG"
- | `pdf                    -> "Portable Document Format (PDF)"
+ | `jpg                    -> "JPEG Joint Photographic Group"
+ | `pdf                    -> "PDF Portable Document Format"
  | `plain | `plain_ext     -> "Simple text format"
- | `png                    -> "Portable Network Graphics format"
+ | `png                    -> "PNG Portable Network Graphics format"
  | `ps                     -> "PostScript"
  | `ps2                    -> "PostScript for PDF"
  | `svg                    -> "Scalable Vector Graphics"
  | `svgz                   -> "Compressed Scalable Vector Graphics"
- | `tiff                   -> "TIFF (Tag Image File Format)"
- | `vml                    -> "Vector Markup Language (VML)"
- | `vmlz                   -> "Compressed Vector Markup Language (VML)"
- | `vrml                   -> "VRML"
+ | `tiff                   -> "TIFF Tag Image File Format"
+ | `vml                    -> "VML Vector Markup Language"
+ | `vmlz                   -> "VML Compressed Vector Markup Language"
+ | `vrml                   -> "VRML Text file format"
  | `wbmp                   -> "Wireless BitMap format"
 (* | `xlib                   -> "Xlib canvas" *)
 
 let make_image ?silent ?dotfile ?imgfile ?(imgtype=`png) g =
  begin
- let imgtype = string_of_output imgtype in
+ let imgtype = string_of_output_format imgtype in
  let dotfile = match dotfile with Some x -> x | None -> Filename.temp_file "Dot.make_image." ".dot" in
  let imgfile = match imgfile with Some x -> x | None -> Filename.temp_file "Dot.make_image." ("."^imgtype) in
  fprint dotfile g;
@@ -1078,18 +1078,52 @@ let graph_of_list nns =
 
 include Html_like_constructors
 
-let working_output_formats () =
+let working_output_formats ?no_file_inspection () =
   let g = (graph [node "good_luck"]) in
   let dotfile = Filename.temp_file "Dot.make_image." ".dot" in
   let imgfile = Filename.temp_file "Dot.make_image." ".img" in
   let mill imgtype =
     try
       let _ = make_image ~silent:() ~imgtype ~dotfile ~imgfile g in
-      let cmd = Printf.sprintf "file -b -z %s" imgfile in
-      let file_output = UnixExtra.shell cmd in
-      Some (imgtype, (string_of_output imgtype), (output_description imgtype), file_output)
+      let file_output =
+        match no_file_inspection with
+        | Some () -> ""
+        | None ->
+           let cmd = Printf.sprintf "file -b -z %s" imgfile in
+           StringExtra.rstrip (UnixExtra.shell cmd)
+      in
+      Some (imgtype, (string_of_output_format imgtype), (output_format_description imgtype), file_output)
     with _ -> None
   in
-  let result = ListExtra.filter_map mill admissible_outputs in
+  let result = ListExtra.filter_map mill admissible_output_formats in
   let () = List.iter Unix.unlink [dotfile; imgfile] in
   result
+
+(** Redefined with a cache: *)
+let working_output_formats =
+ let cache1 = ref None in
+ let cache2 = ref None in
+ fun ?no_file_inspection () ->
+   let run_with_cache cache =
+     match !cache with
+     | None ->
+	 let result = working_output_formats ?no_file_inspection () in
+	 cache := Some result;
+	 result
+     | Some result -> result
+   in
+   match no_file_inspection with
+   | None    -> run_with_cache cache1
+   | Some () -> run_with_cache cache2   
+
+let working_output_formats_as_objects ?no_file_inspection () =
+ List.map
+   (fun (x,y,z,t) ->
+      object
+        method output_format = x
+        method output_format_as_string = y
+        method description = z
+        method file_command_output = t
+      end)
+   (working_output_formats ?no_file_inspection ())
+   

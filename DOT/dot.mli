@@ -810,7 +810,7 @@ val fprint  : filename -> graph -> unit
 val sprint  : graph -> string
 val graph_of_list : (node_ident * node_ident) list -> graph
 
-type output =
+type output_format =
  [ `bmp                    (* Windows Bitmap Format *)
  | `canon | `dot | `xdot   (* DOT *)
  | `cmap                   (* Client-side imagemap (deprecated) *)
@@ -840,19 +840,25 @@ type output =
 (*  | `xlib                   (* Xlib canvas *) *)
  ]
 
-val string_of_output : output -> string
-val output_of_string : string -> output
+val string_of_output_format : output_format -> string
+val output_format_of_string : string -> output_format
 
-val output_description : output -> string
-val admissible_outputs : output list
-val admissible_outputs_as_strings : string list
+val output_format_description : output_format -> string
+val admissible_output_formats : output_format list
+val admissible_output_formats_as_strings : string list
 
 val make_image :
   ?silent:unit -> (* Hide dot errors or warnings *)
   ?dotfile:filename ->
   ?imgfile:filename ->
-  ?imgtype:output -> (* by default `png *)
+  ?imgtype:output_format -> (* by default `png *)
   graph -> (filename * filename)
 
 (** Return a 4-tuple (output, as_string, description, file_command_output) *)
-val working_output_formats : unit -> (output * string * string * string) list
+val working_output_formats : ?no_file_inspection:unit -> unit -> (output_format * string * string * string) list
+val working_output_formats_as_objects : ?no_file_inspection:unit -> unit ->
+ < output_format : output_format;
+   output_format_as_string : string;
+   description : string;
+   file_command_output : string;
+   > list
