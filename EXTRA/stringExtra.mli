@@ -132,3 +132,4 @@ module Text :
 
 val fmt : ?tab:int -> ?prefix:string -> ?count_all:unit -> ?width:int -> string -> string
 val tab : ?tab:int -> ?prefix:string -> string -> string
+val make_wide : string -> int -> string

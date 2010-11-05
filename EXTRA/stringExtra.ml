@@ -663,3 +663,11 @@ let tab ?tab ?prefix s =
      yxs
  in
  (Text.Matrix.to_string ~d:" " yzs)
+
+let make_wide str n =
+  if n<0 then invalid_arg "make_wide" else
+  match String.length str with
+  | l when l = n -> str
+  | l when l < n ->  str^(String.make (n-l) ' ')
+  | l (* l > n*) ->  String.sub str 0 n 
+  
