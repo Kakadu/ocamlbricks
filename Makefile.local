@@ -1,6 +1,7 @@
 # This -*- makefile -*- is part of our reusable OCaml BRICKS library
 # Copyright (C) 2008  Luca Saiu
-# Copyright (C) 2008  Jean-Vincent Loddo
+# Copyright (C) 2008, 2010  Jean-Vincent Loddo
+# Copyright (C) 2008, 2010  Université Paris 13
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
