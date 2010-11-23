@@ -1,7 +1,7 @@
 # This -*- makefile -*- is part of our build system for OCaml projects
 # Copyright (C) 2008, 2009  Luca Saiu
-# Copyright (C) 2008  Jean-Vincent Loddo
-# Copyright (C) 2008, 2010  Université Paris 13
+# Copyright (C) 2008, 2010  Jean-Vincent Loddo
+# Copyright (C) 2008, 2009, 2010  Université Paris 13
 # Updated in 2008 by Jonathan Roudiere
 
 # This program is free software: you can redistribute it and/or modify
@@ -39,6 +39,7 @@
 SHELL=/bin/bash
 
 OCAMLBUILD = $$( $(call OCAMLBUILD_COMMAND_LINE) )
+LIBRARYPREFIX=$(shell $(call READ_CONFIG, libraryprefix); echo $$libraryprefix)
 
 # The main target. Its implementation is entirely project-dependant:
 main: ocamlbuild-stuff manually_pre_actions main-local data libraries programs manually_post_actions
@@ -207,7 +208,7 @@ PERFORM_MANUALLY_POST_ACTIONS = \
 
 # Edit all ml/mli files and Makefile.local with your $EDITOR
 edit:
-	test -n "$$EDITOR" && $$EDITOR Makefile.local $$(find . \( -wholename "./_build/*" -o -wholename "./_darcs/*" -o -name "meta.ml" -o -name myocamlbuild.ml \) -prune -o -type f -a \( -name "*.ml" -o -name "*.mli" \) -print) &
+	test -n "$$EDITOR" && $$EDITOR Makefile.local $$(find . \( -wholename "./_build/*" -o -name "meta.ml" -o -name "version.ml" -o -name "gui.ml" -o -name myocamlbuild.ml \) -prune -o -type f -a \( -name "*.ml" -o -name "*.mli" \) -print) &
 
 # Create the documentation
 documentation: world documentation-local
@@ -217,7 +218,7 @@ documentation: world documentation-local
 doc: documentation
 
 INDEX_HTML=_build/doc/html/index.html
-browse: 
+browse:
 	test -f  $(INDEX_HTML) || make documentation
 	test -n "$$BROWSER" && $$BROWSER $(INDEX_HTML)
 
@@ -464,13 +465,14 @@ dist: clean dist-local
 	@($(call READ_META, name, version); \
 	$(call FIX_VERSION); \
 	echo "Making the source tarball _build/$$name-$$version.tar.gz ..."; \
+	$(MAKE) meta.ml.released; \
 	$(MAKE) ChangeLog; \
 	mkdir -p _build/$$name-$$version; \
 	cp -af * _build/$$name-$$version/ &> /dev/null; \
-	(tar --exclude=_build --exclude=_darcs -C _build -czf \
+	(tar --exclude=_build --exclude=meta.ml --exclude=.bzr -C _build -czf \
 	     _build/$$name-$$version.tar.gz $$name-$$version/ && \
 	rm -rf _build/$$name-$$version)) && \
-	rm -f ChangeLog; \
+	rm -f meta.ml.released ChangeLog; \
 	echo "Success."
 
 # These files are included also in binary tarballs:
@@ -522,13 +524,13 @@ dist-binary: dist-binary-local main documentation
 	rm -f ChangeLog))) && \
 	echo "Success.")
 
-# Automatically generate a nice ChangeLog from darcs' history:
+# Automatically generate a nice ChangeLog from bzr's history:
 ChangeLog:
-	if ! [ -e _darcs ]; then \
-	  echo 'No ChangeLog available (Darcs metadata are missing)' > $@; \
+	@(if ! [ -d .bzr ]; then \
+	  echo 'No ChangeLog available (bzr metadata are missing)' > $@; \
 	else \
-	  darcs changes > $@; \
-	fi
+	  bzr log --gnu-changelog > $@; \
+	fi)
 
 # Remove generated stuff (the ChangeLog is only removed if we have Darcs
 # metadata to re-generate it):
@@ -537,9 +539,9 @@ clean: clean-local
 	find -type f -name \*~ -exec rm -f {} \;; \
 	find -type f -name \#\*\# -exec rm -f {} \;; \
 	find -type f -name core -exec rm -f {} \;; \
-	rm -f _tags myocamlbuild.ml meta.ml; \
-	if [ -e _darcs ]; then \
-	  rm -f ChangeLog; \
+	rm -f _tags meta.ml myocamlbuild.ml; \
+	if [ -d .bzr ]; then \
+	  rm -f meta.ml.released ChangeLog; \
 	fi; \
 	echo "Success.")
 
@@ -676,7 +678,7 @@ OCAMLBUILD_COMMAND_LINE = \
 # Macro extracting, via source, the value associated to some keys
 # $(2),..,$(9) in a file $(1).
 #
-# Example: 
+# Example:
 #	$(call SOURCE_AND_TEST,CONFIGME,prefix);
 #	$(call SOURCE_AND_TEST,CONFIGME,prefix,libraryprefix);
 SOURCE_AND_TEST = \
@@ -697,9 +699,9 @@ SOURCE_AND_TEST = \
 # Macro extracting, via grep, the value associated to keys
 # $(2),..,$(9) in a file $(1).
 #
-# Examples: 
-#	$(call GREP_AND_TEST,META,name); 
-#	$(call GREP_AND_TEST,META,name,version); 
+# Examples:
+#	$(call GREP_AND_TEST,META,name);
+#	$(call GREP_AND_TEST,META,name,version);
 GREP_AND_TEST = \
 	for i in $(2) $(3) $(4) $(5) $(6) $(7) $(8) $(9); do 	\
 		if ! CMD=`grep "^$$i=" $(1)`; then                 	\
@@ -710,7 +712,7 @@ GREP_AND_TEST = \
 	done;							\
 	unset CMD i
 
-# Instance of SOURCE_AND_TEST: source the file "CONFIGME" and test 
+# Instance of SOURCE_AND_TEST: source the file "CONFIGME" and test
 # if the given names are defined
 #
 # Example:
@@ -723,7 +725,7 @@ READ_CONFIG = \
 # for all given names
 #
 # Example:
-#	$(call READ_META,name,version); 		
+#	$(call READ_META,name,version);
 #
 READ_META = \
 	$(call GREP_AND_TEST,META,$(1),$(2),$(3),$(4),$(5),$(6),$(7),$(8),$(9))
@@ -743,7 +745,7 @@ FIX_VERSION = \
 # the value of sourcedirectories:
 SOURCE_SUBDIRECTORIES = \
 	sourcedirectories=''; \
-	for d in `find -type d | grep -v /_darcs\$$ | grep -v /_darcs/ \
+	for d in `find -type d | grep -v "/[.]bzr\$$" | grep -v "/[.]bzr/" \
 	          | grep -v /_build\$$ | grep -v /_build/ \
 	          | grep -v ^.$$ | sort`; do \
 		if ls $$d/*.ml &> /dev/null  || \
@@ -754,7 +756,7 @@ SOURCE_SUBDIRECTORIES = \
 		fi; \
 	done; \
 	echo $$sourcedirectories
-
+	
 # Set the shell variable $(1) as the string obtained by prefixing each token
 # in $(2) with the prefix $(3): for example if the shell variable
 # 'sourcedirectories' is set to './A ./B' then
@@ -852,9 +854,9 @@ myocamlbuild.ml:
 	echo -e "];;" >> $@; \
 	echo -en "let our_include_options = [ " >> $@; \
 	echo -en "A \"-I\"; A \"$$libraryprefix\"; " >> $@; \
-	for x in $(DIRECTORIES_TO_INCLUDE); do \
-		echo -en "A \"-I\"; A \"+$$x\"; " >> $@; \
-	done; \
+# 	for x in $(DIRECTORIES_TO_INCLUDE); do \
+# 		echo -en "A \"-I\"; A \"+$$x\"; " >> $@; \
+# 	done; \
 	for x in $(DIRECTORIES_TO_INCLUDE); do \
 		echo -en "A \"-I\"; A \"$$libraryprefix/$$x\"; " >> $@; \
 	done; \
@@ -875,6 +877,9 @@ myocamlbuild.ml:
 	echo -en "let our_native_link_options = our_include_options @ [ " >> $@; \
 	for x in $(LIBRARIES_TO_LINK); do \
 		echo -en "A \"$$x.cmxa\"; " >> $@; \
+	done; \
+	for x in $(OBJECTS_TO_LINK); do \
+		echo -en "A \"$$x.cmx\"; " >> $@; \
 	done; \
 	echo -e "];;\n" >> $@; \
 	echo -e "dispatch (function After_rules ->" >> $@; \
@@ -909,13 +914,23 @@ meta.ml: META
 	echo -e "let libraryprefix = \"$$libraryprefix\";;" >> $@ && \
 	echo -e "let configurationprefix = \"$$configurationprefix\";;" >> $@ && \
 	echo -e "let documentationprefix = \"$$documentationprefix\";;" >> $@ && \
-	echo -e "let revision = \"$(shell bzr revno)\";;" >> $@ && \
-	echo -e "let build_date = \"$(shell date '+%Y-%m-%d %k:%M:%S %z')\";;" >> $@ && \
-	echo -e "let source_date = \"$(shell bzr info --verbose | /bin/grep 'latest revision' | cut -d: -f2- | cut -d' ' -f3-)\";;" >> $@ && \
 	echo -e "let uname = \"$(shell uname -srvmo)\";;" >> $@ && \
+	echo -e "let build_date = \"$(shell date '+%Y-%m-%d %k:%M:%S %z')\";;" >> $@ && \
+	if [ -d .bzr ]; then \
+	echo -e "let revision = \"$$(bzr revno)\";;" >> $@ && \
+	echo -e "let source_date = \"$$(bzr info --verbose | /bin/grep 'latest revision' | cut -d: -f2- | cut -d' ' -f3-)\";;" >> $@ && \
+	echo -e "let source_date_utc_yy_mm_dd = \"$$(./Makefile.d/bzr_date -- -u "+%Y-%m-%d")\";;" >> $@ ; \
+	else \
+	grep "let revision" <meta.ml.released >> $@ && \
+	grep "let source_date" <meta.ml.released >> $@ ; \
+	fi &&\
 	echo "Success.")
+
+meta.ml.released: meta.ml
+	cp $< $@
 
 ###########################################################################
 # Include the project-dependant file (if any) which implements the '-local'
 # targets:
 -include Makefile.local
+-include RPMS/Makefile
