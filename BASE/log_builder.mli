@@ -117,6 +117,19 @@ module Make_simple :
   functor
     (Tuning : sig val is_log_enabled : unit -> bool end) -> Result
 
+(** {b Example}:
+{[
+(* Initialized later, by Global_options, in order to break the ciclic dependency: *)
+module Self = Log_builder.Make (struct
+  let debug_level () = 0           (* the debug_level must be greater or equal to the verbosity, otherwise do nothing *)
+  let verbosity = 1                (* the default value of verbosity for printing functions *)
+  let log_channel = `stderr        (* put messages here *)
+  let synchronized = true          (* using threads *)
+ end);;
+
+include Log_builder.Extend_with_wrappers (Self) ;;
+]}
+*)
 module Extend_with_wrappers :
   functor (Log : Result) ->
     sig
