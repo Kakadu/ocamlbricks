@@ -116,3 +116,19 @@ module Make :
 module Make_simple :
   functor
     (Tuning : sig val is_log_enabled : unit -> bool end) -> Result
+
+module Extend_with_wrappers :
+  functor (Log : Result) ->
+    sig
+      include Result
+
+      val system_or_fail :
+        ?on_error:UnixExtra.command ->
+        ?hide_output:bool -> ?hide_errors:bool -> UnixExtra.command -> unit
+
+      val system_or_ignore :
+        ?on_error:UnixExtra.command ->
+        ?hide_output:bool -> ?hide_errors:bool -> UnixExtra.command -> unit
+
+      val print_backtrace : unit -> unit
+    end
