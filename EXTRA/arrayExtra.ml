@@ -65,6 +65,37 @@ let rexists p s =
   if (p i s.(i)) then (Some i) else loop (i-1)
  in loop (l-1)
 
+let search p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then None else
+  let x = s.(i) in 
+  if (p x) then (Some x) else loop (i+1)
+ in loop 0
+
+let searchi p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then None else
+  let x = s.(i) in 
+  if (p x) then (Some (i,x)) else loop (i+1)
+ in loop 0
+
+let find p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then raise Not_found else
+  let x = s.(i) in 
+  if (p x) then x else loop (i+1)
+ in loop 0
+
+let findi p s =
+ let l = Array.length s in
+ let rec loop i =
+  if i>=l then raise Not_found else
+  let x = s.(i) in 
+  if (p x) then (i,x) else loop (i+1)
+ in loop 0
 
 let dichotomic_search v x =
  let rec loop a b =
