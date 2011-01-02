@@ -73,6 +73,12 @@ let findi p xs =
  | None -> raise Not_found
  | Some pair -> pair
 
+let iteri f =
+ let rec loop i = function
+ | []    -> ()
+ | x::xs -> let () = f i x in (loop (i+1) xs)
+ in loop 0
+
 (** Move some elements on the top of the list. {b Example}:
 {[# lift_to_the_top_positions ((=)"suggested") ["a";"b";"suggested";"c"] ;;
   : string list = ["suggested"; "a"; "b"; "c"]

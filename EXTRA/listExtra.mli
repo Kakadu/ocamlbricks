@@ -16,7 +16,6 @@
 
 (** Additional features for the standard module [List]. *)
 
-
 val filter_map : ?acc:('b list) -> ('a -> 'b option) -> 'a list -> 'b list
 
 val map     : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
@@ -27,6 +26,8 @@ val foreach      : 'a list -> ('a -> unit) -> unit
 
 val combine3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
 val combine4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) list
+
+val iteri : (int -> 'a -> unit) -> 'a list -> unit
 
 (** {2 Generalizations} *)
 
