@@ -33,6 +33,7 @@ module Sink :
   | Unix_descr  of Unix.file_descr
   | Out_channel of out_channel
   | Filename    of string
+  | Filename_append of string
   | Fun_thread  of (Unix.file_descr -> unit)
   | String_queue of String_queue.t
   | Trash

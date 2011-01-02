@@ -67,7 +67,8 @@ module Sink = struct
 type t = 
   | Unix_descr   of Unix.file_descr            (** An already opened unix descriptor. *)
   | Out_channel  of out_channel                (** An already opened pervasives output channel. *)
-  | Filename     of string                     (** A file name. *)
+  | Filename     of string                     (** A file name, (re)writing. *)
+  | Filename_append of string                  (** A file name, appending. *)
   | Fun_thread   of (Unix.file_descr -> unit)  (** A consumer function. *)
   | String_queue of String_queue.t             (** A string queue. *)
   | Trash                                      (** A sort of /dev/null. *)
@@ -81,6 +82,7 @@ let to_string = function
  | Out_channel c when c=stderr -> "stderr"
  | Out_channel c -> "out_channel"
  | Filename    f -> f
+ | Filename_append f -> ">>"^f
  | Fun_thread   _ -> "Fun_thread"
  | String_queue _ -> "String_queue"
  | Trash          -> "Trash"
@@ -101,7 +103,8 @@ let to_file_descr =
  in function
  | Unix_descr   d -> (d, false)
  | Out_channel  c -> ((Unix.descr_of_out_channel c), false)
- | Filename     s -> ((Unix.openfile s [Unix.O_WRONLY] 0o640), true)
+ | Filename        s -> ((Unix.openfile s [Unix.O_WRONLY; Unix.O_CREAT] 0o640), true)
+ | Filename_append s -> ((Unix.openfile s [Unix.O_APPEND; Unix.O_CREAT] 0o640), true)
  | Fun_thread   f -> ((out_descr_of_fun_thread f),true)
  | String_queue q ->
     let f = fun fd -> String_queue.append_from_descr ~release:true q fd; in
