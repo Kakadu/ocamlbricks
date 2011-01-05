@@ -120,6 +120,38 @@ let dichotomic_insert v x =
       (l+1)
       (fun i -> match compare i index with (-1) -> v.(i) | 0 -> x | _ -> v.(i-1))
  
+
+let for_all2 f xs ys = for_all (fun i x -> f i x ys.(i)) xs
+let exists2  f xs ys = exists  (fun i x -> f i x ys.(i)) xs
+
+let iter2  f a b = Array.iteri (fun i a -> f a b.(i)) a 
+let iteri2 f a b = Array.iteri (fun i a -> f i a b.(i)) a 
+
+let map2  f a b = Array.mapi (fun i a -> f a b.(i)) a 
+let mapi2 f a b = Array.mapi (fun i a -> f i a b.(i)) a 
+
+let fold_lefti f y0 s =
+ let l = Array.length s in
+ let rec loop acc i =
+  if i>=l then acc else
+  let acc = f i acc s.(i) in  
+  loop acc (i+1)
+ in loop y0 0
+
+let fold_righti f s y0 =
+ let l = Array.length s in
+ let rec loop acc i =
+  if i<0 then acc else
+  let acc = f i s.(i) acc in  
+  loop acc (i-1)
+ in loop y0 (l-1)
+
+let fold_left2  f s0 xs ys = fold_lefti  (fun i s x -> f s x ys.(i)) s0 xs
+let fold_right2 f xs ys s0 = fold_righti (fun i x s -> f x ys.(i) s) xs s0
+
+let fold_lefti2  f s0 xs ys = fold_lefti  (fun i s x -> f i s x ys.(i)) s0 xs
+let fold_righti2 f xs ys s0 = fold_righti (fun i x s -> f i x ys.(i) s) xs s0
+
 (** Tools for matrices (arrays of arrays). *)
 module Matrix = struct
 

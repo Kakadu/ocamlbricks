@@ -31,6 +31,24 @@ val findi   : ('a -> bool) -> 'a array -> (int * 'a)
 val dichotomic_search : 'a array -> 'a -> bool * int
 val dichotomic_insert : 'a array -> 'a -> 'a array
 
+val for_all2 : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
+val exists2  : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
+
+val iter2  : ('a -> 'b -> unit) -> 'a array -> 'b array -> unit
+val iteri2 : (int -> 'a -> 'b -> unit) -> 'a array -> 'b array -> unit
+
+val map2   : ('a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
+val mapi2  : (int -> 'a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
+
+val fold_lefti  : (int -> 'a -> 'b -> 'a) -> 'a -> 'b array -> 'a
+val fold_righti : (int -> 'a -> 'b -> 'b) -> 'a array -> 'b -> 'b
+
+val fold_left2 : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
+val fold_right2 : ('a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -> 'c
+
+val fold_lefti2 : (int -> 'a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
+val fold_righti2 : (int -> 'a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -> 'c
+
 module Matrix : sig
  type 'a t = 'a array array
  val init : int -> int -> (int -> int -> 'a) -> 'a t
