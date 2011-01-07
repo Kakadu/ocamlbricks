@@ -33,6 +33,25 @@ let of_known_length_list ?(reversing=false) len = function
       | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i+1) xs 
       in fill 1 xs) 
 
+(** {b Example}:
+{[
+# init2 3 (fun i -> (i+1,i*2)) ;;
+  : int array * int array = ([|1; 2; 3|], [|0; 2; 4|])
+]} *)
+let init2 n f =
+  if n = 0 then ([||],[||]) else
+  let (x0,y0) = f 0 in
+  let xs = Array.create n x0 in
+  let ys = Array.create n y0 in
+  for i = 1 to (n-1) do
+    let (x,y) = f i in
+    xs.(i) <- x;
+    ys.(i) <- y;
+  done;
+  (xs,ys)
+
+let split xys = init2 (Array.length xys) (fun i -> xys.(i))
+
 (** Similar to the standard [List.for_all], implemented directly, i.e. without conversion. *)
 let for_all p s =
  let l = Array.length s in

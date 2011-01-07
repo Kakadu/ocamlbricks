@@ -50,6 +50,9 @@ val fold_right2 : ('a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -> 'c
 val fold_lefti2 : (int -> 'a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
 val fold_righti2 : (int -> 'a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -> 'c
 
+val init2 : int -> (int -> 'a *'b) -> 'a array * 'b array
+val split : ('a * 'b) array -> 'a array * 'b array
+  
 module Matrix : sig
  type 'a t = 'a array array
  val init : int -> int -> (int -> int -> 'a) -> 'a t
