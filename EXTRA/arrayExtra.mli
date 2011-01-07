@@ -17,6 +17,7 @@
 (** Additional features for the standard module [Array].*)
 
 val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
+val partition : ('a -> int) -> 'a array -> 'a array array
 
 val for_all : (int -> 'a -> bool) -> 'a array -> bool
 val exists  : (int -> 'a -> bool) -> 'a array -> bool

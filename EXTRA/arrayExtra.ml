@@ -152,6 +152,24 @@ let fold_right2 f xs ys s0 = fold_righti (fun i x s -> f x ys.(i) s) xs s0
 let fold_lefti2  f s0 xs ys = fold_lefti  (fun i s x -> f i s x ys.(i)) s0 xs
 let fold_righti2 f xs ys s0 = fold_righti (fun i x s -> f i x ys.(i) s) xs s0
 
+(** Similar to [List.partition] but for arrays and with many classes. 
+{b Example}:
+{[
+# partition (fun x -> x mod 3) [|0;1;2;3;4;5;6;7;8;9|] ;; 
+  : int array array = [|[|0; 3; 6; 9|]; [|1; 4; 7|]; [|2; 5; 8|]|]
+]} *)
+let partition =
+  let errmsg = "ArrayExtra.partition: classifier must provide only non-negative integers" in
+  fun f a ->
+  (* f' is a dynamically type checking version of f: *)
+  let f' x = (let y = f x in (if (y<0) then invalid_arg errmsg); y) in  
+  let max_index = Array.fold_left (fun s x -> max s (f' x)) (-1) a in
+  if max_index = -1 then [||] else
+  let ls = Array.create (max_index+1) [] in
+  (Array.iteri (fun i x -> let c = f x in ls.(c) <- x :: ls.(c)) a);
+  let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
+  result
+
 (** Tools for matrices (arrays of arrays). *)
 module Matrix = struct
 
