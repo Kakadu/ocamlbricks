@@ -33,6 +33,16 @@ let of_known_length_list ?(reversing=false) len = function
       | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i+1) xs 
       in fill 1 xs) 
 
+let sorted_copy ?(compare=Pervasives.compare) xs = 
+  let ys = (Array.copy xs) in
+  (Array.sort compare ys); 
+  ys
+
+let fast_sorted_copy ?(compare=Pervasives.compare) xs = 
+  let ys = (Array.copy xs) in
+  (Array.fast_sort compare ys); 
+  ys
+
 (** {b Example}:
 {[
 # init2 3 (fun i -> (i+1,i*2)) ;;

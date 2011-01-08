@@ -19,6 +19,9 @@
 val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
 val partition : ('a -> int) -> 'a array -> 'a array array
 
+val sorted_copy      : ?compare:('a -> 'a -> int) -> 'a array -> 'a array 
+val fast_sorted_copy : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
+
 val for_all : (int -> 'a -> bool) -> 'a array -> bool
 val exists  : (int -> 'a -> bool) -> 'a array -> bool
 val lexists : (int -> 'a -> bool) -> 'a array -> int option
