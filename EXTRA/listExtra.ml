@@ -142,6 +142,24 @@ let remove_duplicates ?(take_first=true) =
   in function xs -> List.rev (loop [] xs)
 ;;
 
+(** {b Example}: 
+{[# int_seq 3 10 2 ;;                                                                                                                                                      
+  : int list = [3; 5; 7; 9] 
+]}*)
+let int_seq ~min ~max ~incr = 
+ let rec loop x =
+  if x>max then [] else x::(loop (x+incr))
+ in
+ loop min
+;;
+
+let float_seq ~min ~max ~incr = 
+ let rec loop x =
+  if x>max then [] else x::(loop (x+.incr))
+ in
+ loop min
+;;
+
 (** [range a b] returns the list [\[a; (a+1); .. ; (b-1); b\]] containing all the values between the given limits (included) . *)
 let range (a:int) (b:int) =
   let rec range a b acc = if a>b then acc else (range a (b-1) (b::acc)) in

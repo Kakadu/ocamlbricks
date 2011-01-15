@@ -49,6 +49,9 @@ val remove_duplicates : ?take_first:bool -> 'a list -> 'a list
 
 (** {2 Indexes} *)
 
+val int_seq   : min:int   -> max:int   -> incr:int   -> int list
+val float_seq : min:float -> max:float -> incr:float -> float list
+
 val range      : int -> int -> int list
 val interval   : int -> int -> int list
 val indexes    : 'a list -> int list

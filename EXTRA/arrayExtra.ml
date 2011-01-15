@@ -43,6 +43,24 @@ let fast_sorted_copy ?(compare=Pervasives.compare) xs =
   (Array.fast_sort compare ys); 
   ys
 
+(** {b Example}: 
+{[# int_seq 3 10 2 ;;                                                                                                                                                      
+  : int array = [|3; 5; 7; 9|] 
+]}*)
+let int_seq ~min ~max ~incr = 
+ let rec loop x =
+  if x>max then [] else x::(loop (x+incr))
+ in
+ let xs = loop min in
+ Array.of_list xs
+
+let float_seq ~min ~max ~incr = 
+ let rec loop x =
+  if x>max then [] else x::(loop (x+.incr))
+ in
+ let xs = loop min in
+ Array.of_list xs
+
 (** {b Example}:
 {[
 # init2 3 (fun i -> (i+1,i*2)) ;;
