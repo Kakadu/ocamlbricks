@@ -29,6 +29,8 @@ val combine4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) l
 
 val iteri : (int -> 'a -> unit) -> 'a list -> unit
 
+val shared_property : ('a->'b) -> 'a list -> bool
+
 (** {2 Generalizations} *)
 
 val head : ?n:int -> 'a list -> 'a list

@@ -35,6 +35,8 @@ val searchi : ('a -> bool) -> 'a array -> (int * 'a) option
 val find    : ('a -> bool) -> 'a array -> 'a
 val findi   : ('a -> bool) -> 'a array -> (int * 'a)
 
+val shared_property : ('a -> 'b) -> 'a array -> bool
+
 val dichotomic_search : 'a array -> 'a -> bool * int
 val dichotomic_insert : 'a array -> 'a -> 'a array
 

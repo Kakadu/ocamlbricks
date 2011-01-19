@@ -87,7 +87,7 @@ let for_all p s =
   if i>=l then true else
   (p i s.(i)) && loop (i+1)
  in loop 0
-
+ 
 (** Similar to the standard [List.exists], implemented directly, i.e. without conversion. *)
 let exists p s =
  let l = Array.length s in
@@ -143,6 +143,16 @@ let findi p s =
   let x = s.(i) in 
   if (p x) then (i,x) else loop (i+1)
  in loop 0
+
+let shared_property f s =
+ let l = Array.length s in
+ if l=0 then true else
+ let y = lazy (f s.(0)) in
+ let p = (fun x -> (f x)=(Lazy.force y)) in
+ let rec loop i =
+  if i>=l then true else
+  (p s.(i)) && loop (i+1)
+ in loop 1
 
 let dichotomic_search v x =
  let rec loop a b =

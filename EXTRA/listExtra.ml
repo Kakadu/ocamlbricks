@@ -79,6 +79,12 @@ let iteri f =
  | x::xs -> let () = f i x in (loop (i+1) xs)
  in loop 0
 
+let shared_property f = function
+ | [] -> true
+ | x::xs ->
+    let y = lazy (f x) in
+    List.for_all (fun x -> (f x)=(Lazy.force y)) xs
+
 (** Move some elements on the top of the list. {b Example}:
 {[# lift_to_the_top_positions ((=)"suggested") ["a";"b";"suggested";"c"] ;;
   : string list = ["suggested"; "a"; "b"; "c"]
