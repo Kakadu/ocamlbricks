@@ -166,9 +166,11 @@ let int_seq ~min ~max ~incr =
  loop min
 ;;
 
-let float_seq ~min ~max ~incr = 
+let float_seq ~min ~max ~incr =
+ let tollerance = incr /. 2. in
+ let max = max +. tollerance in
  let rec loop x =
-  if x>max then [] else x::(loop (x+.incr))
+  if x > max then [] else x::(loop (x+.incr))
  in
  loop min
 ;;
