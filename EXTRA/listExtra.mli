@@ -49,6 +49,9 @@ val intersection : 'a list -> 'a list -> 'a list
 val uniq         : 'a list -> 'a list
 val remove_duplicates : ?take_first:bool -> 'a list -> 'a list
 
+val product2 : 'a list -> 'b list -> ('a * 'b) list
+val product3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
+
 (** {2 Indexes} *)
 
 val int_seq   : min:int   -> max:int   -> incr:int   -> int list

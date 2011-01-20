@@ -122,6 +122,13 @@ let eqset a b = (subset a b) && (subset b a)
 (** Intersection of list: AvB=A\(A\B) . *)
 let intersection a b = substract a (substract a b)
 
+let rec product2 xs = function
+ | [] -> []
+ | y::ys -> List.append (List.map (fun x->(x,y)) xs) (product2 xs ys)
+
+let product3 xs ys zs =
+  List.map (function (z,(y,x)) -> (x,y,z)) (product2 zs (product2 ys xs))
+
 (** Shortcut for [List.iter] with arguments in the opposite order: before the list, then the action to perfom. *)
 let foreach l f = List.iter f l
 
