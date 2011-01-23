@@ -60,7 +60,10 @@ val fold_righti2 : (int -> 'a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -
 
 val init2 : int -> (int -> 'a *'b) -> 'a array * 'b array
 val split : ('a * 'b) array -> 'a array * 'b array
-  
+
+val max : ?gt:('a -> 'a -> bool) -> 'a array -> int * 'a
+val min : ?gt:('a -> 'a -> bool) -> 'a array -> int * 'a
+
 module Matrix : sig
  type 'a t = 'a array array
  val init : int -> int -> (int -> int -> 'a) -> 'a t

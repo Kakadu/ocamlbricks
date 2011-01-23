@@ -259,3 +259,10 @@ module Matrix = struct
 
 end
 
+
+let max ?(gt=(>)) xs = 
+ fold_lefti (fun i (j,x) y -> if gt y x then (i,y) else (j,x)) (0, xs.(0)) xs
+
+let min ?(gt=(>)) xs = 
+ fold_lefti (fun i (j,x) y -> if gt y x then (j,x) else (i,y)) (0, xs.(0)) xs
+   
