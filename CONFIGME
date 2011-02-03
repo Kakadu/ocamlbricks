@@ -52,6 +52,9 @@ prefix=/usr/local
 # default setting:
 configurationprefix=/etc
 
+# Prefix for the locale files
+localeprefix=/usr/share/locale
+
 # Prefix for documentation files; you should probably keep the
 # default setting:
 documentationprefix="$prefix/share/doc"
