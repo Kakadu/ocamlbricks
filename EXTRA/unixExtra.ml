@@ -751,31 +751,34 @@ end
 (** Return the current date formatted as a string like ["2010-06-24.17:34:25"].
     Dashes, dot and colons may be replaced by something else
     using the optional parameters. *)
-let date ?(dash="-") ?(dot=".") ?(colon=":") ?no_time ?no_date () =
-  let gmt = Unix.gmtime (Unix.time ()) in
+let date ?gmt ?(dash="-") ?(dot=".") ?(colon=":") ?no_time ?no_date () =
+  let time_function = match gmt with
+  | None    -> Unix.localtime
+  | Some () -> Unix.gmtime
+  in
+  let tm = time_function (Unix.time ()) in
   match no_time, no_date with
   | None, None ->
-      Printf.sprintf "%4d%s%02d%s%2d%s%02d%s%02d%s%02d"
-	(1900+gmt.Unix.tm_year) dash
-	(1+gmt.Unix.tm_mon) dash
-	(gmt.Unix.tm_mday)
+      Printf.sprintf "%4d%s%02d%s%02d%s%02d%s%02d%s%02d"
+	(1900+tm.Unix.tm_year) dash
+	(1+tm.Unix.tm_mon) dash
+	(tm.Unix.tm_mday)
 	dot
-	(gmt.Unix.tm_hour) colon
-	(gmt.Unix.tm_min)  colon
-	(gmt.Unix.tm_sec)
+	(tm.Unix.tm_hour) colon
+	(tm.Unix.tm_min)  colon
+	(tm.Unix.tm_sec)
   | Some (), None ->
-      Printf.sprintf "%4d%s%02d%s%2d"
-	(1900+gmt.Unix.tm_year) dash
-	(1+gmt.Unix.tm_mon) dash
-	(gmt.Unix.tm_mday)
+      Printf.sprintf "%4d%s%02d%s%02d"
+	(1900+tm.Unix.tm_year) dash
+	(1+tm.Unix.tm_mon) dash
+	(tm.Unix.tm_mday)
 
   | None, Some () ->
       Printf.sprintf "%02d%s%02d%s%02d"
-	(gmt.Unix.tm_hour) colon
-	(gmt.Unix.tm_min)  colon
-	(gmt.Unix.tm_sec)
+	(tm.Unix.tm_hour) colon
+	(tm.Unix.tm_min)  colon
+	(tm.Unix.tm_sec)
   | Some (), Some () -> invalid_arg "UnixExtra.date: strangely called with ~no_time:() and ~no_date:()"
-
 
 (** Resolve a symbolic link if the argument is a symbolic link, otherwise
    return the argument (identity). {b Example}:
