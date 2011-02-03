@@ -477,6 +477,7 @@ let is_executable_in_PATH p =
    (List.mem p filelist) && (test_access ~x:() (d^"/"^p))
  in
  let dirs = StringExtra.split ~d:':' (Sys.getenv "PATH") in
+ let dirs = List.filter (test_access ~r:()) dirs in
  try Some(List.find (is_there_an_executable p) dirs)
  with Not_found -> None
 
