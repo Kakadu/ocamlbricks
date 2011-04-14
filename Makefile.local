@@ -2,6 +2,7 @@
 # Copyright (C) 2008  Luca Saiu
 # Copyright (C) 2008, 2010  Jean-Vincent Loddo
 # Copyright (C) 2008, 2010  Université Paris 13
+# Updated in 2011 by Luca Saiu
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -102,17 +103,17 @@ _build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
 _build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
 	(mkdir _build &> /dev/null || true) && \
-	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
+	gcc -g -O3 -I $$ocaml_sources -I $$ocaml_sources/byterun -I $$ocaml_sources/otherlibs/unix -o $@ -c $^
 
 _build/does-process-exist-c-wrapper.o: EXTRA/does-process-exist-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
 	(mkdir _build &> /dev/null || true) && \
-	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
+	gcc -g -O3 -I $$ocaml_sources -I $$ocaml_sources/byterun -I $$ocaml_sources/otherlibs/unix -o $@ -c $^
 
 _build/waitpid-c-wrapper.o: EXTRA/waitpid-c-wrapper.c
 	@$(call READ_CONFIG, ocaml_sources); \
 	(mkdir _build &> /dev/null || true) && \
-	gcc -g -O3 -I $$ocaml_sources -o $@ -c $^
+	gcc -g -O3 -I $$ocaml_sources -I $$ocaml_sources/byterun -I $$ocaml_sources/otherlibs/unix -o $@ -c $^
 
 # idempotent
 rebuilding:
