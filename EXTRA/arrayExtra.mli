@@ -37,8 +37,18 @@ val findi   : ('a -> bool) -> 'a array -> (int * 'a)
 
 val shared_property : ('a -> 'b) -> 'a array -> bool
 
+(* The call {[dichotomic_search a x]} returns a pair (b,i) that
+   provides two distinct kind of helpful informations:
+   1) if b=true  then x has been found at position i
+   2) if b=false then x has not been found and i contains
+      the *first* element y strictly greater than x or i is
+      out of bounds (i>=length, that means x greater than all
+      elements in the array)
+   *)
 val dichotomic_search : 'a array -> 'a -> bool * int
 val dichotomic_insert : 'a array -> 'a -> 'a array
+val dichotomic_index_of_first_element_gt : 'a -> 'a array -> int option
+val dichotomic_index_of_last_element_lt  : 'a -> 'a array -> int option
 
 val for_all2 : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 val exists2  : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool

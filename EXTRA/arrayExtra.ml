@@ -179,6 +179,71 @@ let dichotomic_insert v x =
       (l+1)
       (fun i -> match compare i index with (-1) -> v.(i) | 0 -> x | _ -> v.(i-1))
  
+(** {b Example}:
+{[
+# let a = Array.init 10 (fun i->i*10);;
+val a : int array = [|0; 10; 20; 30; 40; 50; 60; 70; 80; 90|]
+# dichotomic_index_of_first_element_gt (-1) a ;;
+  : int option = Some 0
+# dichotomic_index_of_first_element_gt 0 a ;;
+  : int option = Some 1
+# dichotomic_index_of_first_element_gt 15 a ;;
+  : int option = Some 2
+# dichotomic_index_of_first_element_gt 20 a ;;
+  : int option = Some 3
+# dichotomic_index_of_first_element_gt 80 a ;;
+  : int option = Some 9
+# dichotomic_index_of_first_element_gt 85 a ;;
+  : int option = Some 9
+# dichotomic_index_of_first_element_gt 90 a ;;
+  : int option = None
+]}
+*)
+let dichotomic_index_of_first_element_gt x v =
+ let l = Array.length v in
+ let last_index = l-1 in
+ match dichotomic_search v x with
+ | true , i ->
+    if (i = last_index) then None else Some (i+1)
+ | false, i when (i = last_index) ->
+     if v.(i) > x then Some i else None
+ | false, i -> Some i
+
+(**  {b Example}:
+{[
+# let a = Array.init 10 (fun i->i*10);;
+val a : int array = [|0; 10; 20; 30; 40; 50; 60; 70; 80; 90|]
+# dichotomic_index_of_last_element_lt (-1) a ;;
+  : int option = None
+# dichotomic_index_of_last_element_lt 0 a ;;
+  : int option = None
+# dichotomic_index_of_last_element_lt 5 a ;;
+  : int option = Some 0
+# dichotomic_index_of_last_element_lt 10 a ;;
+  : int option = Some 0
+# dichotomic_index_of_last_element_lt 15 a ;;
+  : int option = Some 1
+# dichotomic_index_of_last_element_lt 85 a ;;
+  : int option = Some 8
+# dichotomic_index_of_last_element_lt 90 a ;;
+  : int option = Some 8
+# dichotomic_index_of_last_element_lt 95 a ;;
+ : int option = Some 9
+]}
+*)
+let dichotomic_index_of_last_element_lt x v =
+ let l = Array.length v in
+ let last_index = l-1 in
+ match dichotomic_search v x with
+ | true , i ->
+    if (i = 0) then None else Some (i-1)
+ | false, 0 -> None
+ | false, i when (i = last_index) ->
+     if v.(i) < x then Some i else
+     if i>0 && v.(i-1) < x then Some (i-1) else
+     None
+ | false, i -> Some (i-1)
+
 
 let for_all2 f xs ys = for_all (fun i x -> f i x ys.(i)) xs
 let exists2  f xs ys = exists  (fun i x -> f i x ys.(i)) xs
