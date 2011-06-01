@@ -45,10 +45,10 @@ val shared_property : ('a -> 'b) -> 'a array -> bool
       out of bounds (i>=length, that means x greater than all
       elements in the array)
    *)
-val dichotomic_search : 'a array -> 'a -> bool * int
+val dichotomic_search : ?a:int -> ?b:int -> 'a array -> 'a -> bool * int
 val dichotomic_insert : 'a array -> 'a -> 'a array
-val dichotomic_index_of_first_element_gt : 'a -> 'a array -> int option
-val dichotomic_index_of_last_element_lt  : 'a -> 'a array -> int option
+val dichotomic_index_of_first_element_gt : ?a:int -> ?b:int -> 'a -> 'a array -> int option
+val dichotomic_index_of_last_element_lt  : ?a:int -> ?b:int -> 'a -> 'a array -> int option
 
 val for_all2 : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 val exists2  : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool

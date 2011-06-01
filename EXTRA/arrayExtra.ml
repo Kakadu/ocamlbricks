@@ -156,7 +156,7 @@ let shared_property f s =
   (p s.(i)) && loop (i+1)
  in loop 1
 
-let dichotomic_search v x =
+let dichotomic_search ?(a=0) ?b v x =
  let rec loop a b =
    if a=b then a else
    let i = (a+b)/2 in
@@ -164,7 +164,8 @@ let dichotomic_search v x =
    if (i>0) && (v.(i-1) >= x) then loop a (i-1) else
    i
  in
- let i = loop 0 ((Array.length v)-1) in
+ let b = match b with None -> (Array.length v)-1 | Some b -> b in
+ let i = loop a b in
  ((v.(i) = x),i)
 
 let dichotomic_insert v x =
@@ -199,10 +200,10 @@ val a : int array = [|0; 10; 20; 30; 40; 50; 60; 70; 80; 90|]
   : int option = None
 ]}
 *)
-let dichotomic_index_of_first_element_gt x v =
+let dichotomic_index_of_first_element_gt ?a ?b x v =
  let l = Array.length v in
  let last_index = l-1 in
- match dichotomic_search v x with
+ match dichotomic_search ?a ?b v x with
  | true , i ->
     if (i = last_index) then None else Some (i+1)
  | false, i when (i = last_index) ->
@@ -231,13 +232,12 @@ val a : int array = [|0; 10; 20; 30; 40; 50; 60; 70; 80; 90|]
  : int option = Some 9
 ]}
 *)
-let dichotomic_index_of_last_element_lt x v =
+let dichotomic_index_of_last_element_lt ?a ?b x v =
  let l = Array.length v in
  let last_index = l-1 in
- match dichotomic_search v x with
+ match dichotomic_search ?a ?b v x with
  | true , i ->
     if (i = 0) then None else Some (i-1)
- | false, 0 -> None
  | false, i when (i = last_index) ->
      if v.(i) < x then Some i else
      if i>0 && v.(i-1) < x then Some (i-1) else
