@@ -80,13 +80,14 @@ PREAMBLE=/tmp/$(basename $0).preamble.$RANDOM.ml;
 make_preamble
 
 cd _build
-ocamlmktop -o toplevel -custom $INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES ocamlbricks.cma
+STUFF="$INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES"
+ocamlmktop -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
 
 if which rlwrap >/dev/null; then
- rlwrap ./toplevel $INCLUDES -init $PREAMBLE || true
+ rlwrap ./toplevel $STUFF -init $PREAMBLE || true
 else
  echo "Suggestion: install rlwrap for testing with readline (on debian/ubuntu: apt-get install rlwrap)"
- ./toplevel $INCLUDES -init $PREAMBLE || true
+ ./toplevel $STUFF -init $PREAMBLE || true
 fi
 
 sleep 0.5

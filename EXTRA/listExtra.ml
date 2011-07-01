@@ -39,6 +39,13 @@ let map ?acc f =
  | x::xs -> let y = f x in (y::(loop acc xs))
  in loop acc
 
+let mapi ?acc f =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop i acc = function
+ | []    -> acc
+ | x::xs -> let y = f i x in (y::(loop (i+1) acc xs))
+ in loop 0 acc
+
 (** As standard [List.rev_map] but with the possibility to provide an accumulator (which will be appended to the result). *)
 let rev_map ?acc f =
  let acc = match acc with None -> [] | Some l -> l in
@@ -47,6 +54,14 @@ let rev_map ?acc f =
  | x::xs -> loop ((f x)::acc) xs
  in
  loop acc
+
+let rev_mapi ?acc f =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop i acc = function
+ | []    -> acc
+ | x::xs -> let y = f i x in loop (i+1) (y::acc) xs
+ in
+ loop 0 acc
 
 (** As standard [List.flatten] but with the possibility to provide an accumulator (which will be appended to the result). *)
 let rec flatten ?acc =
