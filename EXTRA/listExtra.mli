@@ -23,6 +23,8 @@ val mapi     : ?acc:'a list -> (int -> 'b -> 'a) -> 'b list -> 'a list
 val rev_map  : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
 val rev_mapi : ?acc:'b list -> (int -> 'a -> 'b) -> 'a list -> 'b list
 
+val init : int -> (int -> 'a) -> 'a list
+
 val flatten : ?acc:'a list -> 'a list list -> 'a list
 val foreach      : 'a list -> ('a -> unit) -> unit
 

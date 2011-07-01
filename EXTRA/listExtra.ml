@@ -63,6 +63,14 @@ let rev_mapi ?acc f =
  in
  loop 0 acc
 
+(** As standard [Array.init] but for lists. *)
+let init n f =
+ if n<0 then invalid_arg "ListExtra.init" else
+ let rec loop i =
+   if i = n then [] else
+   let x = f i in x::(loop (i+1))
+ in loop 0
+
 (** As standard [List.flatten] but with the possibility to provide an accumulator (which will be appended to the result). *)
 let rec flatten ?acc =
  let acc = match acc with None -> [] | Some l -> l in
