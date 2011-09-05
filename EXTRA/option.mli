@@ -36,6 +36,10 @@ val to_bool : 'a option -> bool
 
 val to_list : 'a option -> 'a list
 
+(* Similar to List.exists but the predicate provides also a result, which is returned. Useful for implementing
+   a choice among several fallible procedures. *)
+val exists : ('a -> 'b option) -> 'a list -> 'b option
+
 (** {2 Printers}
 
 The following functions act on a ['a option] value if the user is able to provide a function converting

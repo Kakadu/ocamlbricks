@@ -57,3 +57,11 @@ let to_bool = function
  | Some _ -> true
 
 let to_list = function None -> [] | Some x -> [x]
+
+let rec exists p = function
+| []    -> None
+| x::xs ->
+  (match (p x) with
+   | None -> exists p xs
+   | y -> y
+   )
