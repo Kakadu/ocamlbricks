@@ -355,5 +355,5 @@ let cut ~lengths xs =
   try
     let segments = List.map (fun (start, len) -> Array.sub a start len) start_len_list in
     List.map Array.to_list segments
-  with Invalid_argument "Array.sub" -> invalid_arg "cut"
+  with Invalid_argument "Array.sub" -> invalid_arg "ListExtra.cut"
 

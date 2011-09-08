@@ -294,6 +294,22 @@ let partition =
   let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
   result
 
+(** {b Example}:
+{[
+# cut [1;2;3;0;2] [|0;1;2;3;4;5;6;7;8;9|];;
+  : int array list = [[|0|]; [|1; 2|]; [|3; 4; 5|]; [||]; [|6; 7|]]
+]} *)
+let cut ~lengths xs =
+  let start_len_list_of_lengths xs =
+    let js,_ = List.fold_left (fun (js,n) x -> ((n+x)::js,n+x)) ([0],0) xs in
+    List.combine (List.rev (List.tl js)) xs
+  in
+  let start_len_list = start_len_list_of_lengths lengths in
+  try
+    List.map (fun (start, len) -> Array.sub xs start len) start_len_list
+  with Invalid_argument "Array.sub" -> invalid_arg "ArrayExtra.cut"
+
+
 (** Tools for matrices (arrays of arrays). *)
 module Matrix = struct
 
