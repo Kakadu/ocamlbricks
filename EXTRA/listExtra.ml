@@ -340,3 +340,20 @@ let rec find_first xs ys = match xs with
 
 end
 
+(** {b Example}:
+{[
+# cut [1;2;3;0;2] [0;1;2;3;4;5;6;7;8;9] ;;
+  : int list list = [[0]; [1; 2]; [3; 4; 5]; []; [6; 7]]
+]} *)
+let cut ~lengths xs =
+  let start_len_list_of_lengths xs =
+    let js,_ = List.fold_left (fun (js,n) x -> ((n+x)::js,n+x)) ([0],0) xs in
+    List.combine (List.rev (List.tl js)) xs
+  in
+  let a = Array.of_list xs in
+  let start_len_list = start_len_list_of_lengths lengths in
+  try
+    let segments = List.map (fun (start, len) -> Array.sub a start len) start_len_list in
+    List.map Array.to_list segments
+  with Invalid_argument "Array.sub" -> invalid_arg "cut"
+

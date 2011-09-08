@@ -35,6 +35,8 @@ val iteri : (int -> 'a -> unit) -> 'a list -> unit
 
 val shared_property : ('a->'b) -> 'a list -> bool
 
+val cut : lengths:int list -> 'a list -> 'a list list
+
 (** {2 Generalizations} *)
 
 val head : ?n:int -> 'a list -> 'a list
