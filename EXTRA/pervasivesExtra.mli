@@ -16,6 +16,8 @@
 
 (** Additional features for the standard module [Pervasives]. *)
 
+val round : ?decimals:int -> float -> float
+
 (** {b Print and flush.} Print something onto stdout, then immediately flush the buffer. This may be
     slower but allows to print without waiting for automatic flushes, which are
     very infrequent when more than one process is concurrently writing to the

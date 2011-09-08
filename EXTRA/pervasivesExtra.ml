@@ -22,6 +22,11 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+(** Round the float. By default the number of decimals is set to 3. *)
+let round ?(decimals=3) x =
+  let k = 10. ** (float_of_int decimals) in
+  (floor (x *. k +. 0.5)) /. k
+
 let print_char c     = Pervasives.print_char c;     flush stdout
 let print_string s   = Pervasives.print_string s;   flush stdout
 let print_int i      = Pervasives.print_int i;      flush stdout
