@@ -27,6 +27,37 @@ let round ?(decimals=3) x =
   let k = 10. ** (float_of_int decimals) in
   (floor (x *. k +. 0.5)) /. k
 
+(** For-based folder using float numbers. *)
+let for_float ?backward ~min ~max ~step f acc =
+  let tollerance = step /. 2. in
+  match backward with
+  | None ->
+      let max = max +. tollerance in
+      let rec loop acc x =
+	if x > max then acc else loop (f acc x) (x+.step)
+      in
+      loop acc min
+  | Some () ->
+      let min = min -. tollerance in
+      let rec loop acc x =
+	if x < min then acc else loop (f acc x) (x-.step)
+      in
+      loop acc min
+
+(** For-based folder using int numbers. *)
+let for_int ?backward ?(step=1) ~min ~max f acc =
+  match backward with
+  | None ->
+      let rec loop acc x =
+	if x > max then acc else loop (f acc x) (x+step)
+      in
+      loop acc min
+  | Some () ->
+      let rec loop acc x =
+	if x < min then acc else loop (f acc x) (x-step)
+      in
+      loop acc min
+
 let print_char c     = Pervasives.print_char c;     flush stdout
 let print_string s   = Pervasives.print_string s;   flush stdout
 let print_int i      = Pervasives.print_int i;      flush stdout
