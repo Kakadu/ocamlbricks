@@ -18,8 +18,8 @@
 
 val round : ?decimals:int -> float -> float
 
-val for_float : ?backward:unit -> min:float -> max:float -> step:float -> ('a -> float -> 'a) -> 'a -> 'a
-val for_int   : ?backward:unit -> ?step:int -> min:int -> max:int -> ('a -> int -> 'a) -> 'a -> 'a
+val for_float : ?break:('a -> float -> bool) -> ?backward:unit -> min:float -> max:float -> step:float -> ('a -> float -> 'a) -> 'a -> 'a
+val for_int   : ?break:('a -> int -> bool) -> ?backward:unit -> ?step:int -> min:int -> max:int -> ('a -> int -> 'a) -> 'a -> 'a
   
 (** {b Print and flush.} Print something onto stdout, then immediately flush the buffer. This may be
     slower but allows to print without waiting for automatic flushes, which are

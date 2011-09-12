@@ -44,17 +44,57 @@ let for_float ?backward ~min ~max ~step f acc =
       in
       loop acc min
 
+
+let for_float ?break ?backward ~min ~max ~step f acc =
+  let tollerance = step /. 2. in
+  match backward, break with
+  | None, None ->
+      let max = max +. tollerance in
+      let rec loop acc x =
+	if x > max then acc else loop (f acc x) (x+.step)
+      in
+      loop acc min
+  | None, Some break ->
+      let max = max +. tollerance in
+      let rec loop acc x =
+	if x > max || (break acc x) then acc else loop (f acc x) (x+.step)
+      in
+      loop acc min
+  | Some (), None ->
+      let min = min -. tollerance in
+      let rec loop acc x =
+	if x < min then acc else loop (f acc x) (x-.step)
+      in
+      loop acc min
+  | Some (), Some break ->
+      let min = min -. tollerance in
+      let rec loop acc x =
+	if x < min || (break acc x) then acc else loop (f acc x) (x-.step)
+      in
+      loop acc min
+
+
 (** For-based folder using int numbers. *)
-let for_int ?backward ?(step=1) ~min ~max f acc =
-  match backward with
-  | None ->
+let for_int ?break ?backward ?(step=1) ~min ~max f acc =
+  match backward, break with
+  | None, None ->
       let rec loop acc x =
 	if x > max then acc else loop (f acc x) (x+step)
       in
       loop acc min
-  | Some () ->
+  | None, Some break ->
+      let rec loop acc x =
+	if x > max || (break acc x) then acc else loop (f acc x) (x+step)
+      in
+      loop acc min
+  | Some (), None ->
       let rec loop acc x =
 	if x < min then acc else loop (f acc x) (x-step)
+      in
+      loop acc min
+  | Some (), Some break ->
+      let rec loop acc x =
+	if x < min || (break acc x) then acc else loop (f acc x) (x-step)
       in
       loop acc min
 
