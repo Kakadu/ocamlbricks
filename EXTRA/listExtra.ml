@@ -285,6 +285,11 @@ let big f = function
 
 (** {b Common foldings} *)
 
+(** By default the best is the minimal element, i.e. the choice function is set by default to [min]. *)
+let best ?(choice=min) = function
+ | []    -> invalid_arg "ListExtra.best: empty list"
+ | x::xs -> List.fold_left (fun s x -> choice s x) x xs
+
 (** The polymorphic maximum of a list. *)
 let max (l:'a list) : 'a = big max l;;
 

@@ -73,8 +73,9 @@ val split : ('a * 'b) array -> 'a array * 'b array
 
 val cut : lengths:int list -> 'a array -> 'a array list
 
-val max : ?gt:('a -> 'a -> bool) -> 'a array -> int * 'a
-val min : ?gt:('a -> 'a -> bool) -> 'a array -> int * 'a
+val max  : ?gt:('a -> 'a -> bool) -> 'a array -> int * 'a
+val min  : ?gt:('a -> 'a -> bool) -> 'a array -> int * 'a
+val best : ?choice:('a -> 'a -> 'a) -> 'a array -> int * 'a
 
 module Matrix : sig
  type 'a t = 'a array array

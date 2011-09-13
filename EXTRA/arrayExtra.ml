@@ -340,6 +340,10 @@ module Matrix = struct
 
 end
 
+(** By default the best is the minimal element, i.e. the choice function is set by default to [min]. *)
+let best ?(choice=min) = function
+ | [||] -> invalid_arg "ArrayExtra.best: empty array"
+ | xs   -> fold_lefti (fun i (j,x) y -> if (choice x y) <> x then (i,y) else (j,x)) (0, xs.(0)) xs
 
 let max ?(gt=(>)) xs = 
  fold_lefti (fun i (j,x) y -> if gt y x then (i,y) else (j,x)) (0, xs.(0)) xs
