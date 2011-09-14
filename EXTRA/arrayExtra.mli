@@ -59,6 +59,8 @@ val iteri2 : (int -> 'a -> 'b -> unit) -> 'a array -> 'b array -> unit
 val map2   : ('a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
 val mapi2  : (int -> 'a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
 
+val map_fold : ('a -> int -> 'b -> 'c * 'a) -> 'a -> 'b array -> 'c array
+
 val fold_lefti  : (int -> 'a -> 'b -> 'a) -> 'a -> 'b array -> 'a
 val fold_righti : (int -> 'a -> 'b -> 'b) -> 'a array -> 'b -> 'b
 

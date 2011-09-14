@@ -254,6 +254,24 @@ let iteri2 f a b = Array.iteri (fun i a -> f i a b.(i)) a
 let map2  f a b = Array.mapi (fun i a -> f a b.(i)) a 
 let mapi2 f a b = Array.mapi (fun i a -> f i a b.(i)) a 
 
+(** {b Example}:
+{[ map_fold (fun s i x -> (x+s,s+x)) 0 [|0;1;2;3;4;5|] ;;
+  : int array = [|0; 1; 3; 6; 10; 15|]
+]} *)
+let map_fold f s0 xs =
+  let n = Array.length xs in
+  if n = 0 then [||] else begin
+    let (y0, s1) = f s0 0 (xs.(0)) in
+    let result = Array.create n y0 in
+    let state = ref s1 in
+    for i = 1 to n-1 do
+      let (y,z) = f (!state) i (xs.(i)) in
+      result.(i) <- y ;
+      state := z;
+    done;
+    result
+  end
+
 let fold_lefti f y0 s =
  let l = Array.length s in
  let rec loop acc i =
