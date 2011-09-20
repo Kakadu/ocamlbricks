@@ -31,6 +31,16 @@ let filter_map ?acc f =
      )
  in loop acc
 
+(** Find and map in the same loop using an {e heuristic} function (i.e. a function ['a -> 'b option]). *)
+let rec find_map f =
+  function
+  | []    -> raise Not_found
+  | x::xs ->
+     (match (f x) with
+     | None   -> (find_map f xs)
+     | Some y -> y
+     )
+
 (** As standard [List.map] but with the possibility to provide an accumulator (which will be appended to the result). *)
 let map ?acc f =
  let acc = match acc with None -> [] | Some l -> l in
