@@ -390,3 +390,51 @@ let cut ~lengths xs =
     List.map Array.to_list segments
   with Invalid_argument "Array.sub" -> invalid_arg "ListExtra.cut"
 
+
+(** Similar to [List.fold_left] but the iterated function takes three values [(xs, x, xs')], instead of just [x], as second argument.
+    In any loop, the value [xs] are the elements already treated in a {b reversed} order
+    (because it's a zipper, we look at the traversed structure from the [x] point of view).
+    Conversely, [xs'] are the elements that will be treated in the next loops, and this list is not reversed.
+    See [ListExtra.perm_fold] for an example of application. *)
+let fold_left_zipper f y0 =
+ let rec loop acc y =
+  function
+  | [] -> y
+  | x::xs ->
+     let y' = f y (acc,x,xs) in
+     loop (x::acc) y' xs
+ in loop [] y0
+(** Fold traversing the permutations of the given list.
+    {b Example}:
+{[# perm_fold (fun () [x;y;z] -> Printf.printf "(%d,%d,%d)\n" x y z) () [1;2;3] ;;
+(1,2,3)
+(1,3,2)
+(2,1,3)
+(2,3,1)
+(3,1,2)
+(3,2,1)
+- : unit = ()
+]} *)
+let rec perm_fold f y = function
+ | [] -> y
+ | x::[] as xs -> f y xs
+ | xs ->
+    fold_left_zipper
+       (fun y (xs,x,xs') -> let f' a bl = f a (x::bl) in perm_fold f' y (List.rev_append xs xs'))
+       y xs
+
+
+(** Iterate on all permutations of the given list.
+    {b Example}:
+{[# perm_iter (function [x;y;z] -> Printf.printf "(%d,%d,%d)\n" x y z | _ -> assert false) [1;2;3] ;;
+(1,2,3)
+(1,3,2)
+(2,1,3)
+(2,3,1)
+(3,1,2)
+(3,2,1)
+- : unit = ()
+]} *)
+let perm_iter f xs = perm_fold (fun () xs -> f xs) () xs
+
+
