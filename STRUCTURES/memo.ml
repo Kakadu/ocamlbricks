@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2007  Jean-Vincent Loddo
+   Copyright (C) 2007-2011 Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,44 +14,42 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Module for building memoised functions. *)
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
-(** The default size of the hash used in the implementation *)
+(** The default size of for hash tables. *)
 let default_size = 251;;
 
-(** The string representation of a key *)
-let sok x = string_of_int (Hashtbl.hash x) ;;
-
-(** The class storing the hash table *)
-class ['a,'b] memo = fun ?(trace=false) ?(size=default_size) () ->
-
-  object (self) 
-
-  (** The state of the hash table. *)
-  val current : ('a,'b) Hashtbl.t = (Hashtbl.create size)
-  val trace   = trace
-
-  (** Get the current encapsulated value a given input or call the function. *)
-  method get (f:'a->'b) (x:'a) = try 
-	begin
-	 let y=(Hashtbl.find current x) in 
-         (if trace then (prerr_endline ("Memo.call: value found for key "^(sok x))); y) 
-	end
-     with Not_found -> 
-	begin
-         if trace then prerr_endline ("Memo.call: using function for key "^(sok x)); 
-      	 let y = (f x) in 
-	  ((Hashtbl.replace current x y); y)
-     	end
-
-end;;
-
-(** The abstract type of memoisation tables. *)
-type ('a,'b) t = ('a,'b) memo;;
-
-(** The constructor of memoisation tables.*)
-let make ?(trace=false) ?(size=default_size) () : ('a,'b) t = new memo ~trace ~size ();;
-
-(** The call of a function supervised by a memoisation table.*)
-let call (mt:('a,'b) t) (f:('a->'b)) x = mt#get f x;;
+(** Memoize a function. *)
+let memoize_and_get_table ?trace_faults ?(size=default_size) f =
+  let ht = Hashtbl.create size in
+  let f' =
+    match trace_faults with
+    | None ->
+	(function x ->
+	  try
+	    Hashtbl.find ht x
+	  with Not_found ->
+	    begin
+	      let y = f x in
+	      let () = Hashtbl.add ht x y in
+	      y
+	    end)
+    | Some () ->
+	(function x ->
+	  try
+	    Hashtbl.find ht x
+	  with Not_found ->
+	    begin
+	      Printf.kfprintf flush stderr
+		"Memo.memoize: cache fault for input with hash key %d: function must be called.\n"
+		(Hashtbl.hash x) ;
+	      let y = f x in
+	      let () = Hashtbl.add ht x y in
+	      y
+	    end)
+    in
+    (f', ht)
+    
+let memoize ?trace_faults ?size f = fst (memoize_and_get_table ?trace_faults ?size f)
 
