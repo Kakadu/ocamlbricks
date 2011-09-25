@@ -413,7 +413,7 @@ let fold_left_zipper f y0 =
 (2,3,1)
 (3,1,2)
 (3,2,1)
-- : unit = ()
+  : unit = ()
 ]} *)
 let rec perm_fold f y = function
  | [] -> y
@@ -433,8 +433,45 @@ let rec perm_fold f y = function
 (2,3,1)
 (3,1,2)
 (3,2,1)
-- : unit = ()
+  : unit = ()
 ]} *)
 let perm_iter f xs = perm_fold (fun () xs -> f xs) () xs
+
+(** Fold traversing the combinations of the given list. *)
+let comb_fold ?sort=
+  match sort with
+  | None ->
+      fun ~k f y0 xs ->
+        let xs = List.rev xs in
+	let rec loop acc k y xs =
+	  if k=1 then List.fold_left (fun y x -> f y (x::acc)) y xs else
+	  fold_left_zipper (fun y (_,x,xs') -> loop (x::acc) (k-1) y xs') y xs
+        in
+        loop [] k y0 xs
+  | Some () ->
+      fun ~k f y0 xs ->
+	let rec loop acc k y xs =
+	  if k=1 then List.fold_left (fun y x -> f y (List.rev_append acc [x])) y xs else
+	  fold_left_zipper (fun y (_,x,xs') -> loop (x::acc) (k-1) y xs') y xs
+        in
+        loop [] k y0 xs
+
+(** Iterate on all combinations of [k] elements of the given list. *)
+let comb_iter ?sort ~k f = comb_fold ?sort ~k (fun () c -> f c) ()
+
+(** Map a function on all combinations of [k] elements of the given list. *)
+let comb_map ?sort ~k f xs = comb_fold ?sort ~k (fun y c -> (f c)::y) [] xs
+
+(** Provide the list of all combinations of [k] elements of the given list.
+    {b Example}:
+{[# comb ~sort:() ~k:2 ['a';'b';'c';'d'] ;;
+  : char list list =
+[['a'; 'b']; ['a'; 'c']; ['a'; 'd']; ['b'; 'c']; ['b'; 'd']; ['c'; 'd']]
+]} *)
+let comb ?sort = match sort with
+ | None    -> fun ~k -> comb_fold ~k (fun y c -> c::y) []
+ | Some () -> fun ~k xs -> List.rev (comb_fold ~sort:() ~k (fun y c -> c::y) [] xs)
+
+
 
 

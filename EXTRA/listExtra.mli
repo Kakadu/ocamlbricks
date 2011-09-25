@@ -28,6 +28,17 @@ val fold_left_zipper : ('a -> 'b list * 'b * 'b list -> 'a) -> 'a -> 'b list -> 
 val perm_fold : ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
 val perm_iter : ('a list -> unit) -> 'a list -> unit
 
+val comb_fold : ?sort:unit -> k:int -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
+val comb_iter : ?sort:unit -> k:int -> ('a list -> unit) -> 'a list -> unit
+val comb_map  : ?sort:unit -> k:int -> ('a list -> 'b) -> 'a list -> 'b list
+val comb      : ?sort:unit -> k:int -> 'b list -> 'b list list
+
+(*
+val comb      : k:int -> 'b list -> 'b list list
+val comb_fold : k:int -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
+val comb_iter : k:int -> ('a list -> unit) -> 'a list -> unit
+val comb_map  : k:int -> ('a list -> 'b) -> 'a list -> 'b list
+*)
 val map_fold  : ?acc:'c list -> ('a -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
 val mapi_fold : ?acc:'c list -> ('a -> int -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
 
