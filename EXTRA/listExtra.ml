@@ -415,12 +415,17 @@ let fold_left_zipper f y0 =
 (3,2,1)
   : unit = ()
 ]} *)
-let rec perm_fold f y = function
+let rec perm_fold ?disorder f y =
+ let append = match disorder with
+ | None    -> List.rev_append
+ | Some () -> (@)
+ in
+ function
  | [] -> y
  | x::[] as xs -> f y xs
  | xs ->
     fold_left_zipper
-       (fun y (xs,x,xs') -> let f' a bl = f a (x::bl) in perm_fold f' y (List.rev_append xs xs'))
+       (fun y (xs,x,xs') -> let f' a bl = f a (x::bl) in perm_fold f' y (append xs xs'))
        y xs
 
 
@@ -435,43 +440,72 @@ let rec perm_fold f y = function
 (3,2,1)
   : unit = ()
 ]} *)
-let perm_iter f xs = perm_fold (fun () xs -> f xs) () xs
+let perm_iter ?disorder f xs = perm_fold ?disorder (fun () xs -> f xs) () xs
+
+let perm ?disorder xs =
+  match disorder with
+  | None    -> List.rev (perm_fold (fun y c -> c::y) [] xs)
+  | Some () -> perm_fold ~disorder:() (fun y c -> c::y) [] xs
+
+let perm_map ?disorder f xs =
+ match disorder with
+  | None    -> List.rev (perm_fold (fun y c -> (f c)::y) [] xs)
+  | Some () -> perm_fold ~disorder:() (fun y c -> (f c)::y) [] xs
+
 
 (** Fold traversing the combinations of the given list. *)
-let comb_fold ?sort=
-  match sort with
+let comb_fold ?disorder=
+  match disorder with
   | None ->
-      fun ~k f y0 xs ->
-        let xs = List.rev xs in
-	let rec loop acc k y xs =
-	  if k=1 then List.fold_left (fun y x -> f y (x::acc)) y xs else
-	  fold_left_zipper (fun y (_,x,xs') -> loop (x::acc) (k-1) y xs') y xs
-        in
-        loop [] k y0 xs
-  | Some () ->
       fun ~k f y0 xs ->
 	let rec loop acc k y xs =
 	  if k=1 then List.fold_left (fun y x -> f y (List.rev_append acc [x])) y xs else
 	  fold_left_zipper (fun y (_,x,xs') -> loop (x::acc) (k-1) y xs') y xs
         in
         loop [] k y0 xs
+  | Some () ->
+      fun ~k f y0 xs ->
+        (* Here to preserve the equation: comb ~k xs = List.sort compare (comb ~disorder:() ~k xs) supposing xs sorted *)
+        let xs = List.rev xs in 
+	let rec loop acc k y xs =
+	  if k=1 then List.fold_left (fun y x -> f y (x::acc)) y xs else
+	  fold_left_zipper (fun y (_,x,xs') -> loop (x::acc) (k-1) y xs') y xs
+        in
+        loop [] k y0 xs
+
 
 (** Iterate on all combinations of [k] elements of the given list. *)
-let comb_iter ?sort ~k f = comb_fold ?sort ~k (fun () c -> f c) ()
+let comb_iter ?disorder ~k f = comb_fold ?disorder ~k (fun () c -> f c) ()
 
 (** Map a function on all combinations of [k] elements of the given list. *)
-let comb_map ?sort ~k f xs = comb_fold ?sort ~k (fun y c -> (f c)::y) [] xs
-
+let comb_map ?disorder ~k f =
+  match disorder with
+  | None    -> fun xs -> List.rev (comb_fold ~k (fun y c -> (f c)::y) [] xs)
+  | Some () -> comb_fold ~disorder:() ~k (fun y c -> (f c)::y) []
+ 
 (** Provide the list of all combinations of [k] elements of the given list.
     {b Example}:
-{[# comb ~sort:() ~k:2 ['a';'b';'c';'d'] ;;
+{[# comb ~k:2 ['a';'b';'c';'d'] ;;
   : char list list =
 [['a'; 'b']; ['a'; 'c']; ['a'; 'd']; ['b'; 'c']; ['b'; 'd']; ['c'; 'd']]
 ]} *)
-let comb ?sort = match sort with
- | None    -> fun ~k -> comb_fold ~k (fun y c -> c::y) []
- | Some () -> fun ~k xs -> List.rev (comb_fold ~sort:() ~k (fun y c -> c::y) [] xs)
+let comb ?disorder ~k =
+ match disorder with
+ | None    -> fun xs -> List.rev (comb_fold ~k (fun y c -> c::y) [] xs)
+ | Some () -> comb_fold ~disorder:() ~k (fun y c -> c::y) []
 
+(** The order here is composite: first a k-combination is choosed (in their order), then its permutations are generated (in their order). *)
+let k_perm_fold ?disorder ~k f = comb_fold ?disorder ~k (fun y c -> perm_fold ?disorder f y c)
 
+let k_perm_iter ?disorder ~k f = k_perm_fold ?disorder ~k (fun () c -> f c) ()
 
+let k_perm ?disorder ~k =
+ match disorder with
+ | Some () -> k_perm_fold ~disorder:() ~k (fun y c -> c::y) []
+ | None    -> fun xs -> List.rev (k_perm_fold ~k (fun y c -> c::y) [] xs)
+
+let k_perm_map ?disorder ~k f =
+ match disorder with
+ | None    -> fun xs -> List.rev (k_perm_fold ~k (fun y c -> (f c)::y) [] xs)
+ | Some () -> k_perm_fold ~disorder:() ~k (fun y c -> (f c)::y) []
 

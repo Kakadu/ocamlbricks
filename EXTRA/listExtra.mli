@@ -25,13 +25,22 @@ val rev_map  : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
 val rev_mapi : ?acc:'b list -> (int -> 'a -> 'b) -> 'a list -> 'b list
 
 val fold_left_zipper : ('a -> 'b list * 'b * 'b list -> 'a) -> 'a -> 'b list -> 'a
-val perm_fold : ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
-val perm_iter : ('a list -> unit) -> 'a list -> unit
 
-val comb_fold : ?sort:unit -> k:int -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
-val comb_iter : ?sort:unit -> k:int -> ('a list -> unit) -> 'a list -> unit
-val comb_map  : ?sort:unit -> k:int -> ('a list -> 'b) -> 'a list -> 'b list
-val comb      : ?sort:unit -> k:int -> 'b list -> 'b list list
+val perm_fold : ?disorder:unit -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
+val perm_iter : ?disorder:unit -> ('a list -> unit) -> 'a list -> unit
+val perm_map  : ?disorder:unit -> ('a list -> 'b) -> 'a list -> 'b list
+val perm      : ?disorder:unit -> 'a list -> 'a list list
+
+val comb_fold : ?disorder:unit -> k:int -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
+val comb_iter : ?disorder:unit -> k:int -> ('a list -> unit) -> 'a list -> unit
+val comb_map  : ?disorder:unit -> k:int -> ('a list -> 'b) -> 'a list -> 'b list
+val comb      : ?disorder:unit -> k:int -> 'b list -> 'b list list
+
+val k_perm_fold : ?disorder:unit -> k:int -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
+val k_perm_iter : ?disorder:unit -> k:int -> ('a list -> unit) -> 'a list -> unit
+val k_perm_map  : ?disorder:unit -> k:int -> ('a list -> 'b) -> 'a list -> 'b list
+val k_perm      : ?disorder:unit -> k:int -> 'a list -> 'a list list
+
 
 (*
 val comb      : k:int -> 'b list -> 'b list list
