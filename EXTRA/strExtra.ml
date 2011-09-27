@@ -171,7 +171,9 @@ let minus x y =
  | l  -> concat l
 ;; 
 
-(** Grep on string lists: only strings matching the pattern are selected.  
+(** Grep on string lists: only strings matching the pattern are selected.
+    The optional arguments [~before] and [~after] correspond to the options
+    [-B] and [-A] of the homonymous Unix command.
 
 {b Examples}:
 {[# grep "[0-9]" ["aa";"bb";"c8";"dd";"1e"]  ;;
@@ -183,9 +185,24 @@ let minus x y =
 # "ls" => ( Sys.run || fst || String.to_list || grep ".*mli$" ) ;; 
   : string list = ["foo.mli"; "bar.mli"] ]}
 *)
-let grep (e:string) (sl:string list) : string list = 
+let grep ?before ?after (e:string) (sl:string list) : string list =
  let r = Str.regexp e in
- List.filter (Bool.match_whole r) sl
+ if before = None && after = None then List.filter (Bool.match_whole r) sl else
+ let before = Option.extract_or before 0 in
+ let after  = Option.extract_or after 0 in
+ let sa = Array.of_list sl in
+ let sl = ListExtra.mapi (fun i s -> (i,s)) sl in
+ let xs = List.filter (fun (i,s) -> Bool.match_whole r s) sl in
+ let parts =
+   List.map
+     (fun (i,line) ->
+       let b = Array.to_list (Array.sub sa (i-1-before) before) in
+       let a = Array.to_list (Array.sub sa (i+1) after) in
+       List.concat [b;[line];a]
+       )
+     xs
+ in
+ List.concat parts
 ;;
 
 

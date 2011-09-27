@@ -117,16 +117,20 @@ type line = string
 val to_line : line -> line
 module Text :
   sig
-    type t = string list
-    type filter = string list -> string list
+    type t = line list
+    type filter = line list -> line list
     val to_string : line list -> line
-    val of_string : ?squeeze:bool -> string -> string list
+    val of_string : ?squeeze:bool -> string -> t
+    val from_file : string -> t
     module Matrix :
       sig
-        type t = string list list
+        type word = string
+        type line = word list
+        type t = word list list
         type filter = t -> t
-        val of_string : ?squeeze:bool -> ?d:char -> string -> string list list
-        val to_string : ?d:string -> line list list -> line
+        val of_string : ?squeeze:bool -> ?d:char -> string -> t
+        val to_string : ?d:string -> t -> string
+        val from_file : ?squeeze:bool -> ?d:char -> string -> t
       end
   end
 

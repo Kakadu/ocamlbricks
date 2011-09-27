@@ -43,5 +43,5 @@ val extract_groups : Str.regexp -> string -> string list
 (** {2 Tools} *)
 
 val minus          : string -> string -> string
-val grep           : string -> string list -> string list
+val grep           : ?before:int -> ?after:int -> string -> string list -> string list
 val wellFormedName : ?allow_dash:bool -> string -> bool

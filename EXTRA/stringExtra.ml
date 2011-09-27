@@ -569,8 +569,12 @@ let of_string = (split ~d:'\n')
 (** Converting raw text to matrix (list of list) of strings (words) and vice-versa. *)
 module Matrix = struct
 
+(** We call "words" the strings stored in the matrix. *)
+type word = string
+type line = word list
+
 (** A (word structured) text is a {b matrix} of strings. *)
-type t = string list list
+type t = word list list
 
 (** A text matrix filter is a function from and to string list lists. *)
 type filter = t -> t
@@ -608,7 +612,12 @@ total 164
 let to_string ?(d=" ") m =
  to_line (big (merge "\n") (List.map (big (merge d)) m))
 
+let from_file ?squeeze ?d s = of_string ?squeeze ?d (from_file s)
+
 end (* module Text.Matrix *)
+
+let from_file s = of_string (from_file s)
+
 end (* module Text *)
 
 (** By default the maximum line length is determined by [~width].
