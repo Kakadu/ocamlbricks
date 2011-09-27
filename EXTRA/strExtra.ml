@@ -191,13 +191,17 @@ let grep ?before ?after (e:string) (sl:string list) : string list =
  let before = Option.extract_or before 0 in
  let after  = Option.extract_or after 0 in
  let sa = Array.of_list sl in
+ let last_index = (Array.length sa) - 1 in
  let sl = ListExtra.mapi (fun i s -> (i,s)) sl in
  let xs = List.filter (fun (i,s) -> Bool.match_whole r s) sl in
  let parts =
    List.map
      (fun (i,line) ->
-       let b = Array.to_list (Array.sub sa (i-1-before) before) in
-       let a = Array.to_list (Array.sub sa (i+1) after) in
+       let b =
+         let before' = min before i in
+         Array.to_list (Array.sub sa (i-before') before')
+       in
+       let a = Array.to_list (Array.sub sa (i+1) (min after (last_index-i))) in
        List.concat [b;[line];a]
        )
      xs
