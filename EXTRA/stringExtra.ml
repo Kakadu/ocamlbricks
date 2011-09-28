@@ -566,6 +566,45 @@ let to_string (sl : string list) : string =
   : string list = ["aaa"; ""; "bbb"] ]} *)
 let of_string = (split ~d:'\n')
 
+(** Grep on string lists: only strings matching the pattern are selected.
+    The optional arguments [~before] and [~after] correspond to the options
+    [-B] and [-A] of the homonymous Unix command.
+
+{b Examples}:
+{[# grep "[0-9]" ["aa";"bb";"c8";"dd";"1e"]  ;;
+  : string list = ["c8"; "1e"]
+
+# grep "[0-9]$" ["aa";"bb";"c8";"dd";"1e"]  ;;
+  : string list = ["c8"]
+
+# "ls" => ( Sys.run || fst || String.to_list || grep ".*mli$" ) ;;
+  : string list = ["foo.mli"; "bar.mli"] ]}
+*)
+let grep ?before ?after (r:Str.regexp) (sl:string list) : string list =
+ if before = None && after = None then
+   List.filter (StrExtra.First.matchingp r) sl
+ else
+ let before = Option.extract_or before 0 in
+ let after  = Option.extract_or after 0 in
+ let sa = Array.of_list sl in
+ let last_index = (Array.length sa) - 1 in
+ let sl = ListExtra.mapi (fun i s -> (i,s)) sl in
+ let xs = List.filter (fun (i,s) -> StrExtra.First.matchingp r s) sl in
+ let parts =
+   List.map
+     (fun (i,line) ->
+       let b =
+         let before' = min before i in
+         Array.to_list (Array.sub sa (i-before') before')
+       in
+       let a = Array.to_list (Array.sub sa (i+1) (min after (last_index-i))) in
+       List.concat [b;[line];a]
+       )
+     xs
+ in
+ List.concat parts
+;;
+
 (** Converting raw text to matrix (list of list) of strings (words) and vice-versa. *)
 module Matrix = struct
 

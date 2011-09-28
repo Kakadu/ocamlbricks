@@ -122,6 +122,7 @@ module Text :
     val to_string : line list -> line
     val of_string : ?squeeze:bool -> string -> t
     val from_file : string -> t
+    val grep : ?before:int -> ?after:int -> Str.regexp -> t -> t
     module Matrix :
       sig
         type word = string

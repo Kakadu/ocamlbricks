@@ -16,32 +16,100 @@
 
 (** Additional features for the standard library [Str]. *)
 
-val mkregexp : ?strict:bool -> string list -> string list -> string list -> Str.regexp
+(** {2 Matching result} *)
 
-(** {2 High-level matching} *)
+type result = string * (int * int) * string list
 
-type result = (int * string * string list * int) option
+val result_as_object : result ->
+  < matched : string;
+    frame   : int * int;
+    groups  : string list;
+    >
 
-val match_whole    : Str.regexp -> string -> result
-val match_string   : string -> string -> result
-val match_frame    : Str.regexp -> string -> int * int -> result
+(** {2 Building} *)
 
-(** {b Boolean versions} *)
+val mkregexp :
+  ?mode:[> `inner | `prefix | `suffix | `whole ] ->
+  ?case_insensitive:unit ->
+  ?prefix:string list ->
+  ?groups:string list ->
+  ?suffix:string list ->
+  unit -> Str.regexp
 
-module Bool :
-  sig
-    val match_whole : Str.regexp -> string -> bool
-    val match_string : string -> string -> bool
-    val match_frame : Str.regexp -> string -> int * int -> bool
-  end
+(** {2 First (single) or global (multiple) matching} *)
 
-(** {2 Extract groups} *)
+module First : sig
+ val matching   : ?frame:(int*int) -> Str.regexp -> string -> result option
+ val matchingp  : ?frame:(int*int) -> Str.regexp -> string -> bool
+ val replace    : Str.regexp -> (result -> string) -> string -> string
+ val substitute : Str.regexp -> (string -> string) -> string -> string
+end
 
-val matched_groups : int -> string -> string list
-val extract_groups : Str.regexp -> string -> string list
+module Global : sig
+ val matching   : ?frame:(int*int) -> Str.regexp -> string -> result list
+ val replace    : Str.regexp -> (result -> string) -> string -> string
+ val substitute : Str.regexp -> (string -> string) -> string -> string
+end
 
 (** {2 Tools} *)
 
-val minus          : string -> string -> string
-val grep           : ?before:int -> ?after:int -> string -> string list -> string list
-val wellFormedName : ?allow_dash:bool -> string -> bool
+module Posix :
+  sig
+
+    val alnum  : ?exists:unit -> string -> bool
+    val alpha  : ?exists:unit -> string -> bool
+    val ascii  : ?exists:unit -> string -> bool
+    val blank  : ?exists:unit -> string -> bool
+    val cntrl  : ?exists:unit -> string -> bool
+    val digit  : ?exists:unit -> string -> bool
+    val graph  : ?exists:unit -> string -> bool
+    val lower  : ?exists:unit -> string -> bool
+    val print  : ?exists:unit -> string -> bool
+    val punct  : ?exists:unit -> string -> bool
+    val space  : ?exists:unit -> string -> bool
+    val upper  : ?exists:unit -> string -> bool
+    val word   : ?exists:unit -> string -> bool
+    val xdigit : ?exists:unit -> string -> bool
+
+    module String :
+      sig
+	val alnum   : string
+	val alpha   : string
+	val ascii   : string
+	val blank   : string
+	val cntrl   : string
+	val digit   : string
+	val graph   : string
+	val lower   : string
+	val print   : string
+	val punct   : string
+	val space   : string
+	val upper   : string
+	val word    : string
+	val xdigit  : string
+      end
+
+    module Regexp :
+      sig
+	val alnum   : Str.regexp
+	val alpha   : Str.regexp
+	val ascii   : Str.regexp
+	val blank   : Str.regexp
+	val cntrl   : Str.regexp
+	val digit   : Str.regexp
+	val graph   : Str.regexp
+	val lower   : Str.regexp
+	val print   : Str.regexp
+	val punct   : Str.regexp
+	val space   : Str.regexp
+	val upper   : Str.regexp
+	val word    : Str.regexp
+	val xdigit  : Str.regexp
+      end
+
+end
+
+
+module Class : sig
+ val identifierp : ?allow_dash:unit -> string -> bool
+end
