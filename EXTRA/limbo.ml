@@ -14,6 +14,51 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+
+(*module Fold :
+  sig
+    val commacat         : string list -> string
+    val semicolon        : string list -> string
+    val nospacecommacat  : string list -> string
+    val nospacesemicolon : string list -> string
+    val dotcat           : string list -> string
+    val newlinecat       : string list -> string
+    val blankcat         : string list -> string
+    val slashcat         : string list -> string
+  end*)
+
+
+(*(** Examples of applications of [big] constructor
+    in conjonction with the [merge] function. *)
+module Fold = struct
+
+ (** Merge a string list with the separator [" , "]. *)
+ let commacat = big (merge " , ");;
+
+ (** Merge a string list with the separator ["; "]. *)
+ let semicolon = big (merge "; ");;
+
+ (** Merge a string list with the separator [","]. *)
+ let nospacecommacat = big (merge ",");;
+
+ (** Merge a string list with the separator [";"]. *)
+ let nospacesemicolon = big (merge ";");;
+
+ (** Merge a string list with the separator ["."]. *)
+ let dotcat = big (merge ".");;
+
+ (** Merge a string list with the separator ["\n"]. *)
+ let newlinecat = big (merge "\n");;
+
+ (** Merge a string list with the separator [" "]. *)
+ let blankcat = big (merge " ");;
+
+ (** Merge a string list with the separator ["/"]. *)
+ let slashcat = big (merge "/");;
+
+end (* module Fold *)*)
+
+
 let try_finalize f x finally y =
       let res = try f x with exn -> finally y; raise exn in
       finally y;

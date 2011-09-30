@@ -121,7 +121,7 @@ let tail ?(opt="") text = textfilter "tail" ~opt text ;;
 ]}*)
 let tee ?(opt="") (files:filename list) text = 
   let args = List.map StringExtra.quote files in 
-  let args = StringExtra.big (StringExtra.merge " ") args in
+  let args = String.concat " " args in
   textfilter ~at:Treat.identity "tee" ~opt ~args:(Some args) text ;;
 
 
@@ -132,7 +132,7 @@ let tee ?(opt="") (files:filename list) text =
 let tr ?(opt="") c1 c2 text = 
  let s1 = StringExtra.quote (Char.escaped c1) in
  let s2 = StringExtra.quote (Char.escaped c2) in
- let args = StringExtra.merge " " s1 s2 in
+ let args = String.concat " " [s1;s2] in
   textfilter ~at:Treat.identity "tr" ~opt ~args:(Some args) text ;;
 
 (** Wrapper for the {b uniq} unix filter. {b Example}:
@@ -167,7 +167,7 @@ let wc text : int =
   : int = 7
 ]}*)
 let cc ?(strict=false) text : int = 
- let it = Some(if strict then (StringExtra.big (^)) else (StringExtra.Text.to_string)) in
+ let it = Some(if strict then (String.concat "") else (StringExtra.Text.to_string)) in
  make  ~it 
        ~ot:(StringExtra.chop || int_of_string) 
        "wc -c"

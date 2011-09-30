@@ -113,7 +113,7 @@ let alist_of_matrix row_to_element matrix =
     ignored: *)
 let scalar_alist_of_matrix string_to_element =
   alist_of_matrix
-    (fun values -> string_to_element (StringExtra.Fold.blankcat values));;
+    (fun values -> string_to_element (String.concat " " values));;
 
 (** Turn a matrix into an alist mapping each variable name into the list of
     the tokens of its value: *)

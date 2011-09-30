@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2009 Jean-Vincent Loddo
+   Copyright (C) 2009-2011 Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,56 +82,38 @@ module Charlist :
 (** {2 Splitting to string list} *)
 
 val cut   : ?n:int -> string -> string list
-val split : ?squeeze:bool -> ?d:char -> string -> string list
+val split : ?do_not_squeeze:unit -> ?d:char -> string -> string list
 val split_squeezing_blanks : ?blanks:char list -> string -> string list
 
 (** {2 Merging strings} *)
 
-val concat : ?blit:blit_function -> string list -> string
-val merge  : string -> string -> string -> string
-val quote  : ?l:string -> ?r:string -> string -> string
-val assemble : string -> string -> string -> string
-
-type binop = string -> string -> string
-val big : binop -> string list -> string
-val merge_map : ?sep:string -> ('a -> string) -> 'a list -> string
-
-val catenate : sep:string -> string list -> string
-
-module Fold :
-  sig
-    val commacat         : string list -> string
-    val semicolon        : string list -> string
-    val nospacecommacat  : string list -> string
-    val nospacesemicolon : string list -> string
-    val dotcat           : string list -> string
-    val newlinecat       : string list -> string
-    val blankcat         : string list -> string
-    val slashcat         : string list -> string
-  end
+val concat       : ?blit:blit_function -> string list -> string
+val quote        : ?l:string -> ?r:string -> string -> string
+val assemble_if_not_empty : prefix:string -> suffix:string -> string -> string
+val map_concat   : ?sep:string -> ('a -> string) -> 'a list -> string
 val merge_fields : string -> int list -> string list -> string
 
 (** {2 Text} *)
 
-type line = string
-val to_line : line -> line
+type word = string
+val ensure_cr_at_end : string -> string
+
 module Text :
   sig
-    type t = line list
-    type filter = line list -> line list
-    val to_string : line list -> line
-    val of_string : ?squeeze:bool -> string -> t
-    val from_file : string -> t
-    val grep : ?before:int -> ?after:int -> Str.regexp -> t -> t
+    type t = string list
+    type line = string
+    val to_string : t -> string
+    val of_string : ?do_not_squeeze:unit -> string -> t
+    val from_file : ?do_not_squeeze:unit -> string -> t
+    val grep      : ?before:int -> ?after:int -> Str.regexp -> t -> t
+    val collapse_and_split : ?do_not_squeeze:unit -> ?d:char -> t -> word list
     module Matrix :
       sig
-        type word = string
-        type line = word list
         type t = word list list
-        type filter = t -> t
-        val of_string : ?squeeze:bool -> ?d:char -> string -> t
+        type line = word list
+        val of_string : ?do_not_squeeze:[< `cr | `d | `neither ] -> ?d:char -> string -> t
         val to_string : ?d:string -> t -> string
-        val from_file : ?squeeze:bool -> ?d:char -> string -> t
+        val from_file : ?do_not_squeeze:[< `cr | `d | `neither ] -> ?d:char -> string -> t
       end
   end
 

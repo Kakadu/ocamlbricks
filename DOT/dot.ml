@@ -45,8 +45,8 @@ type graph = {
  and node_option = string
  and edge_option = string
 
-let commacat = StringExtra.catenate ~sep:","
-let newlinecat = StringExtra.catenate ~sep:"\n"
+let commacat = String.concat ","
+let newlinecat = String.concat "\n"
 
 let rec cotokens_of_statement tab edge_operator = function
 | Graph_default graph_option          ->  [Printf.sprintf "%s%s" tab graph_option]

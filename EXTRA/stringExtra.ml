@@ -382,9 +382,9 @@ let cut ?(n:int=1) (s:string) =
    (String.sub s 0 n)::(loop (String.sub s n l') l')
  in loop s l
 
-(** Split a string into a list of strings using a char delimiter (space (blank) by default).
-    By default [squeeze=true], which means that delimiter repetitions are considered
-    as single occurrences.
+(** Split a string into a list of strings using a char delimiter (which is the blank character [d=' '] by default).
+    By default contiguous delimiter repetitions are considered as single occurrences.
+    In other words, delimiters are squeezed. Set to optional parameter [do_not_squeeze] to disable this behaviour.
     The empty string is converted into the empty list. {b Example}:
 {[# split "aaa bbb ccc";;
   : string list = ["aaa"; "bbb"; "ccc"]
@@ -392,19 +392,22 @@ let cut ?(n:int=1) (s:string) =
 # split "aaa   bbb ccc";;
   : string list = ["aaa"; "bbb"; "ccc"]
 
-# split ~squeeze:false "aaa   bbb ccc";;
+# split ~do_not_squeeze:() "aaa   bbb ccc";;
   : string list = ["aaa"; ""; ""; "bbb"; "ccc"]
+
 ]}*)
-let rec split ?(squeeze=true) ?(d:char=' ') (s:string) = try
+let rec split ?do_not_squeeze ?(d:char=' ') (s:string) = try
   let l = String.length s in
   let p = String.index s d in
-  let rest = split ~squeeze ~d (StringLabels.sub ~pos:(p+1) ~len:(l-p-1) s) in
-  if squeeze && (p=0) then rest else (StringLabels.sub ~pos:0 ~len:p s)::rest
+  let rest = split ?do_not_squeeze ~d (StringLabels.sub ~pos:(p+1) ~len:(l-p-1) s) in
+  if (do_not_squeeze = None) && (p=0)
+    then rest
+    else (StringLabels.sub ~pos:0 ~len:p s)::rest
   with
    _ -> if (s="") then [] else [s]
 
 (** Split a string into a string list using a list of blanks as word separators.
-    Blanks are squeezed. {i Efficient version}.*)
+    By default blanks are [['\t';' ']] and will be squeezed. *)
 let split_squeezing_blanks ?(blanks=['\t';' ']) (s:string) : string list =
  let xs = Charlist.disassemble_reversing s in
  let push_if_not_empty x l = if x=[] then l else (x::l) in
@@ -430,95 +433,40 @@ let concat ?(blit:blit_function=String.blit) xs =
     (fun k src -> let l=(String.length src) in (blit src 0 dst k l); (k+l)) 0 xs in
  dst
 
-(** Merge two strings with a string separator. The call [merge sep x y] is simply equivalent to [x^sep^y].
-    However, the partial application [merge sep] may be useful for defining a string list
-    folding (see the next section {b Folding} and the examples in the subsection {b Common foldings} ). *)
-let merge (sep:string) : (string -> string -> string)  = (fun x y -> x^sep^y)
-
 (** Quote a string using a prefix [l] (by default [l="'"]) and a suffix [r] (by default [r="'"]). *)
-let quote ?(l="'") ?(r="'") (x:string) = l^x^r
+let quote ?(l="'") ?(r="'") (x:string) = String.concat "" [l;x;r]
 
 (** Assemble a string with a prefix and a suffix but only if it is {b not} empty, else
      return the empty string ignoring the given prefix and suffix. *)
-let assemble prefix x suffix = if (x="") then "" else (prefix^x^suffix)
-
-(** Curryfied binary operation on strings. *)
-type binop = string -> string -> string
-
-(** The {e folding} of string lists is simply a [List.fold_left] specialization:
-
-     - the first element is the {b head} of the string list
-     - the folding is performed on the {b tail} of the string list.
-     - the iterated binary operation belongs the type [string -> string -> string]
-     - if the input list is empty, the result is the {b empty} string (no exception raised)
-
-   This function is adequate for most common cases. Use the module [Big] when
-   maximum generality is requested. *)
-let big (f:binop) (l:string list) : 'a = try ListExtra.big f l with Failure "big" -> ""
+let assemble_if_not_empty ~prefix ~suffix x =
+  if (x="") then "" else (String.concat "" [prefix;x;suffix])
 
 (** [merge_map f l] maps the function [f] on the list [l]
     then merge the result with the separator ([sep=" "] by default). *)
-let merge_map ?(sep=" ") f l = big (merge sep) (List.map f l)
-
-(** Merge strings with the given separator. *)
-let catenate ~sep = function
-| [] -> ""
-| y::ys -> List.fold_left (fun y x -> Printf.sprintf "%s%s%s" y sep x) y ys
-
-(** Examples of applications of [big] constructor
-    in conjonction with the [merge] function. *)
-module Fold = struct
-
- (** Merge a string list with the separator [" , "]. *)
- let commacat = big (merge " , ");;
-
- (** Merge a string list with the separator ["; "]. *)
- let semicolon = big (merge "; ");;
-
- (** Merge a string list with the separator [","]. *)
- let nospacecommacat = big (merge ",");;
-
- (** Merge a string list with the separator [";"]. *)
- let nospacesemicolon = big (merge ";");;
-
- (** Merge a string list with the separator ["."]. *)
- let dotcat = big (merge ".");;
-
- (** Merge a string list with the separator ["\n"]. *)
- let newlinecat = big (merge "\n");;
-
- (** Merge a string list with the separator [" "]. *)
- let blankcat = big (merge " ");;
-
- (** Merge a string list with the separator ["/"]. *)
- let slashcat = big (merge "/");;
-
-end (* module Fold *)
+let map_concat ?(sep=" ") f l = String.concat sep (List.map f l)
 
  (** Merge fields with a separator. {b Example}:
 {[# merge_fields "/" [2;4] ["aaa";"bbb";"ccc";"ddd";"eee"] ;;
   : string = "ccc/eee"
 ]}*)
 let rec merge_fields sep (fieldlist:int list) (l:string list) =
- let l'=(ListExtra.select l fieldlist) in (big (merge sep) l')
-
-
-(** A {e line} is a string terminating with a newline ['\n']. *)
-type line = string
+ let l'=(ListExtra.select l fieldlist) in (String.concat sep l')
 
 (** Convert a string in a [line] just adding a newline {b if needed}.
     The function {!StringExtra.chop} may be used as inverse.
 
 {b Example}:
-{[# to_line "hello";;
-  : line = "hello\n"
+{[# ensure_cr_at_end "hello";;
+  : string = "hello\n"
 
-# to_line "hello\n";;
-  : line = "hello\n"]}*)
-let to_line (x:string) : line =
+# ensure_cr_at_end "hello\n";;
+  : string = "hello\n"]}*)
+let ensure_cr_at_end x =
  let l    = (String.length x) in
  let last = (String.sub x (l-1) 1) in
  match last with "\n" -> x | _ -> x^"\n"
+
+type word = string
 
 (** Converting raw text to list of strings and vice-versa.
     A raw text is simply a (may be big) string, i.e. a sequence of lines
@@ -529,11 +477,11 @@ module Text = struct
 (** A (line structured) text is a {b list} of strings. *)
 type t = string list
 
-(** A text filter is a function from and to string lists. *)
-type filter = string list -> string list
+(** In this context, a line is not structured, it's a flatten string. *)
+type line = string
 
 (** Convert a string list in a raw text.
-    Each string in the input list is treated by the function [to_line] in order to
+    Each string in the input list is treated by the function [ensure_cr_at_end] in order to
     add a newline if needed, then the list is folded by a simple catenation ([^]).
     If the input list is empty, the result is the empty string. {b Examples}:
 {[# Text.to_string ["AAA";"BBB";"CCC"];;
@@ -545,13 +493,13 @@ type filter = string list -> string list
 # Text.to_string ["AAA";"BBB\n\n";"CCC"];;
   : string = "AAA\nBBB\n\nCCC\n"]}*)
 let to_string (sl : string list) : string =
- let ll = List.map to_line sl in
- big (^) ll
+ let ll = List.map ensure_cr_at_end sl in
+ String.concat "" ll
 
 (** Convert a raw text in a structured text (a string list).
     This function is simply an alias
-    for [split ~squeeze ~d:'\n']. {b Examples}:
-{[# Text.of_string (Unix.cat "/etc/fstab")  ;;
+    for [split ~d:'\n']. {b Examples}:
+{[# Text.of_string (UnixExtra.cat "/etc/fstab")  ;;
   : string list =
 ["/dev/sda1   /                    reiserfs   acl,user_xattr    1 1";
  "/dev/sda3   swap                 swap       defaults          0 0";
@@ -562,7 +510,7 @@ let to_string (sl : string list) : string =
 # Text.of_string (Unix.shell "echo aaa; echo; echo bbb");;
   : string list = ["aaa"; "bbb"]
 
-# Text.of_string ~squeeze:false (Unix.shell "echo aaa; echo; echo bbb");;
+# Text.of_string ~do_not_squeeze:() (Unix.shell "echo aaa; echo; echo bbb");;
   : string list = ["aaa"; ""; "bbb"] ]} *)
 let of_string = (split ~d:'\n')
 
@@ -605,32 +553,46 @@ let grep ?before ?after (r:Str.regexp) (sl:string list) : string list =
  List.concat parts
 ;;
 
+(** Here ~do_not_squeeze refers of course to the word delimiter [d]. *)
+let collapse_and_split ?do_not_squeeze ?(d=' ') t =
+  let s = String.concat (Char.escaped d) t in
+  split ?do_not_squeeze ~d s
+
 (** Converting raw text to matrix (list of list) of strings (words) and vice-versa. *)
 module Matrix = struct
 
 (** We call "words" the strings stored in the matrix. *)
-type word = string
 type line = word list
 
 (** A (word structured) text is a {b matrix} of strings. *)
 type t = word list list
 
-(** A text matrix filter is a function from and to string list lists. *)
-type filter = t -> t
-
 (** Convert a raw text in a matrix of words.
-    By default the word delimiter is the char [d=' ']
-    and [squeeze=true].
+    By default the function [split_squeezing_blanks] is called for each
+    line to separe words. However, specifying a delimiter [~d] and/or setting
+    [do_not_squeeze], the conversion will call the function [split ?do_not_squeeze ?d ] instead.
 {b Example}:
-{[# Text.Matrix.of_string (Unix.shell "ls -i -w1 /etc/ssh/")  ;;
+{[# Text.Matrix.of_string (UnixExtra.shell "ls -i -w1 /etc/ssh/")  ;;
   : string list list =
 [["98624"; "moduli"]; ["98625"; "ssh_config"]; ["98626"; "sshd_config"];
  ["274747"; "ssh_host_dsa_key"]; ["274748"; "ssh_host_dsa_key.pub"];
  ["274712"; "ssh_host_key"]; ["274713"; "ssh_host_key.pub"];
  ["274750"; "ssh_host_rsa_key"]; ["274751"; "ssh_host_rsa_key.pub"]]
 ]} *)
-let of_string ?(squeeze=true) ?(d=' ') x =
- List.map (split ~squeeze ~d) (of_string x)
+let of_string ?do_not_squeeze ?d x =
+  let do_not_squeeze_d, do_not_squeeze_cr =
+    match do_not_squeeze with
+    | None       -> None, None
+    | Some `cr   -> None, (Some ())
+    | Some `d    -> (Some ()), None
+    | Some `neither -> (Some ()), (Some ())
+  in
+  let lines = of_string ?do_not_squeeze:do_not_squeeze_cr x in
+  if (do_not_squeeze=None) && (d=None)
+  then
+    List.map split_squeezing_blanks lines
+  else
+    List.map (split ?do_not_squeeze:do_not_squeeze_d ?d) lines
 
 (** Convert a matrix of words in a raw text.
     By default the word delimiter is the string [d=" "].
@@ -649,13 +611,20 @@ total 164
   : unit = ()
 ]}*)
 let to_string ?(d=" ") m =
- to_line (big (merge "\n") (List.map (big (merge d)) m))
+  let rec line_mill acc = function
+  | []    -> "\n"::acc
+  | [w]   -> "\n"::w::acc
+  | w::ws -> line_mill (d::w::acc) ws
+  in
+  let line_list_mill = List.rev_map (line_mill []) in
+  let ws = List.rev (List.concat (line_list_mill m)) in
+  String.concat "" ws 
 
-let from_file ?squeeze ?d s = of_string ?squeeze ?d (from_file s)
+let from_file ?do_not_squeeze ?d s = of_string ?do_not_squeeze ?d (from_file s)
 
 end (* module Text.Matrix *)
 
-let from_file s = of_string (from_file s)
+let from_file ?do_not_squeeze s = of_string ?do_not_squeeze (from_file s)
 
 end (* module Text *)
 
@@ -677,7 +646,7 @@ let fmt ?tab ?prefix ?count_all ?(width=75) s =
  | None -> 0
  | Some () -> tab_len
  in
- let xs = List.flatten (Text.Matrix.of_string ~squeeze:true ~d:' ' s) in
+ let xs = List.flatten (Text.Matrix.of_string ~d:' ' s) in
  let rec loop acc = function
    | [] -> []
    | (x::xs) when acc = 0 (* first word *) && tab_len=0 ->
@@ -691,7 +660,7 @@ let fmt ?tab ?prefix ?count_all ?(width=75) s =
         if acc'>width then "\n"::(loop 0 ys) else " "::x::(loop acc' xs)
  in
  let ys = loop 0 xs in
- catenate ~sep:"" ys
+ String.concat "" ys
  
 let tab ?tab ?prefix s =
  let tab_prefix = match tab with
@@ -704,7 +673,7 @@ let tab ?tab ?prefix s =
  | Some prefix -> tab_prefix ^ prefix
  in
  let prefix = if prefix = "" then "\t" else prefix in
- let yxs = (Text.Matrix.of_string ~squeeze:false ~d:' ' s) in
+ let yxs = (Text.Matrix.of_string ~do_not_squeeze:`d ~d:' ' s) in
  let yzs =
    List.map
      (function [] -> [prefix] | x::xs -> (Printf.sprintf "%s%s" prefix x)::xs)
