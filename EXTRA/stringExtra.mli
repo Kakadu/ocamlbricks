@@ -66,11 +66,31 @@ val rstrip    : string -> string
 val strip     : string -> string
 val chop      : string -> string
 
+(** {2 Considering as a char array} *)
+
+val init : int -> (int -> char) -> string
+val iteri        : (int -> char -> 'a) -> string -> unit
+val iter2        : (char -> char -> 'a) -> string -> string -> unit
+val iteri2       : (int -> char -> char -> 'a) -> string -> string -> unit
+val map          : (char -> char) -> string -> string
+val mapi         : (int -> char -> char) -> string -> string
+val map2         : (char -> char -> char) -> string -> string -> string
+val mapi2        : (int -> char -> char -> char) -> string -> string -> string
+val fold_left    : ('a -> char -> 'a) -> 'a -> string -> 'a
+val fold_lefti   : (int -> 'a -> char -> 'a) -> 'a -> string -> 'a
+val fold_left2   : ('a -> char -> 'b -> 'a) -> 'a -> string -> 'b array -> 'a
+val fold_lefti2  : (int -> 'a -> char -> 'b -> 'a) -> 'a -> string -> 'b array -> 'a
+val fold_right   : (char -> 'a -> 'a) -> string -> 'a -> 'a
+val fold_righti  : (int -> char -> 'a -> 'a) -> string -> 'a -> 'a
+val fold_right2  : (char -> 'a -> 'b -> 'b) -> string -> 'a array -> 'b -> 'b
+val fold_righti2 : (int -> char -> 'a -> 'b -> 'b) -> string -> 'a array -> 'b -> 'b
+  
 (** {2 Splitting to char list} *)
 
 val to_charlist : string -> char list
 val of_charlist : char list -> string
 val expand : (char -> string option) -> string -> string
+val tr : char -> char -> string -> string
 
 module Charlist :
   sig

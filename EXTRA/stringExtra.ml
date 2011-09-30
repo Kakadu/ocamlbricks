@@ -307,7 +307,7 @@ module Charlist = struct
 (** Fold a char list into a string. *)
 let assemble (xs:char list) : string =
  let n = List.length xs in
- let s = String.make n ' ' in
+ let s = String.create n in
  let rec loop i = function
   | []    -> ()
   | x::xs -> (String.set s i x); loop (i+1) xs
@@ -361,6 +361,88 @@ let expand (f:char -> string option) s =
      xs
  in
  Charlist.assemble_reversing ~length:n ys
+
+(** Similar to [Array.iteri]. *)
+let iteri f s =
+  let n = String.length s in
+  for i = 0 to n-1 do
+    f i (String.unsafe_get s i)
+  done
+
+(** Similar to [Array.init]. {b Example}:
+{[# init 10 (fun i->if i<3 then 'a' else 'b') ;;
+  : string = "aaabbbbbbb"
+]} *)
+let init n f  =
+ let s = String.create n in
+ for i = 0 to n-1 do
+   (String.unsafe_set s i (f i))
+ done;
+ s
+  
+(** Similar to [Array.map]. {b Example}:
+{[# map (fun x -> if x='a' then 'A' else x) "aaabbbac" ;;
+  : string = "AAAbbbAc"
+]} *)
+let map (f:char -> char) s =
+ let n = String.length s in
+ init n (fun i -> f (String.unsafe_get s i))
+
+(** Similar to [Array.mapi]. {b Example}:
+{[# mapi (fun i x -> if x='a' && i<3 then 'A' else x) "aaabbbac" ;;
+  : string = "AAAbbbac"
+]} *)
+let mapi f s =
+ let n = String.length s in
+ init n (fun i -> f i (String.unsafe_get s i))
+
+let iter2  f a b = iteri (fun i a -> f a (String.unsafe_get b i)) a
+let iteri2 f a b = iteri (fun i a -> f i a (String.unsafe_get b i)) a
+
+let map2  f a b = mapi (fun i a -> f a (String.unsafe_get b i)) a
+let mapi2 f a b = mapi (fun i a -> f i a (String.unsafe_get b i)) a
+
+(** Similar to the Unix command [tr]. The call [tr a b s] returns a copy of [s]
+    where all occurrences of the character [a] have been replaced with [b]. *)
+let tr a b = map (fun x -> if x=a then b else x) ;;
+
+let fold_left f y0 s =
+ let l = String.length s in
+ let rec loop acc i =
+  if i>=l then acc else
+  let acc = f acc (String.unsafe_get s i) in
+  loop acc (i+1)
+ in loop y0 0
+
+let fold_lefti f y0 s =
+ let l = String.length s in
+ let rec loop acc i =
+  if i>=l then acc else
+  let acc = f i acc (String.unsafe_get s i) in
+  loop acc (i+1)
+ in loop y0 0
+
+let fold_righti f s y0 =
+ let l = String.length s in
+ let rec loop acc i =
+  if i<0 then acc else
+  let acc = f i (String.unsafe_get s i) acc in
+  loop acc (i-1)
+ in loop y0 (l-1)
+
+let fold_right f s y0 =
+ let l = String.length s in
+ let rec loop acc i =
+  if i<0 then acc else
+  let acc = f (String.unsafe_get s i) acc in
+  loop acc (i-1)
+ in loop y0 (l-1)
+
+let fold_left2  f s0 xs ys = fold_lefti  (fun i s x -> f s x ys.(i)) s0 xs
+let fold_right2 f xs ys s0 = fold_righti (fun i x s -> f x ys.(i) s) xs s0
+
+let fold_lefti2  f s0 xs ys = fold_lefti  (fun i s x -> f i s x ys.(i)) s0 xs
+let fold_righti2 f xs ys s0 = fold_righti (fun i x s -> f i x ys.(i) s) xs s0
 
 (** Split a string into a list of strings containing
     each one [n] characters of the input string (by default [n=1]). {b Examples}:
