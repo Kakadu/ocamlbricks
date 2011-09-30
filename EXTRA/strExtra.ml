@@ -155,7 +155,11 @@ let matchingp ?frame regexp s = ((matching ?frame regexp s) <> None)
 {[# First.replace (Str.regexp "[0-9]+") (fun (x,(a,b),gs) -> if a<10 then x^x else x^x^x)  "---12---345---6---7890---" ;;
   : string = "---1212---345---6---7890---"
 ]} *)
-let replace regexp f s =
+let replace ?frame regexp f s =
+  let s  = match frame with
+  | None       -> s
+  | Some (a,b) -> String.sub s a (b-a+1)
+  in
   match (match_whole regexp s) with
   | None -> s
   | Some r ->
@@ -169,7 +173,11 @@ let replace regexp f s =
 {[# First.substitute (Str.regexp "[0-9]+") (fun x -> x^x)  "---12---345---6---7890---" ;;
   : string = "---1212---345---6---7890---"
 ]} *)
-let substitute regexp f s =
+let substitute ?frame regexp f s =
+  let s  = match frame with
+  | None       -> s
+  | Some (a,b) -> String.sub s a (b-a+1)
+  in
   match (match_whole regexp s) with
   | None -> s
   | Some (x,_,_) ->
@@ -186,20 +194,34 @@ module Global = struct
 {b Example}:
 {[# Global.matching (Str.regexp "[0-9]+") "---12---345---6---7890---" ;;
   : result list = [("12", (3, 4), []);  ("345", (8, 10), []);  ("6", (14, 14), []);  ("7890", (18, 21), [])]
-]} *)
-let matching ?frame regexp s =
+]}
+
+The optional parameter [overlap] allows to match substrings that overlapped each other. This behaviour concerns only regular expressions {b with groups}: when a matching occurs, the next will be searched immediately after the first matched group, not after the whole matched substring.
+{b Example}:
+{[# Global.matching (Str.regexp "[0-9]+ [0-9]+") "111 222 333 aaa 444" ;;
+  : result list = [("111 222", (0, 6), [])]
+
+# Global.matching ~overlap:() (mkregexp ~groups:["[0-9]+"; " "; "[0-9]+"] ()) "111 222 333 aaa 444" ;;
+  : result list = [("111 222", (0, 6), ["111"; " "; "222"]);  ("222 333", (4, 10), ["222"; " "; "333"])]
+]}*)
+let matching ?frame ?overlap regexp s =
  let s  = match frame with
  | None       -> s
  | Some (a,b) -> String.sub s a (b-a+1)
  in
  let n = String.length s in
+ let next = match overlap with
+  | None    -> fun (a,b) -> b+1
+  | Some () -> fun (a,b) -> try (Str.group_end 1)+1 with _ -> b+1
+ in
  let rec loop i =
    if i >=n then [] else
    try
      let a  = Str.search_forward regexp s i in
      let y  = Str.matched_string s      in
      let b  = (Str.match_end ())-1      in
-     (y, (a,b), (matched_groups 1 s))::(loop (b+1))
+     let answer = (y, (a,b), (matched_groups 1 s)) in
+     answer::(loop (next (a,b)))
    with Not_found -> []
  in loop 0
 
@@ -210,14 +232,18 @@ let matching ?frame regexp s =
 {[# Global.replace (Str.regexp "[0-9]+") (fun (x,(a,b),gs) -> if a<10 then x else x^x)  "---12---345---6---7890---" ;;
   : string = "---12---345---66---78907890---"
 ]} *)
-let replace regexp f s =
-  let results = matching regexp s in
+let replace ?frame ?overlap regexp f s =
+  let s  = match frame with
+  | None       -> s
+  | Some (a,b) -> String.sub s a (b-a+1)
+  in
+  let results = matching ?overlap regexp s in
   let (i,xs) =
     List.fold_left
       (fun (i,xs) ((_,(a,b),_) as result) ->
          let y = f result in
          let i'= b+1 in
-         let xs' = y::(String.sub s i (a-i))::xs in
+         let xs' = y::(String.sub s i (max 0 (a-i)))::xs in
          (i', xs'))
        (0,[])
        results
@@ -233,7 +259,7 @@ let replace regexp f s =
 {[# Global.substitute (Str.regexp "[0-9]+") (fun x -> x^x)  "---12---345---6---7890---" ;;
   : string = "---1212---345345---66---78907890---"
 ]} *)
-let substitute regexp f = replace regexp (fun (x,_,_) -> f x)
+let substitute ?frame ?overlap regexp f = replace ?frame ?overlap regexp (fun (x,_,_) -> f x)
 
 end (* module Global *)
 

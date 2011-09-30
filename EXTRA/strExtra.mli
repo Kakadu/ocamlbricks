@@ -41,14 +41,14 @@ val mkregexp :
 module First : sig
  val matching   : ?frame:(int*int) -> Str.regexp -> string -> result option
  val matchingp  : ?frame:(int*int) -> Str.regexp -> string -> bool
- val replace    : Str.regexp -> (result -> string) -> string -> string
- val substitute : Str.regexp -> (string -> string) -> string -> string
+ val replace    : ?frame:(int*int) -> Str.regexp -> (result -> string) -> string -> string
+ val substitute : ?frame:(int*int) -> Str.regexp -> (string -> string) -> string -> string
 end
 
 module Global : sig
- val matching   : ?frame:(int*int) -> Str.regexp -> string -> result list
- val replace    : Str.regexp -> (result -> string) -> string -> string
- val substitute : Str.regexp -> (string -> string) -> string -> string
+ val matching   : ?frame:(int*int) -> ?overlap:unit -> Str.regexp -> string -> result list
+ val replace    : ?frame:(int*int) -> ?overlap:unit -> Str.regexp -> (result -> string) -> string -> string
+ val substitute : ?frame:(int*int) -> ?overlap:unit -> Str.regexp -> (string -> string) -> string -> string
 end
 
 (** {2 Tools} *)
