@@ -16,8 +16,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 (* Authors:
- * - Luca Saiu: function with_mutex from recursive_mutex.ml
- * - Jean-Vincent Loddo: functorization, recursive_mutex as internal module
+ * - Jean-Vincent Loddo: complete rewriting, functorization, recursive_mutex as internal module
+ * - Luca Saiu: initial version
  *)
 
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
@@ -59,70 +59,80 @@ module Extend
 end
 
 
-(** A simple implementation of recursive mutexes. Non-recursive mutexes are
-    a real pain to use: *)
-module Recursive_mutex = struct
+(** Extended simple mutexes. *)
+module Extended = Extend(Mutex)
 
- type t =
-  Mutex.t *               (* the underlying mutex *)
-  Mutex.t *               (* a mutex protecting the other fields *)
-  (Thread.t option ref) * (* the thread currently holding the mutex *)
-  (int ref);;             (* lock counter *)
+(** A simple implementation of recursive mutexes inspired by Luca's version and by
+    a (bugged?) version found in the project http://batteries.forge.ocamlcore.org/.
+    In my opinion there's a bug in the batteries' version that I think fixed here
+    (see comments about a possible ownership "stole") -- Jean-Vincent.
+    *)
+module Recursive_base = struct
 
- (** Create a new recursive mutex: *)
- let create () : t =
-  (Mutex.create ()),
-  (Mutex.create ()),
-  (ref None),
-  (ref 0);;
+type owner = {
+  thread_id       : int;   (** The thread identifier of the owner *)
+  mutable lock_no : int;   (** Number of lock performed by the owner (lock_no >= 1) *)
+  }
+    
+type t = {
+  waiting_mutex : Mutex.t;      (** The mutex used for passive waiting *)
+  owner_mutex   : Mutex.t;      (** The mutex used to protect the access to the owner fields *)
+  mutable owner : owner option;
+  }
+      
+let create () = {
+  waiting_mutex = Mutex.create ();
+  owner_mutex   = Mutex.create ();
+  owner         = None
+  }
 
-(** Lock a mutex; only block if *another* thread is holding it. *)
- let rec lock (the_mutex, fields_mutex, owning_thread_ref, lock_counter_ref) =
-  let my_thread = Thread.self () in
-  Mutex.lock fields_mutex;
-  match !owning_thread_ref with
-    None -> begin
-      owning_thread_ref := Some my_thread;
-      lock_counter_ref := !lock_counter_ref + 1;
-      Mutex.unlock fields_mutex;
-      Mutex.lock the_mutex;
-    end
-  | Some t when t = my_thread -> begin
-      lock_counter_ref := !lock_counter_ref + 1;
-      Mutex.unlock fields_mutex;
-    end
-  | Some _ -> begin
-      Mutex.unlock fields_mutex;
-      (* the_mutex is locked. Passively wait for someone to free it: *)
-      flush stderr;
-      Mutex.lock the_mutex;
-      Mutex.unlock the_mutex;
-      (* Try again: *)
-      lock (the_mutex, fields_mutex, owning_thread_ref, lock_counter_ref);
-    end;;
-
- (** Unlock a recursive mutex owned by the calling thread. *)
- let unlock (the_mutex, fields_mutex, owning_thread_ref, lock_counter_ref) =
-  let _ = Thread.self () in
-  Mutex.lock fields_mutex;
-  match !owning_thread_ref with
-    None ->
-      flush_all ();
-      assert false;
-  | Some t -> begin
-      if !lock_counter_ref = 1 then begin
-        lock_counter_ref := 0;
-        owning_thread_ref := None;
-        Mutex.unlock fields_mutex;
-        Mutex.unlock the_mutex;
-      end
-      else begin
-        lock_counter_ref := !lock_counter_ref - 1;
-        Mutex.unlock fields_mutex;
-      end
-    end;;
+let lock t =
+  let id = Thread.id (Thread.self ()) in
+  let rec loop ~waiting_mutex_already_locked =
+    let am_i_the_owner =
+      Extended.apply_with_mutex t.owner_mutex
+        (fun () ->
+         match t.owner with
+         | None ->
+             t.owner <- Some {thread_id = id; lock_no = 1};
+             (if waiting_mutex_already_locked then () else Mutex.lock t.waiting_mutex);
+             true
+         | Some x when x.thread_id = id ->
+             x.lock_no <- x.lock_no + 1;
+             true
+        | Some _ when waiting_mutex_already_locked ->
+             (* Damn, someone stole my ownership! Ok, I renounce and I will wait again: *)
+             Mutex.unlock t.waiting_mutex;
+             false
+         | Some _ -> false 
+         )
+    in
+    match am_i_the_owner () with
+    | true  -> ()
+    | false -> begin
+        Mutex.lock t.waiting_mutex;
+        (* Note: now someone may stole my ownership calling lock ()... *)
+        loop ~waiting_mutex_already_locked:true
+        end
+  in loop ~waiting_mutex_already_locked:false
+    
+    
+let unlock t =
+  let id = Thread.id (Thread.self ()) in
+  Extended.with_mutex t.owner_mutex
+    (fun () ->
+     match t.owner with
+     | Some x when x.thread_id = id ->
+	 if x.lock_no > 1
+	   then x.lock_no <- x.lock_no - 1
+	   else begin
+	     t.owner <- None;
+	     Mutex.unlock t.waiting_mutex  
+	   end
+     | _ -> assert false
+     )
 
 end
 
 (** Extended recursive mutexes. *)
-module Recursive = Extend(Recursive_mutex)
+module Recursive = Extend(Recursive_base)

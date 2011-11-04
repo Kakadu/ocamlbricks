@@ -47,13 +47,14 @@ module Extend : functor
     val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
   end
 
-
-module Recursive_mutex :
+module Extended :
  sig
    type t
    val create : unit -> t
    val lock   : t -> unit
    val unlock : t -> unit
+   val with_mutex       : t -> (unit -> 'a) -> 'a
+   val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
  end
 
 module Recursive :
