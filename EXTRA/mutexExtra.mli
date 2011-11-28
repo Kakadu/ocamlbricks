@@ -1,5 +1,6 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2009 Jean-Vincent Loddo
+   Copyright (C) 2009, 2011  Jean-Vincent Loddo
+   Copyright (C) 2011  Université Paris 13
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,35 +36,35 @@ module Extend : functor
 
   (Mutex : sig
      type t
-     val create : unit -> t
-     val lock   : t -> unit
-     val unlock : t -> unit
+     val create   : unit -> t
+     val lock     : t -> unit
+     val unlock   : t -> unit
+     val try_lock : t -> bool
   end) ->
-
   sig
     type t = Mutex.t
     val create : unit -> t
+    val status : t -> bool
     val with_mutex       : t -> (unit -> 'a) -> 'a
     val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
   end
 
-module Extended :
+module type Extended_signature = 
  sig
    type t
-   val create : unit -> t
-   val lock   : t -> unit
-   val unlock : t -> unit
+
+   val create   : unit -> t
+   val lock     : t -> unit
+   val unlock   : t -> unit
+   val try_lock : t -> bool
+   val status   : t -> bool
+
    val with_mutex       : t -> (unit -> 'a) -> 'a
    val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
  end
 
-module Recursive :
- sig
-   type t
-   val create : unit -> t
-   val lock   : t -> unit
-   val unlock : t -> unit
-   val with_mutex       : t -> (unit -> 'a) -> 'a
-   val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
- end
+module EMutex : Extended_signature   (* Extended mutexes *)
+module RMutex : Extended_signature   (* Recursive mutexes *)
 
+(* Just a more explicit alias for RMutex: *)
+module Recursive : Extended_signature 

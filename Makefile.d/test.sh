@@ -81,6 +81,7 @@ make_preamble
 
 cd _build
 STUFF="$INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES"
+echo ocamlmktop -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
 ocamlmktop -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
 
 if which rlwrap >/dev/null; then

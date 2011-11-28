@@ -1,8 +1,7 @@
 # This -*- makefile -*- is part of our reusable OCaml BRICKS library
-# Copyright (C) 2008  Luca Saiu
-# Copyright (C) 2008, 2010  Jean-Vincent Loddo
-# Copyright (C) 2008, 2010  Université Paris 13
-# Updated in 2011 by Luca Saiu
+# Copyright (C) 2008, 2011  Luca Saiu
+# Copyright (C) 2008, 2010, 2011  Jean-Vincent Loddo
+# Copyright (C) 2008, 2010, 2011  Université Paris 13
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,8 +21,8 @@ COMPILE_OPTIONS += -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2 camlp4
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
-NATIVE_PROGRAMS =
-BYTE_PROGRAMS =
+NATIVE_PROGRAMS += mutexExtra_test.native
+BYTE_PROGRAMS += mutexExtra_test.byte
 NATIVE_LIBRARIES = ocamlbricks.cmxa
 BYTE_LIBRARIES = ocamlbricks.cma
 
@@ -40,7 +39,6 @@ MANUALLY_PRE_COPY_IN_build =     \
   CAMLP4/common_tools_for_preprocessors.ml \
   CAMLP4/raise_p4.ml{,i} \
   CAMLP4/log_module_loading_p4.ml{,i}
-  
 
 MANUALLY_PRE_MAKE_IN_build =      \
   include_type_definitions_p4.cm{i,o} \
