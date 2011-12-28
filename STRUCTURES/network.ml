@@ -30,7 +30,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads ser
   let socket_type =
     match seqpacket with
     | None    -> Unix.SOCK_STREAM
-    | Some () -> Unix.SOCK_SEQPACKET
+    | Some () -> Unix.SOCK_SEQPACKET (* implies domain = Unix.ADDR_UNIX *)
   in
   let domain = Unix.domain_of_sockaddr sockaddr in
   let listen_socket = Unix.socket domain socket_type 0 in
@@ -193,8 +193,8 @@ class seqpacket_channel ?max_input_size fd =
     inherit channel ?max_input_size ~seqpacket:() fd
   end (* class seqpacket_channel *)
 
-type protocol          = channel -> unit
-type stream_protocol   = stream_channel -> unit
+type protocol           = channel -> unit
+type stream_protocol    = stream_channel -> unit
 type seqpacket_protocol = seqpacket_channel-> unit
 
 let server_fun_of_protocol ?max_input_size ?seqpacket protocol =
@@ -228,31 +228,22 @@ let stream_unix_domain_server ?max_pending_requests ?max_input_size ?process_tut
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   unix_domain_server ?max_pending_requests ?process_tutor ?only_threads ?filename server_fun
 
-(* seqpacket - inet *)
-let seqpacket_inet_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv4 ~port ~(protocol:seqpacket_channel -> unit) () =
-  let server_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  inet_domain_server ?max_pending_requests ~seqpacket:() ?process_tutor ?only_threads ?ipv4 ~port server_fun
-
 (* stream - inet *)
 let stream_inet_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv4 ~port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   inet_domain_server ?max_pending_requests ?process_tutor ?only_threads ?ipv4 ~port server_fun
-
-(* seqpacket - inet6 *)
-let seqpacket_inet6_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv6 ~port ~(protocol:seqpacket_channel -> unit) () =
-  let server_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  inet6_domain_server ?max_pending_requests ~seqpacket:() ?process_tutor ?only_threads ?ipv6 ~port server_fun
 
 (* stream - inet6 *)
 let stream_inet6_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv6 ~port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   inet6_domain_server ?max_pending_requests ?process_tutor ?only_threads ?ipv6 ~port server_fun
 
+
 let client ?seqpacket client_fun sockaddr =
   let socket_type =
     match seqpacket with
     | None    -> Unix.SOCK_STREAM
-    | Some () -> Unix.SOCK_SEQPACKET
+    | Some () -> Unix.SOCK_SEQPACKET (* implies domain = Unix.ADDR_UNIX *)
   in
   let socket = Unix.socket (Unix.domain_of_sockaddr sockaddr) socket_type 0 in
   try
@@ -269,10 +260,10 @@ let unix_domain_client ?seqpacket ~filename client_fun =
   let sockaddr = Unix.ADDR_UNIX filename in
   client ?seqpacket client_fun sockaddr
 
-let inet_domain_client ?seqpacket ~ipv4_or_v6 ~port client_fun =
+let inet_domain_client ~ipv4_or_v6 ~port client_fun =
   let ipv4_or_v6 = Unix.inet_addr_of_string ipv4_or_v6 in
   let sockaddr = Unix.ADDR_INET (ipv4_or_v6, port) in
-  client ?seqpacket client_fun sockaddr
+  client client_fun sockaddr
 
 (* seqpacket - unix *)
 let seqpacket_unix_domain_client ?max_input_size ~filename ~(protocol:seqpacket_channel -> 'a) () =
@@ -283,11 +274,6 @@ let seqpacket_unix_domain_client ?max_input_size ~filename ~(protocol:seqpacket_
 let stream_unix_domain_client ?max_input_size ~filename ~(protocol:stream_channel -> 'a) () =
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   unix_domain_client ~filename client_fun
-
-(* seqpacket - inet (v4 or v6) *)
-let seqpacket_inet_domain_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:seqpacket_channel -> 'a) () =
-  let client_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  inet_domain_client ~seqpacket:() ~ipv4_or_v6 ~port client_fun
 
 (* stream - inet (v4 or v6) *)
 let stream_inet_domain_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:stream_channel -> 'a) () =

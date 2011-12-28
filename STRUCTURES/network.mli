@@ -49,7 +49,7 @@ class seqpacket_channel :
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
   end
 
-type stream_protocol   = stream_channel   -> unit
+type stream_protocol    = stream_channel    -> unit
 type seqpacket_protocol = seqpacket_channel -> unit
 
 val seqpacket_unix_domain_server :
@@ -70,16 +70,6 @@ val stream_unix_domain_server :
   protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string
 
-val seqpacket_inet_domain_server :
-  ?max_pending_requests:int ->
-  ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
-  ?only_threads:unit ->
-  ?ipv4:string ->
-  port:int ->
-  protocol:(seqpacket_channel -> unit) ->
-  unit -> Thread.t * string
-
 val stream_inet_domain_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
@@ -87,16 +77,6 @@ val stream_inet_domain_server :
   ?only_threads:unit ->
   ?ipv4:string ->
   port:int -> protocol:(stream_channel -> unit) ->
-  unit -> Thread.t * string
-
-val seqpacket_inet6_domain_server :
-  ?max_pending_requests:int ->
-  ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
-  ?only_threads:unit ->
-  ?ipv6:string ->
-  port:int ->
-  protocol:(seqpacket_channel -> unit) ->
   unit -> Thread.t * string
 
 val stream_inet6_domain_server :
@@ -120,13 +100,6 @@ val stream_unix_domain_client :
   ?max_input_size:int ->
   filename:string ->
   protocol:(stream_channel -> 'a) ->
-  unit -> 'a
-
-val seqpacket_inet_domain_client :
-  ?max_input_size:int ->
-  ipv4_or_v6:string ->
-  port:int ->
-  protocol:(seqpacket_channel -> 'a) ->
   unit -> 'a
 
 val stream_inet_domain_client :
