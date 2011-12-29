@@ -72,9 +72,12 @@ function make_preamble {
 cat > $PREAMBLE  <<EOF
 Printf.printf "You can open and test the following modules:\n---\n%s\n---\n" "${M}";;
 Printf.printf "Tip: if you want see the signature just type: module M = <Name>;;\n";;
+Printexc.record_backtrace true;;
 EOF
  cd ..
 }
+
+export OCAMLRUNPARAM=-b
 
 PREAMBLE=/tmp/$(basename $0).preamble.$RANDOM.ml;
 make_preamble
@@ -82,7 +85,7 @@ make_preamble
 cd _build
 STUFF="$INCLUDE_LIBS $LIBRARIES_TO_LINK $INCLUDES"
 echo ocamlmktop -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
-ocamlmktop -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
+ocamlmktop -g -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
 
 if which rlwrap >/dev/null; then
  rlwrap ./toplevel $STUFF -init $PREAMBLE || true

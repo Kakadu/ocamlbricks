@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-COMPILE_OPTIONS += -thread
+COMPILE_OPTIONS += -g -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2 camlp4
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
