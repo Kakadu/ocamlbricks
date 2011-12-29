@@ -23,7 +23,7 @@ val p_nowait : ?n:int -> t -> bool
 
 val with_semaphore : ?n:int -> t -> (unit -> 'a) -> 'a
 
-module Array :
+module Array_and :
   functor (M : sig val dim : int end) ->
     sig
 
@@ -35,5 +35,20 @@ module Array :
       val p_nowait : ?n:int array -> t array -> bool
 
       val with_semaphore : ?n:int array -> t array -> (unit -> 'a) -> 'a
+
+    end
+
+module Array_or :
+  functor (M : sig val dim : int end) ->
+    sig
+
+      val dim : int
+      val create : ?mutex:Mutex.t -> ?condition:Condition.t -> ?init:int array -> unit -> t array
+
+      val p        : ?n:int array -> t array -> int * int
+      val p_nowait : ?n:int array -> t array -> (int * int) option
+      val v        : i:int -> n:int -> t array -> unit
+
+      val with_semaphore : ?n:int array -> t array -> (i:int -> n:int -> 'a) -> 'a
 
     end

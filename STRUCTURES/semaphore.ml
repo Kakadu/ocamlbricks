@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Simple semaphore implementation. *)
+(** Simple semaphore implementation for threads (not for processes). *)
 
 type t = {
   mutable counter   : int         ;
@@ -93,7 +93,7 @@ let exists (p : int -> 'a -> bool) (s:'a array) =
   (p i s.(i)) || loop (i+1)
  in loop 0
 
-module Array (M:sig val dim:int end) = struct
+module Array_and (M:sig val dim:int end) = struct
 
 let dim = M.dim
 
@@ -151,4 +151,87 @@ let with_semaphore ?(n=Array.make dim 1) t thunk =
 type a = t array
 type t = a
 
-end (* Array *)
+end (* Array_and *)
+
+
+
+(* Disjonctive semantics. *)
+module Array_or (M:sig val dim:int end) = struct
+
+let dim = M.dim
+
+(* Run-time control on dimension. *)
+let () = assert (dim>0)
+
+(** Components are created on the same mutex and condition. *)
+let create ?(mutex=Mutex.create ()) ?(condition=Condition.create ()) ?(init=Array.make dim 0) () =
+  Array.init dim (fun i -> create ~mutex ~condition ~init:init.(i) ())
+
+(* Auxiliary function similar to exists but setting the result (i,v) in a reference: *)
+let find ~aref p a =
+ let l = Array.length a in
+ let rec loop i =
+  if i>=l then false else
+  let x = a.(i) in
+  if (p i x) then ((aref := Some (i,x)); true) else loop (i+1)
+ in loop 0
+
+let p ?(n=Array.make dim 1) t =
+  let (mutex,condition) = (t.(0).mutex, t.(0).condition) in
+  with_mutex mutex (fun () ->
+    begin
+     let aref = ref None in
+     while not (find ~aref (fun i s -> (s.counter >= n.(i))) t) do
+       (Condition.wait condition mutex)
+     done;
+     let (i,s) = match !aref with Some (i,s) -> (i,s) | None -> assert false in
+     let k = n.(i) in
+     (s.counter <- s.counter - k);
+     (i,k)
+    end)
+
+let v ~i ~n t =
+  let (mutex,condition) = (t.(0).mutex, t.(0).condition) in
+  with_mutex mutex (fun () ->
+    begin
+     (t.(i).counter <- t.(i).counter + n);
+     (Condition.signal condition);
+    end)
+
+let p_nowait ?(n=Array.make dim 1) t =
+  let (mutex,condition) = (t.(0).mutex, t.(0).condition) in
+  with_mutex mutex (fun () ->
+    begin
+     let aref = ref None in
+     if find ~aref (fun i s -> (s.counter >= n.(i))) t then
+         begin
+           let (i,s) = match !aref with Some (i,s) -> (i,s) | None -> assert false in
+           let k = n.(i) in
+           (s.counter <- s.counter - k);
+           Some (i,k)
+         end
+       else
+         None
+    end)
+
+(** Execute thunk in a synchronized block (p ; code ; v), and return the value returned
+    by the thunk. If executing thunk raises an exception the same exception
+    is propagated, after correctly releasing (v) the semaphore. *)
+let with_semaphore ?(n=Array.make dim 1) t f =
+  let (i,k) = p ~n t in
+  try
+    let result = f ~i ~n:k in
+    v ~i ~n:k t;
+    result
+  with e -> begin
+    v ~i ~n:k t;
+    (Printf.eprintf
+      "Semaphore.with_semaphore: exception %s raised in critical section. Releasing and re-raising.\n"
+      (Printexc.to_string e));
+    raise e;
+  end
+
+type a = t array
+type t = a
+
+end (* Array_or *)
