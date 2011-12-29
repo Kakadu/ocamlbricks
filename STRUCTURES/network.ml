@@ -90,7 +90,7 @@ let unix_domain_server ?max_pending_requests ?seqpacket ?process_tutor ?only_thr
         let temp_dir =
           let result = Filename.temp_file prefix suffix in
           Sys.remove result;
-          Unix.mkdir result 0o777 (*0o600*);
+          Unix.mkdir result 0o600;
           result
         in
         (temp_dir^"/listen-socket")
@@ -121,7 +121,7 @@ let inet6_domain_server ?max_pending_requests ?seqpacket ?process_tutor ?only_th
 
 (* High-level representation of the structure available, after a connection, to both endpoints.
    The max_input_size is set by default to 1514 (Ethernet: 1514=1526-12 (8 preamble and 4 CRC)) *)
-class channel ?(max_input_size=1514) ?seqpacket fd =
+class stream_or_seqpacket_bidirectional_channel ?(max_input_size=1514) ?seqpacket fd =
   let input_buffer = String.create max_input_size in
   (* Send method for stream socket descriptors: *)
   let rec send_stream_loop x off len =
@@ -165,13 +165,13 @@ class channel ?(max_input_size=1514) ?seqpacket fd =
     in
     Unix.shutdown fd shutdown_command
 
-end (* class channel *)
+end (* class stream_or_seqpacket_bidirectional_channel *)
 
 class stream_channel ?max_input_size fd =
   let in_channel  = Unix.in_channel_of_descr  fd in
   let out_channel = Unix.out_channel_of_descr fd in
   object
-    inherit channel ?max_input_size fd
+    inherit stream_or_seqpacket_bidirectional_channel ?max_input_size fd
 
     method input_char       : char   = Pervasives.input_char in_channel
     method input_line       : string = Pervasives.input_line in_channel
@@ -190,18 +190,86 @@ end (* class stream_channel *)
 
 class seqpacket_channel ?max_input_size fd =
   object
-    inherit channel ?max_input_size ~seqpacket:() fd
-  end (* class seqpacket_channel *)
+    inherit stream_or_seqpacket_bidirectional_channel ?max_input_size ~seqpacket:() fd
+end (* class seqpacket_channel *)
 
-type protocol           = channel -> unit
+(* socketfile0 may be not provided when we are building a server.
+   Typically the client builds its socketfile (0), send it to the server through the stream channel, then
+   receives its socketfile for output (1).  *)
+class datagram_channel ?(max_input_size=1514) ?socketfile0 ~socketfile1 () =
+  let make_socket ?bind_to () =
+    let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
+    (match bind_to with
+    | None -> ()
+    | Some socketfile ->
+        (Printf.kfprintf flush stderr "make_socket: binding to %s\n" socketfile);
+        Unix.bind result (Unix.ADDR_UNIX socketfile)
+    );
+    result
+  in
+  let socketfile0 =
+    match socketfile0 with
+    | Some x -> x
+    | None ->
+       let x = Filename.temp_file ~temp_dir:"" (socketfile1^"-") "-service-in" in
+       let () = Unix.unlink x in
+       x
+  in
+  let fd0 = make_socket ~bind_to:socketfile0 () in
+  let sockaddr0 = Unix.ADDR_UNIX socketfile0 in 
+  let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
+  let input_buffer = String.create max_input_size
+  in
+  object
+
+  method socketfile0 = socketfile0
+  method socketfile1 = socketfile1
+  method sockaddr0   = sockaddr0
+  method sockaddr1   = sockaddr1
+  method fd0 = fd0
+
+  method receive : string =
+    let (n, sockaddr) = Unix.recvfrom fd0 input_buffer 0 max_input_size [] in
+    (assert (sockaddr = sockaddr1));
+    String.sub input_buffer 0 n
+
+  method peek : string =
+    let (n, sockaddr) = Unix.recvfrom fd0 input_buffer 0 max_input_size [Unix.MSG_PEEK] in
+    (assert (sockaddr = sockaddr1));
+    String.sub input_buffer 0 n
+
+  method send (x:string) : unit =
+    let len = String.length x in
+    (* fd0 represents where I want to receive the answer: *)
+    let n = Unix.sendto fd0 x 0 len [] sockaddr1 in
+    if n<len then failwith (Printf.sprintf "channel#send: failed sending a datagram: no more than %d bytes sent!" n) else
+    ()
+    
+  method shutdown ?receive ?send () =
+    let shutdown_command =
+      match receive, send with
+      | None, None | Some (), Some () -> Unix.SHUTDOWN_ALL
+      | None, Some () -> Unix.SHUTDOWN_SEND
+      | Some (), None -> Unix.SHUTDOWN_RECEIVE
+    in
+    (match shutdown_command with
+    | Unix.SHUTDOWN_RECEIVE | Unix.SHUTDOWN_ALL ->
+        (try Unix.close fd0 with _ -> ());
+        (try Unix.unlink socketfile0 with _ -> ());
+    | _ -> ()
+    );
+    (match shutdown_command with
+    | Unix.SHUTDOWN_SEND | Unix.SHUTDOWN_ALL ->
+        (try Unix.unlink socketfile1 with _ -> ());
+    | _ -> ()
+    );
+
+end (* class datagram_channel *)
+
+type socketfile = string
 type stream_protocol    = stream_channel -> unit
-type seqpacket_protocol = seqpacket_channel-> unit
-
-let server_fun_of_protocol ?max_input_size ?seqpacket protocol =
-  function fd -> 
-    let channel = new channel ?max_input_size ?seqpacket fd in
-    let () = protocol channel in
-    (try channel#shutdown () with _ -> ())
+type seqpacket_protocol = seqpacket_channel -> unit
+type datagram_protocol  = (stream_channel -> datagram_channel) * (datagram_channel -> unit)
 
 let server_fun_of_stream_protocol ?max_input_size protocol =
   function fd ->
@@ -237,6 +305,41 @@ let stream_inet_domain_server ?max_pending_requests ?max_input_size ?process_tut
 let stream_inet6_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv6 ~port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   inet6_domain_server ?max_pending_requests ?process_tutor ?only_threads ?ipv6 ~port server_fun
+
+(* datagram - unix *)
+let datagram_unix_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?filename
+  ~(bootstrap : stream_channel   -> datagram_channel)
+  ~(protocol  : datagram_channel -> unit)
+  () =
+  let protocol_composition =
+    fun stream_channel ->
+      let datagram_channel = bootstrap stream_channel in
+      (try stream_channel#shutdown () with _ -> ());
+      (protocol datagram_channel);
+      datagram_channel#shutdown ~receive:() ()
+  in
+  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  unix_domain_server ?max_pending_requests ?process_tutor ?only_threads ?filename server_fun
+
+(* Esempio: *)
+let echo_server () =
+  let (t, socketfile) =
+    let bootstrap s =
+      let socketfile1 = s#receive in
+      let ch = new datagram_channel ~socketfile1 () in
+      let socketfile0 = ch#socketfile0 in
+      (s#send socketfile0);
+      ch
+    in
+    (* A simple echo server: *)
+    let rec protocol ch =
+      let x = ch#receive in
+      (ch#send x);
+      if x="quit" then (Printf.kfprintf flush stderr "QUIT!!!!\n") else protocol ch
+    in
+    datagram_unix_domain_server ~bootstrap ~protocol ~filename:"/tmp/minnie" ()
+  in
+  (t, socketfile)
 
 
 let client ?seqpacket client_fun sockaddr =
@@ -280,3 +383,38 @@ let stream_inet_domain_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:strea
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   inet_domain_client ~ipv4_or_v6 ~port client_fun
 
+(* datagram - unix *)
+let datagram_unix_domain_client ?max_input_size ~filename
+  ~(bootstrap : stream_channel   -> datagram_channel)
+  ~(protocol  : datagram_channel -> 'a)
+  () =
+  let protocol_composition =
+    fun stream_channel ->
+      let datagram_channel = bootstrap stream_channel in
+      (try stream_channel#shutdown () with _ -> ());
+      let result = protocol datagram_channel in
+      (datagram_channel#shutdown ~receive:() ());
+      result
+  in
+  let client_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  unix_domain_client ~filename client_fun
+
+
+let p = Printf.kfprintf flush stderr ;;
+
+let echo_client () =
+  let bootstrap s =
+    let socketfile0 = "/tmp/minnie_dgram" in
+    (s#send socketfile0);
+    let socketfile1 = s#receive in
+    new datagram_channel ~socketfile0 ~socketfile1 ()
+  in
+  let rec protocol ch =
+    p "Enter the text to send: ";
+    let x = input_line stdin in
+    (ch#send x);
+    let y = ch#receive in
+    (if x=y then (p "Echo received, ok.\n") else (p "Bad echo!!!!\n"));
+    if y="quit" then (p "client: QUIT!!!!\n") else protocol ch
+  in
+  datagram_unix_domain_client ~bootstrap ~protocol ~filename:"/tmp/minnie" ()

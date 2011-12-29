@@ -135,3 +135,13 @@ module LList = struct
  ;;
 
 end ;;
+
+let g x = let _ = Thread.delay (float_of_int x) in ignore (Sys.command ("touch /tmp/pluto."^(string_of_int x))) ;;
+let xs = Array.init 31 (fun i -> 34+i);;  
+let tks = Array.map (fun x -> ThreadExtra.create_killable g x) xs ;;
+Array.iteri (fun i (t,k) -> Thread.delay 0.1; if i mod 3 = 0 then () else k ()) tks ;;
+let (t1,k1) = ThreadExtra.create_killable g 96;;
+let (t2,k2) = ThreadExtra.create_killable g 97;;
+let (t3,k3) = ThreadExtra.create_killable g 98;;
+let (t4,k4) = ThreadExtra.create_killable g 99;;
+
