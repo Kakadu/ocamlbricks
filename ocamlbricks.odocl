@@ -49,6 +49,7 @@ StringExtra
 String_queue
 Sugar
 SysExtra
+ThreadExtra
 UnixExtra
 Widget
 Wrapper

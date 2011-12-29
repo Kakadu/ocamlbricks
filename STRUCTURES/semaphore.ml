@@ -173,7 +173,7 @@ let find ~aref p a =
  let rec loop i =
   if i>=l then false else
   let x = a.(i) in
-  if (p i x) then ((aref := Some (i,x)); true) else loop (i+1)
+  if (p i x) then ((aref := Some i); true) else loop (i+1)
  in loop 0
 
 let p ?(n=Array.make dim 1) t =
@@ -184,9 +184,9 @@ let p ?(n=Array.make dim 1) t =
      while not (find ~aref (fun i s -> (s.counter >= n.(i))) t) do
        (Condition.wait condition mutex)
      done;
-     let (i,s) = match !aref with Some (i,s) -> (i,s) | None -> assert false in
+     let i = match !aref with Some i -> i | None -> assert false in
      let k = n.(i) in
-     (s.counter <- s.counter - k);
+     (t.(i).counter <- t.(i).counter - k);
      (i,k)
     end)
 
@@ -205,9 +205,9 @@ let p_nowait ?(n=Array.make dim 1) t =
      let aref = ref None in
      if find ~aref (fun i s -> (s.counter >= n.(i))) t then
          begin
-           let (i,s) = match !aref with Some (i,s) -> (i,s) | None -> assert false in
+           let i = match !aref with Some i -> i | None -> assert false in
            let k = n.(i) in
-           (s.counter <- s.counter - k);
+           (t.(i).counter <- t.(i).counter - k);
            Some (i,k)
          end
        else
