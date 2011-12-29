@@ -696,7 +696,7 @@ let kfuture ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (program:
  end
 ;;
 
-(** Create a {!type:UnixExtra.future} that you can manage as usual with functions of the module {!Future}. *)
+(** Create a {!type:UnixExtra.process_result} {!type:Future.t} that you can manage as usual with functions of the module {!Future}. *)
 let future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid program argv_list =
  kfuture ?stdin ?stdout ?stderr ?pseudo ~forward ?register_pid program argv_list (fun x y z -> (x,y,z))
 

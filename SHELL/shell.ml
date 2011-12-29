@@ -15,9 +15,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** A collection of (mainly quick and easy) wrappers for the most famous 
-    {e Unix} tools ({b grep}, {b dd}, {b tar},..) and generic unix commands or scripts. 
-*)
+(** A collection of simple wrappers for the most famous
+    {e Unix} tools ({b grep}, {b dd}, {b tar},..). *)
 
 open Sugar;;
 open UnixExtra;;

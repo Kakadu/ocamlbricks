@@ -15,7 +15,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Extended simple mutexes. *)
+(** Test program for recursive mutexes. *)
+
+(* Extended simple mutexes. *)
 module EMutex = MutexExtra.EMutex
 
 module Debug = struct

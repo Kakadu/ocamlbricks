@@ -14,6 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** Modules encapsulating a global state possibly shared by threads. *)
 
 module type Type = sig type t val name:string option end
 

@@ -14,6 +14,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
+
 let make_dot_filter_by_format_and_description ~output_format_as_string ~description =
   let ext = output_format_as_string in
   let name = Printf.sprintf "%s (*.%s)" description ext in

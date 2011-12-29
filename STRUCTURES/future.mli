@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Synchronization structure for functional/concurrent programming model.
+(** Synchronization structure for functional/concurrent (threads) programming model.
     This structure allows an asynchronous kind of function application.
 
     Differently from the default [Thread], the result of the application is not lost but accessible with the primitives [touch] and [taste].

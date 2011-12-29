@@ -14,6 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** Widgets for dot. *)
+
 val filter_of_format : Dot.output_format -> GFile.filter
 val filter_of_string : string -> GFile.filter
 
