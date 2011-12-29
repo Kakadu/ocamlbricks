@@ -193,40 +193,20 @@ class seqpacket_channel ?max_input_size fd =
     inherit stream_or_seqpacket_bidirectional_channel ?max_input_size ~seqpacket:() fd
 end (* class seqpacket_channel *)
 
+(** Extract the name of the associated socket file from a unix socket.
+    Raises [Not_found] if the socket is not in the unix domain. *)
+let extract_socketfile = function
+  | Unix.ADDR_UNIX x -> x
+  | _ -> raise Not_found
+;;
+
 (* socketfile0 may be not provided when we are building a server.
    Typically the client builds its socketfile (0), send it to the server through the stream channel, then
    receives its socketfile for output (1).  *)
-class datagram_channel ?(max_input_size=1514) ?socketfile0 ~socketfile1 () =
-  let make_socket ?bind_to () =
-    let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
-    (match bind_to with
-    | None -> ()
-    | Some socketfile ->
-        (Printf.kfprintf flush stderr "make_socket: binding to %s\n" socketfile);
-        Unix.bind result (Unix.ADDR_UNIX socketfile)
-    );
-    result
-  in
-  let socketfile0 =
-    match socketfile0 with
-    | Some x -> x
-    | None ->
-       let x = Filename.temp_file ~temp_dir:"" (socketfile1^"-") "-service-in" in
-       let () = Unix.unlink x in
-       x
-  in
-  let fd0 = make_socket ~bind_to:socketfile0 () in
-  let sockaddr0 = Unix.ADDR_UNIX socketfile0 in 
-  let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
-  let input_buffer = String.create max_input_size
-  in
+class datagram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
+  let input_buffer = String.create max_input_size in
+  let sockaddr0 = Unix.getsockname fd0 in
   object
-
-  method socketfile0 = socketfile0
-  method socketfile1 = socketfile1
-  method sockaddr0   = sockaddr0
-  method sockaddr1   = sockaddr1
-  method fd0 = fd0
 
   method receive : string =
     let (n, sockaddr) = Unix.recvfrom fd0 input_buffer 0 max_input_size [] in
@@ -242,7 +222,7 @@ class datagram_channel ?(max_input_size=1514) ?socketfile0 ~socketfile1 () =
     let len = String.length x in
     (* fd0 represents where I want to receive the answer: *)
     let n = Unix.sendto fd0 x 0 len [] sockaddr1 in
-    if n<len then failwith (Printf.sprintf "channel#send: failed sending a datagram: no more than %d bytes sent!" n) else
+    if n<len then failwith (Printf.sprintf "datagram_channel#send: no more than %d bytes sent (instead of %d)" n len) else
     ()
     
   method shutdown ?receive ?send () =
@@ -255,16 +235,57 @@ class datagram_channel ?(max_input_size=1514) ?socketfile0 ~socketfile1 () =
     (match shutdown_command with
     | Unix.SHUTDOWN_RECEIVE | Unix.SHUTDOWN_ALL ->
         (try Unix.close fd0 with _ -> ());
-        (try Unix.unlink socketfile0 with _ -> ());
+        (try Unix.unlink (extract_socketfile sockaddr0) with _ -> ());
     | _ -> ()
     );
     (match shutdown_command with
     | Unix.SHUTDOWN_SEND | Unix.SHUTDOWN_ALL ->
-        (try Unix.unlink socketfile1 with _ -> ());
+        (try Unix.unlink (extract_socketfile sockaddr1) with _ -> ());
     | _ -> ()
     );
 
 end (* class datagram_channel *)
+
+(* Constructor: *)
+let make_derived_unix_datagram_socket ?verbose ?socketfile1 ~socketfile () =
+  let make_socket ~bind_to =
+    let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
+    let socketfile = bind_to in
+    (if verbose = Some () then Printf.kfprintf flush stderr "Socket will bound to %s\n" socketfile);
+    Unix.bind result (Unix.ADDR_UNIX socketfile);
+    result
+  in
+  let socketfile0 =
+    let temp_dir = Filename.dirname socketfile in
+    let prefix = "wire--" in
+    let suffix = Printf.sprintf "--to--%d.%d" (Unix.getpid ()) (Thread.id (Thread.self ())) in
+    let create_name_from_socketfile () =
+      (* Filename.temp_file add an hexadecimal string between the prefix and the suffix: *)
+      let result = Filename.temp_file ~temp_dir prefix suffix in
+      let () = Unix.unlink result in
+      result
+    in
+    let try_to_create_name_from_socketfile1 () =
+      let socketfile1 = Option.extract socketfile1 in
+      (assert (temp_dir = Filename.dirname socketfile1));
+      let basename1 = Filename.basename socketfile1 in
+      let inner_hex_string = 
+        Scanf.sscanf basename1 "wire--%x--to--%d.%d" (fun s p t -> Printf.sprintf "%x" s)
+      in
+      let candidate = Printf.sprintf "%s/%s%s%s" temp_dir prefix inner_hex_string suffix in
+      (assert (not (Sys.file_exists candidate)));
+      candidate
+    in
+    (try
+      try_to_create_name_from_socketfile1 ()
+     with
+      _ -> create_name_from_socketfile ()
+    ) (* end of socketfile0 definition *)
+  in
+  let sockaddr0 = Unix.ADDR_UNIX socketfile0 in
+  let fd0 = make_socket ~bind_to:socketfile0 in
+  (fd0, sockaddr0, socketfile0)
+;;  
 
 type socketfile = string
 type stream_protocol    = stream_channel -> unit
@@ -322,12 +343,13 @@ let datagram_unix_domain_server ?max_pending_requests ?max_input_size ?process_t
   unix_domain_server ?max_pending_requests ?process_tutor ?only_threads ?filename server_fun
 
 (* Esempio: *)
-let echo_server () =
+let echo_server ~filename () =
   let (t, socketfile) =
     let bootstrap s =
       let socketfile1 = s#receive in
-      let ch = new datagram_channel ~socketfile1 () in
-      let socketfile0 = ch#socketfile0 in
+      let (fd0, sockaddr0, socketfile0) = make_derived_unix_datagram_socket ~verbose:() ~socketfile1 ~socketfile:filename () in
+      let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
+      let ch = new datagram_channel ~fd0 ~sockaddr1 () in
       (s#send socketfile0);
       ch
     in
@@ -337,7 +359,7 @@ let echo_server () =
       (ch#send x);
       if x="quit" then (Printf.kfprintf flush stderr "QUIT!!!!\n") else protocol ch
     in
-    datagram_unix_domain_server ~bootstrap ~protocol ~filename:"/tmp/minnie" ()
+    datagram_unix_domain_server ~bootstrap ~protocol ~filename ()
   in
   (t, socketfile)
 
@@ -400,21 +422,21 @@ let datagram_unix_domain_client ?max_input_size ~filename
   unix_domain_client ~filename client_fun
 
 
-let p = Printf.kfprintf flush stderr ;;
-
-let echo_client () =
+let echo_client ~filename () =
+  let pr = Printf.kfprintf flush stderr in
   let bootstrap s =
-    let socketfile0 = "/tmp/minnie_dgram" in
+    let (fd0, sockaddr0, socketfile0) = make_derived_unix_datagram_socket ~verbose:() ~socketfile:filename () in
     (s#send socketfile0);
     let socketfile1 = s#receive in
-    new datagram_channel ~socketfile0 ~socketfile1 ()
+    let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
+    new datagram_channel ~fd0 ~sockaddr1 ()
   in
   let rec protocol ch =
-    p "Enter the text to send: ";
+    pr "Enter the text to send: ";
     let x = input_line stdin in
     (ch#send x);
     let y = ch#receive in
-    (if x=y then (p "Echo received, ok.\n") else (p "Bad echo!!!!\n"));
-    if y="quit" then (p "client: QUIT!!!!\n") else protocol ch
+    (if x=y then (pr "Echo received, ok.\n") else (pr "Bad echo!!!!\n"));
+    if y="quit" then (pr "client: QUIT!!!!\n") else protocol ch
   in
-  datagram_unix_domain_client ~bootstrap ~protocol ~filename:"/tmp/minnie" ()
+  datagram_unix_domain_client ~bootstrap ~protocol ~filename ()

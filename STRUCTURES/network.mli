@@ -51,8 +51,8 @@ class seqpacket_channel :
 
 class datagram_channel :
   ?max_input_size:int ->
-  ?socketfile0:string ->
-  socketfile1:string ->
+  fd0:Unix.file_descr ->
+  sockaddr1:Unix.sockaddr ->
   unit ->
   object
  
@@ -62,11 +62,6 @@ class datagram_channel :
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
 
-    method socketfile0 : string
-    method socketfile1 : string
-    method sockaddr0 : Unix.sockaddr
-    method sockaddr1 : Unix.sockaddr
-    method fd0 : Unix.file_descr
 end
 
 type stream_protocol    = stream_channel    -> unit
@@ -146,8 +141,8 @@ val datagram_unix_domain_server :
   protocol:(datagram_channel -> unit) ->
   unit -> Thread.t * string
 
-val echo_server : unit -> Thread.t * string
-val echo_client : unit -> unit
+val echo_server : filename:string -> unit -> Thread.t * string
+val echo_client : filename:string -> unit -> unit
 
 val datagram_unix_domain_client :
   ?max_input_size:int ->
