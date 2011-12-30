@@ -61,6 +61,7 @@ module type Extended_signature =
 
    val with_mutex       : t -> (unit -> 'a) -> 'a
    val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
+
  end
 
 module EMutex : Extended_signature   (* Extended mutexes *)
@@ -68,3 +69,9 @@ module RMutex : Extended_signature   (* Recursive mutexes *)
 
 (* Just a more explicit alias for RMutex: *)
 module Recursive : Extended_signature 
+
+module Just_give_me_an_apply_with_mutex : functor (M:sig end) ->
+  sig
+    val apply_with_mutex : ('a -> 'b) -> 'a -> 'b
+  end
+

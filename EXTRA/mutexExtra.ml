@@ -179,7 +179,6 @@ let status t =
 end (* Recursive_base *)
 
 
-
 (** Extended recursive mutexes. *)
 module RMutex = struct
  include Extend(Recursive_base)
@@ -190,3 +189,9 @@ module RMutex = struct
 end
 
 module Recursive = RMutex
+
+(** Usage: {[ include MutexExtra.RMutex.Just_give_me_an_apply_with_mutex (struct end) ]} *)
+module Just_give_me_an_apply_with_mutex (M:sig end) = struct
+  let mutex = RMutex.create ()
+  let apply_with_mutex f x = RMutex.apply_with_mutex mutex f x
+end
