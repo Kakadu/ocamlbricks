@@ -42,3 +42,25 @@ module Thread_shared_variable :
       val lock   : unit -> unit
       val unlock : unit -> unit
     end
+
+module type Type_with_init =
+  sig
+    type t
+    val name : string option
+    val init : unit -> t
+  end
+
+module Process_private_thread_shared_variable :
+  functor (Type : Type_with_init) ->
+    sig
+      type t = Type.t
+      val get     : unit -> t option
+      val extract : unit -> t
+      val set     : t -> unit
+      val lazy_set: t Lazy.t -> unit
+      val unset   : unit -> unit
+      val apply_with_mutex : ('a -> 'b) -> 'a -> 'b
+      val lock   : unit -> unit
+      val unlock : unit -> unit
+    end
+

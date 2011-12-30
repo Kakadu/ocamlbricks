@@ -57,3 +57,53 @@ module Thread_shared_variable (Type:Type) = struct
   let lazy_set x = apply_with_mutex lazy_set x
 end
 
+module type Type_with_init =
+  sig
+    type t
+    val name : string option
+    val init : unit -> t
+  end
+
+(** The idea is basically that when a process forks, its child must reset the structure.
+    There isn't sharing among processes, but only among threads of the same process. *)
+module Process_private_thread_shared_variable (Type:Type_with_init) = struct
+  include Variable (Type)
+  module Mutex = MutexExtra.Recursive
+  let mutex = Mutex.create ()
+  (* we provide these new methods: *)
+  let apply_with_mutex f x = Mutex.apply_with_mutex mutex f x
+  let lock () = Mutex.lock mutex
+  let unlock () = Mutex.unlock mutex
+
+  (* First redefiniton: the process-safe versions of accessors: *)
+  let owner = ref (Unix.getpid ()) (* Initialized at the module creation time *)
+  let get () =
+    let pid = Unix.getpid () in
+    if pid = !owner then get ()
+    else begin
+      Printf.kfprintf flush stderr "Owner changed: was %d, now is %d\n" !owner pid;
+      set (Type.init ());
+      owner := pid;
+      get ()
+    end
+  let extract () =
+    let pid = Unix.getpid () in
+    if pid = !owner then extract ()
+    else begin
+      Printf.kfprintf flush stderr "Owner changed: was %d, now is %d\n" !owner pid;
+      set (Type.init ());
+      owner := pid;
+      extract ()
+    end
+
+  (* Second redefiniton: the thread-safe versions of accessors: *)
+  let set x = apply_with_mutex set x
+  let unset () = apply_with_mutex unset ()
+  let get x = apply_with_mutex get x
+  let extract x = apply_with_mutex extract x
+  let lazy_set x = apply_with_mutex lazy_set x
+
+  (* The variable is automatically initialized in a lazy way by the provided init() function: *)
+  let () = lazy_set (lazy (Type.init ()))
+end
+
