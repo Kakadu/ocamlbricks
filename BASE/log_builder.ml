@@ -146,10 +146,8 @@ module Make
            | false -> ()
            | true  ->
               let thread_id = Thread.id (Thread.self ()) in
-(*            let program   = Filename.basename (Sys.executable_name) in
               let pid = Unix.getpid () in
-              let prefix = Printf.sprintf "%s %d [thread %d]: " program pid thread_id in *)
-              let prefix = Printf.sprintf "[%d]: " thread_id in
+              let prefix = Printf.sprintf "[%d.%d]: " pid thread_id in
               Printf.kfprintf flush out_channel "%s" prefix);
          Printf.kfprintf flush out_channel frmt
        end

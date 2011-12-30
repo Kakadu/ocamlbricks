@@ -15,6 +15,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
+val string_of_sockaddr : Unix.sockaddr -> string
+
 class stream_channel :
   ?max_input_size:int ->
   Unix.file_descr ->

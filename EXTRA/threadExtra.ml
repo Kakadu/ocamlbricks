@@ -16,6 +16,8 @@
 
 (** Additional features for the module [Thread] provided by the [threads] library. *)
 
+module Log = Ocamlbricks_log
+
 module Exit_function = struct
 
   include MutexExtra.Just_give_me_an_apply_with_mutex (struct end)
@@ -42,19 +44,21 @@ module Exit_function = struct
     let pid = Unix.getpid () in
     let id = Thread.id (Thread.self ()) in
     let key = (pid, id) in
-    Printf.kfprintf flush stderr "Thread %d.%d has called do_at_exit\n" pid id;
+    Log.printf "Exiting: do_at_exit() called\n";
     let action () =
       if Lazy.lazy_is_val ht then
-       let ht = Lazy.force ht in
-       begin
-	 try
-	   let exit_function = Hashtbl.find ht key in
-	   let () = exit_function () in
-	   Hashtbl.remove ht key
-	 with Not_found ->
-	   (Printf.kfprintf flush stderr "Nothing to do for the thread %d.%d\n" pid id);
-	   ()
-       end
+	let ht = Lazy.force ht in
+	begin
+	  try
+	    let exit_function = Hashtbl.find ht key in
+	    let () = exit_function () in
+	    Log.printf "Exiting: some actions performed\n";
+	    Hashtbl.remove ht key
+	  with Not_found ->
+	    Log.printf "Exiting: nothing to do\n"
+	end
+      else
+        Log.printf "Exiting: nothing to do\n"
     in
     apply_with_mutex action ()
 
@@ -66,17 +70,21 @@ module Exit_function = struct
      like 1042.6. *)
   let () =
     let mrproper () =
+      Log.printf "Exiting: main thread at_exit() called\n";
       let pid = Unix.getpid () in
-      let id = Thread.id (Thread.self ()) in
-      Printf.kfprintf flush stderr "The main thread %d.%d has called mrproper\n" pid id;
       let action () =
         if Lazy.lazy_is_val ht then begin
-          Printf.kfprintf flush stderr "The main thread %d.%d is performing mrproper...\n" pid id;
           let ht = Lazy.force ht in
+          let flag = ref 0 in
           (* Executes all thunks related to the *same* process: *)
-	  Hashtbl.iter (fun (pid', _) thunk -> if pid=pid' then thunk ()) ht;
-	  Hashtbl.clear ht
+	  Hashtbl.iter (fun (pid', _) thunk -> if pid=pid' then incr flag; thunk ()) ht;
+	  Hashtbl.clear ht;
+	  if !flag = 0
+	    then Log.printf "Exiting: nothing to do\n"
+	    else Log.printf "Exiting: %d action(s) performed\n" !flag
 	  end
+	else
+          Log.printf "Exiting: nothing to do\n"
       in
       apply_with_mutex action ()
     in
@@ -116,11 +124,11 @@ end (* module Available_signals *)
     (64-34+1) possible threads per process that may run simultaneously with the capability of being killed.
     Thus, this call is blocking: the caller wait until a "signal slot" became available for the thread that
     will be created. *)
-let create_killable ?verbose =
+let create_killable =
   let handler id s =
     let id' = Thread.id (Thread.self ()) in
-    (if id <> id' then Printf.kfprintf flush stderr "Wrong behaviour: thread %d should be killed by signal %d but thread %d is killed instead\n" id s id');
-    (if verbose = Some () then Printf.kfprintf flush stderr "Thread %d killed by signal %d\n" id' s);
+    (if id <> id' then Log.printf ~v:0 "Wrong behaviour: thread %d should be killed by signal #%d but I'm killed instead\n" id s);
+    Log.printf "Killed by signal #%d\n" s;
     raise Available_signals.Has_been_killed
   in
   fun f x ->
@@ -133,7 +141,7 @@ let create_killable ?verbose =
       let _ = Thread.sigmask Unix.SIG_UNBLOCK [s] in
       let id = Thread.id (Thread.self ()) in
       let previous_handler = Sys.signal s (Sys.Signal_handle (handler id)) in
-      (if verbose = Some () then Printf.kfprintf flush stderr "Thread %d owning the signal %d\n" id s);
+      Log.printf "Signal #%d unblocked in this thread\n" s;
       let final_actions () =
         (* The thread should make free the owned signal: *)
         Available_signals.release ~i ~n;

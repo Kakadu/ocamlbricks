@@ -17,6 +17,8 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+module Log = Ocamlbricks_log
+
 (** The default size of for hash tables. *)
 let default_size = 251;;
 
@@ -41,7 +43,7 @@ let memoize_and_get_table ?trace_faults ?(size=default_size) f =
 	    Hashtbl.find ht x
 	  with Not_found ->
 	    begin
-	      Printf.kfprintf flush stderr
+	      Log.printf 
 		"Memo.memoize: cache fault for input with hash key %d: function must be called.\n"
 		(Hashtbl.hash x) ;
 	      let y = f x in

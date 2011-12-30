@@ -15,8 +15,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
-val create : ('a -> 'b) -> 'a -> Thread.t
-
-val create_killable : ?verbose:unit -> ('a -> 'b) -> 'a -> Thread.t * (unit -> unit) * int
+val create          : ('a -> 'b) -> 'a -> Thread.t
+val create_killable : ('a -> 'b) -> 'a -> Thread.t * (unit -> unit) * int
 
 val at_exit : (unit -> unit) -> unit

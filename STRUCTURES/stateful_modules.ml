@@ -81,7 +81,6 @@ module Process_private_thread_shared_variable (Type:Type_with_init) = struct
     let pid = Unix.getpid () in
     if pid = !owner then get ()
     else begin
-      Printf.kfprintf flush stderr "Owner changed: was %d, now is %d\n" !owner pid;
       set (Type.init ());
       owner := pid;
       get ()
@@ -90,7 +89,6 @@ module Process_private_thread_shared_variable (Type:Type_with_init) = struct
     let pid = Unix.getpid () in
     if pid = !owner then extract ()
     else begin
-      Printf.kfprintf flush stderr "Owner changed: was %d, now is %d\n" !owner pid;
       set (Type.init ());
       owner := pid;
       extract ()

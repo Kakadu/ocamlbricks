@@ -15,6 +15,19 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
+module Log = Ocamlbricks_log
+
+(* Extract the name of the associated socket file from a unix socket.
+    Raises [Not_found] if the socket is not in the unix domain. *)
+let extract_socketfile = function
+  | Unix.ADDR_UNIX x -> x
+  | _ -> raise Not_found
+
+let string_of_sockaddr = function
+  | Unix.ADDR_UNIX x -> x
+  | Unix.ADDR_INET (inet_addr, port) ->
+      Printf.sprintf "%s:%d" (Unix.string_of_inet_addr inet_addr) port
+
 (* From standard library unix.ml *)
 let rec accept_non_intr s =
   try Unix.accept s
@@ -34,34 +47,47 @@ let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads ser
   in
   let domain = Unix.domain_of_sockaddr sockaddr in
   let listen_socket = Unix.socket domain socket_type 0 in
-  (* listen_socket initialization *)
+  (* listen_socket initialization: *)
   let () =
     Unix.setsockopt listen_socket Unix.SO_REUSEADDR true;
     Unix.bind listen_socket sockaddr;
     Unix.listen listen_socket max_pending_requests
   in
   let process_forking_loop () =
+    let connexion_no = ref 0 in
     let process_tutor =
       match process_tutor with
-      | None   -> (function pid -> ignore (waitpid_non_intr pid))
-      | Some f -> (function pid -> let () = f ~pid in ignore (waitpid_non_intr pid))
+      | None   ->
+         (function pid ->
+            Log.printf "Default tutor started for the process %d\n" pid;
+            ignore (waitpid_non_intr pid)
+            )
+      | Some f ->
+         (function pid ->
+            Log.printf "Provided tutor started for the process %d\n" pid;
+            let () = f ~pid in ignore (waitpid_non_intr pid)
+            )
     in
     while true do
       let (service_socket, _) = accept_non_intr listen_socket in
+      incr connexion_no;
+      let sockaddr = string_of_sockaddr (Unix.getsockname service_socket) in
+      Log.printf "Accepted connection #%d from %s\n" !connexion_no sockaddr;
       match Unix.fork () with
       |	0 ->
           (* The child here: *)
           begin
+            Log.printf "Process started to serve the connection #%d from %s\n" !connexion_no sockaddr;
 	    Unix.close listen_socket;
 	    (try Unix.set_close_on_exec service_socket with Invalid_argument _ -> ());
 	    let () = server_fun service_socket in
 	    exit 0
 	  end
       | child_id ->
-          (* The father here: it creates a process-tutor thread per child: *)
+          (* The father here creates a process-tutor thread per child: *)
           begin
             Unix.close service_socket;
-            ignore (Thread.create process_tutor child_id)
+            ignore (ThreadExtra.create process_tutor child_id)
           end
     done
   in
@@ -73,11 +99,19 @@ let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads ser
     done
   in
   let forking_loop () =
+    (* listen_socket finalization: *)
+    let () =
+      match sockaddr with
+      | Unix.ADDR_UNIX filename ->
+	  ThreadExtra.at_exit (fun () -> Unix.unlink filename)
+      | _ -> ()
+    in
+    (* process or thread switching: *)
     match only_threads with
     | None    -> process_forking_loop ()
     | Some () -> thread_forking_loop ()
   in
-  let server_thread = Thread.create forking_loop () in
+  let server_thread = ThreadExtra.create forking_loop () in
   server_thread
   
 
@@ -193,13 +227,6 @@ class seqpacket_channel ?max_input_size fd =
     inherit stream_or_seqpacket_bidirectional_channel ?max_input_size ~seqpacket:() fd
 end (* class seqpacket_channel *)
 
-(** Extract the name of the associated socket file from a unix socket.
-    Raises [Not_found] if the socket is not in the unix domain. *)
-let extract_socketfile = function
-  | Unix.ADDR_UNIX x -> x
-  | _ -> raise Not_found
-;;
-
 (* socketfile0 may be not provided when we are building a server.
    Typically the client builds its socketfile (0), send it to the server through the stream channel, then
    receives its socketfile for output (1).  *)
@@ -247,11 +274,11 @@ class datagram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
 end (* class datagram_channel *)
 
 (* Constructor: *)
-let make_derived_unix_datagram_socket ?verbose ?socketfile1 ~socketfile () =
+let make_derived_unix_datagram_socket ?socketfile1 ~socketfile () =
   let make_socket ~bind_to =
     let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
     let socketfile = bind_to in
-    (if verbose = Some () then Printf.kfprintf flush stderr "Socket will bound to %s\n" socketfile);
+    Log.printf "Socket will bound to %s\n" socketfile;
     Unix.bind result (Unix.ADDR_UNIX socketfile);
     result
   in
@@ -347,7 +374,7 @@ let echo_server ~filename () =
   let (t, socketfile) =
     let bootstrap s =
       let socketfile1 = s#receive in
-      let (fd0, sockaddr0, socketfile0) = make_derived_unix_datagram_socket ~verbose:() ~socketfile1 ~socketfile:filename () in
+      let (fd0, sockaddr0, socketfile0) = make_derived_unix_datagram_socket ~socketfile1 ~socketfile:filename () in
       let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
       let ch = new datagram_channel ~fd0 ~sockaddr1 () in
       (s#send socketfile0);
@@ -357,7 +384,7 @@ let echo_server ~filename () =
     let rec protocol ch =
       let x = ch#receive in
       (ch#send x);
-      if x="quit" then (Printf.kfprintf flush stderr "QUIT!!!!\n") else protocol ch
+      if x="quit" then (Printf.kfprintf flush stderr "Echo server exiting.\n") else protocol ch
     in
     datagram_unix_domain_server ~bootstrap ~protocol ~filename ()
   in
@@ -425,7 +452,7 @@ let datagram_unix_domain_client ?max_input_size ~filename
 let echo_client ~filename () =
   let pr = Printf.kfprintf flush stderr in
   let bootstrap s =
-    let (fd0, sockaddr0, socketfile0) = make_derived_unix_datagram_socket ~verbose:() ~socketfile:filename () in
+    let (fd0, sockaddr0, socketfile0) = make_derived_unix_datagram_socket ~socketfile:filename () in
     (s#send socketfile0);
     let socketfile1 = s#receive in
     let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
