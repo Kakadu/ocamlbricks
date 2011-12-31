@@ -33,13 +33,8 @@ let rec accept_non_intr s =
   try Unix.accept s
   with Unix.Unix_error (Unix.EINTR, _, _) -> accept_non_intr s
 
-(* From standard library unix.ml *)
-let rec waitpid_non_intr pid =
-  try Unix.waitpid [] pid
-  with Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
-
 (* Generic function able to establish a server on a sockaddr. *)
-let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads server_fun sockaddr =
+let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr =
   let socket_type =
     match seqpacket with
     | None    -> Unix.SOCK_STREAM
@@ -55,19 +50,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads ser
   in
   let process_forking_loop () =
     let connexion_no = ref 0 in
-    let process_tutor =
-      match process_tutor with
-      | None   ->
-         (function pid ->
-            Log.printf "Default tutor started for the process %d\n" pid;
-            ignore (waitpid_non_intr pid)
-            )
-      | Some f ->
-         (function pid ->
-            Log.printf "Provided tutor started for the process %d\n" pid;
-            let () = f ~pid in ignore (waitpid_non_intr pid)
-            )
-    in
+    let tutor = ThreadExtra.tutor (*~killable:()*) ?behaviour:tutor_behaviour () in
     while true do
       let (service_socket, _) = accept_non_intr listen_socket in
       incr connexion_no;
@@ -77,17 +60,17 @@ let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads ser
       |	0 ->
           (* The child here: *)
           begin
-            Log.printf "Process started to serve the connection #%d from %s\n" !connexion_no sockaddr;
+            Log.printf "Process Fork: activated for connection #%d from %s\n" !connexion_no sockaddr;
 	    Unix.close listen_socket;
 	    (try Unix.set_close_on_exec service_socket with Invalid_argument _ -> ());
 	    let () = server_fun service_socket in
 	    exit 0
 	  end
-      | child_id ->
+      | child_pid ->
           (* The father here creates a process-tutor thread per child: *)
           begin
             Unix.close service_socket;
-            ignore (ThreadExtra.create process_tutor child_id)
+            ignore (tutor child_pid)
           end
     done
   in
@@ -111,11 +94,11 @@ let server ?(max_pending_requests=5) ?seqpacket ?process_tutor ?only_threads ser
     | None    -> process_forking_loop ()
     | Some () -> thread_forking_loop ()
   in
-  let server_thread = ThreadExtra.create forking_loop () in
+  let server_thread = ThreadExtra.create ?killable forking_loop () in
   server_thread
   
 
-let unix_domain_server ?max_pending_requests ?seqpacket ?process_tutor ?only_threads ?filename server_fun =
+let unix_domain_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?filename server_fun =
   let filename = match filename with
     | Some x -> x
     | None ->
@@ -130,26 +113,26 @@ let unix_domain_server ?max_pending_requests ?seqpacket ?process_tutor ?only_thr
         (temp_dir^"/listen-socket")
   in
   let sockaddr = Unix.ADDR_UNIX filename in
-  let server_thread = server ?max_pending_requests ?seqpacket ?process_tutor ?only_threads server_fun sockaddr in
+  let server_thread = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
   (server_thread, filename)
 
 
-let inet_domain_server ?max_pending_requests ?seqpacket ?process_tutor ?only_threads ?ipv4 ~port server_fun =
+let inet_domain_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port server_fun =
   let ipv4 = match ipv4 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv4, port) in
-  let server_thread = server ?max_pending_requests ?seqpacket ?process_tutor ?only_threads server_fun sockaddr in
+  let server_thread = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
   (server_thread, (Unix.string_of_inet_addr ipv4))
 
-let inet6_domain_server ?max_pending_requests ?seqpacket ?process_tutor ?only_threads ?ipv6 ~port server_fun =
+let inet6_domain_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port server_fun =
   let ipv6 = match ipv6 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet6_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv6, port) in
-  let server_thread = server ?max_pending_requests ?seqpacket ?process_tutor ?only_threads server_fun sockaddr in
+  let server_thread = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
   (server_thread, (Unix.string_of_inet_addr ipv6))
 
 
@@ -168,7 +151,7 @@ class stream_or_seqpacket_bidirectional_channel ?(max_input_size=1514) ?seqpacke
   (* Send method for seqpacket socket descriptors: *)
   let send_seqpacket x off len =
     let n = Unix.send fd x off len [] in
-    if n <len then failwith (Printf.sprintf "channel#send: failed sending a seqpacket: no more than %d bytes sent!" n) else
+    if n<len then failwith (Printf.sprintf "channel#send: failed sending a seqpacket: no more than %d bytes sent!" n) else
     ()
   in
   (* Select the good method at object creation time: *)
@@ -278,8 +261,8 @@ let make_derived_unix_datagram_socket ?socketfile1 ~socketfile () =
   let make_socket ~bind_to =
     let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
     let socketfile = bind_to in
-    Log.printf "Socket will bound to %s\n" socketfile;
     Unix.bind result (Unix.ADDR_UNIX socketfile);
+    Log.printf "Unix datagram socket bound to %s\n" socketfile;
     result
   in
   let socketfile0 =
@@ -333,29 +316,28 @@ let server_fun_of_seqpacket_protocol ?max_input_size protocol =
     (try channel#shutdown () with _ -> ());
     result
 
-
 (* seqpacket - unix *)
-let seqpacket_unix_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?filename ~(protocol:seqpacket_channel -> unit) () =
+let seqpacket_unix_domain_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?filename ~(protocol:seqpacket_channel -> unit) () =
   let server_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  unix_domain_server ?max_pending_requests ~seqpacket:() ?process_tutor ?only_threads ?filename server_fun
+  unix_domain_server ?max_pending_requests ~seqpacket:() ?killable ?tutor_behaviour ?only_threads ?filename server_fun
 
 (* stream - unix *)
-let stream_unix_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?filename ~(protocol:stream_channel -> unit) () =
+let stream_unix_domain_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?filename ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  unix_domain_server ?max_pending_requests ?process_tutor ?only_threads ?filename server_fun
+  unix_domain_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?filename server_fun
 
 (* stream - inet *)
-let stream_inet_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv4 ~port ~(protocol:stream_channel -> unit) () =
+let stream_inet_domain_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet_domain_server ?max_pending_requests ?process_tutor ?only_threads ?ipv4 ~port server_fun
+  inet_domain_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port server_fun
 
 (* stream - inet6 *)
-let stream_inet6_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?ipv6 ~port ~(protocol:stream_channel -> unit) () =
+let stream_inet6_domain_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet6_domain_server ?max_pending_requests ?process_tutor ?only_threads ?ipv6 ~port server_fun
+  inet6_domain_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port server_fun
 
 (* datagram - unix *)
-let datagram_unix_domain_server ?max_pending_requests ?max_input_size ?process_tutor ?only_threads ?filename
+let datagram_unix_domain_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?filename
   ~(bootstrap : stream_channel   -> datagram_channel)
   ~(protocol  : datagram_channel -> unit)
   () =
@@ -367,7 +349,7 @@ let datagram_unix_domain_server ?max_pending_requests ?max_input_size ?process_t
       datagram_channel#shutdown ~receive:() ()
   in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  unix_domain_server ?max_pending_requests ?process_tutor ?only_threads ?filename server_fun
+  unix_domain_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?filename server_fun
 
 (* Esempio: *)
 let echo_server ~filename () =

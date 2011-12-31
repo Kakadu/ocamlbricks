@@ -75,7 +75,8 @@ type datagram_protocol  = (stream_channel -> datagram_channel) * (datagram_chann
 val seqpacket_unix_domain_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?filename:string ->
   protocol:(seqpacket_channel -> unit) ->
@@ -92,7 +93,8 @@ val seqpacket_unix_domain_client :
 val stream_unix_domain_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?filename:string ->
   protocol:(stream_channel -> unit) ->
@@ -109,7 +111,8 @@ val stream_unix_domain_client :
 val stream_inet_domain_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv4:string ->
   port:int -> protocol:(stream_channel -> unit) ->
@@ -118,7 +121,8 @@ val stream_inet_domain_server :
 val stream_inet6_domain_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv6:string ->
   port:int ->
@@ -136,7 +140,8 @@ val stream_inet_domain_client :
 val datagram_unix_domain_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?process_tutor:(pid:int -> unit) ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?filename:string ->
   bootstrap:(stream_channel -> datagram_channel) ->
