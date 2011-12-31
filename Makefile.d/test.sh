@@ -73,6 +73,7 @@ cat > $PREAMBLE  <<EOF
 Printf.printf "You can open and test the following modules:\n---\n%s\n---\n" "${M}";;
 Printf.printf "Tip: if you want see the signature just type: module M = <Name>;;\n";;
 Printexc.record_backtrace true;;
+Ocamlbricks_log.enable ();;
 EOF
  cd ..
 }

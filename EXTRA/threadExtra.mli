@@ -15,7 +15,18 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
-val create          : ('a -> 'b) -> 'a -> Thread.t
-val create_killable : ('a -> 'b) -> 'a -> Thread.t * (unit -> unit) * int
+val create : ?killable:unit -> ('a -> 'b) -> 'a -> Thread.t
+val fork   : ?killable:unit -> ?behaviour:(pid:int->unit) -> ('a -> 'b) -> 'a -> Thread.t
+
+val tutor  : ?killable:unit -> ?behaviour:(pid:int->unit) -> unit -> pid:int -> Thread.t
 
 val at_exit : (unit -> unit) -> unit
+
+val kill      : Thread.t -> bool
+val killall   : unit -> unit
+val killable  : unit -> int list
+val killer    : Thread.t -> unit -> unit
+
+val id_kill   : int -> bool
+val id_killer : int -> unit -> unit
+
