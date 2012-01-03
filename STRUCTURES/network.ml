@@ -536,66 +536,6 @@ let dgram_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_be
   inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port server_fun
 
 
-(* For both inet4 and inet6: *)
-let dgram_inet_echo_server ?inet6 ~port () =
-  let (thread, _) =
-    let bootstrap (ch:stream_channel) =
-      (* The client provides the port where it will receive datagrams: *)
-      let peer = string_of_sockaddr ch#sockaddr1 in
-      Log.printf "Receiving the dgram-inet port number (my output line) from %s\n" peer;
-      let dgram_output_port = ch#input_binary_int in
-      let peer_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr1) in
-      Log.printf "Ok, my output line is %s:%d\n" (Unix.string_of_inet_addr peer_inet_addr) dgram_output_port;
-      let sockaddr1 = Unix.ADDR_INET (peer_inet_addr, dgram_output_port) in
-      let my_stream_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr0) in
-      let (fd0, sockaddr0, port0) =
-        dgram_input_port_of ~dgram_output_port ~my_stream_inet_addr ()
-      in
-      let dgram_channel = new dgram_channel ~fd0 ~sockaddr1 () in
-      Log.printf "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
-      (ch#output_binary_int port0);
-      dgram_channel
-    in
-    (* A simple echo server: *)
-    let rec protocol ch =
-      let x = ch#receive in
-      (ch#send x);
-      if x="quit"
-       then (Printf.kfprintf flush stderr "Datagram inet ECHO server exiting.\n")
-       else protocol ch
-    in
-    match inet6 with
-    | None    -> dgram_inet_server  ~port ~bootstrap ~protocol ()
-    | Some () -> dgram_inet6_server ~port ~bootstrap ~protocol ()
-  in
-  thread
-
-
-(* Esempio: *)
-let dgram_unix_echo_server ~stream_socketfile () =
-  let (t, socketfile) =
-    let bootstrap (s:stream_channel) =
-      let dgram_output_socketfile = s#receive () in
-      let (fd0, sockaddr0, socketfile0) =
-        dgram_input_socketfile_of ~dgram_output_socketfile ~stream_socketfile ()
-      in
-      let sockaddr1 = Unix.ADDR_UNIX dgram_output_socketfile in
-      let ch = new dgram_channel ~fd0 ~sockaddr1 () in
-      (s#send socketfile0);
-      ch
-    in
-    (* A simple echo server: *)
-    let rec protocol ch =
-      let x = ch#receive in
-      (ch#send x);
-      if x="quit"
-       then (Printf.kfprintf flush stderr "Datagram unix ECHO server exiting.\n")
-       else protocol ch
-    in
-    dgram_unix_server ~bootstrap ~protocol ~filename:stream_socketfile ()
-  in
-  (t, socketfile)
-
 
 let client ?seqpacket client_fun sockaddr =
   let socket_type =
@@ -658,8 +598,83 @@ let dgram_inet_client ?max_input_size
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
   inet_client ~ipv4_or_v6 ~port client_fun
 
-let dgram_inet_echo_client ~ipv4_or_v6 ~port () =
+IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+module Examples = struct
+
+(* A simple echo server: *)
+let rec simple_echo_server_protocol ch =
   let pr = Printf.kfprintf flush stderr in
+  let x = ch#receive in
+  (ch#send x);
+  if x="quit"
+    then (pr "ECHO server: exiting.\n")
+    else simple_echo_server_protocol ch
+
+let rec simple_echo_client_protocol ch =
+  let pr = Printf.kfprintf flush stderr in
+  pr "Enter the text to send: ";
+  let x = input_line stdin in
+  (ch#send x);
+  let y = ch#receive in
+  (if x=y then (pr "Echo received, ok.\n") else (pr "Bad echo!!!!\n"));
+  if y="quit"
+   then (pr "ECHO client: exiting.\n")
+   else simple_echo_client_protocol ch
+
+(* For both inet4 and inet6: *)
+let dgram_inet_echo_server ?inet6 ~port () =
+  let (thread, _) =
+    let bootstrap (ch:stream_channel) =
+      (* The client provides the port where it will receive datagrams: *)
+      let peer = string_of_sockaddr ch#sockaddr1 in
+      Log.printf "Receiving the dgram-inet port number (my output line) from %s\n" peer;
+      let dgram_output_port = ch#input_binary_int in
+      let peer_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr1) in
+      Log.printf "Ok, my output line is %s:%d\n" (Unix.string_of_inet_addr peer_inet_addr) dgram_output_port;
+      let sockaddr1 = Unix.ADDR_INET (peer_inet_addr, dgram_output_port) in
+      let my_stream_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr0) in
+      let (fd0, sockaddr0, port0) =
+        dgram_input_port_of ~dgram_output_port ~my_stream_inet_addr ()
+      in
+      let dgram_channel = new dgram_channel ~fd0 ~sockaddr1 () in
+      Log.printf "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
+      (ch#output_binary_int port0);
+      dgram_channel
+    in
+    let protocol (ch:dgram_channel) =
+      simple_echo_server_protocol ch
+    in
+    match inet6 with
+    | None    -> dgram_inet_server  ~port ~bootstrap ~protocol ()
+    | Some () -> dgram_inet6_server ~port ~bootstrap ~protocol ()
+  in
+  thread
+
+
+let dgram_unix_echo_server ~stream_socketfile () =
+  let (t, socketfile) =
+    let bootstrap (ch:stream_channel) =
+      let sockname = string_of_sockaddr ch#sockaddr0 in
+      Log.printf "Receiving the filename (my output line) from %s\n" sockname;
+      let dgram_output_socketfile = ch#receive () in
+      Log.printf "Ok, my output line is %s\n" dgram_output_socketfile;
+      let (fd0, sockaddr0, socketfile0) =
+        dgram_input_socketfile_of ~dgram_output_socketfile ~stream_socketfile ()
+      in
+      let sockaddr1 = Unix.ADDR_UNIX dgram_output_socketfile in
+      let dgram_channel = new dgram_channel ~fd0 ~sockaddr1 () in
+      Log.printf "Sending the filename %s (my input line) to %s\n" socketfile0 sockname;
+      (ch#send socketfile0);
+      dgram_channel
+    in
+    let protocol (ch:dgram_channel) =
+      simple_echo_server_protocol ch
+    in
+    dgram_unix_server ~bootstrap ~protocol ~filename:stream_socketfile ()
+  in
+  (t, socketfile)
+
+let dgram_inet_echo_client ~ipv4_or_v6 ~port () =
   let bootstrap (stream_channel as ch) =
     let my_stream_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr0) in
     let (fd0, sockaddr0, port0) =
@@ -677,13 +692,8 @@ let dgram_inet_echo_client ~ipv4_or_v6 ~port () =
     let sockaddr1 = Unix.ADDR_INET (peer_inet_addr, dgram_output_port) in
     new dgram_channel ~fd0 ~sockaddr1 ()
   in
-  let rec protocol ch =
-    pr "Enter the text to send: ";
-    let x = input_line stdin in
-    (ch#send x);
-    let y = ch#receive in
-    (if x=y then (pr "Echo received, ok.\n") else (pr "Bad echo!!!!\n"));
-    if y="quit" then (pr "client: QUIT!!!!\n") else protocol ch
+  let protocol ch =
+    simple_echo_client_protocol ch
   in
   dgram_inet_client ~bootstrap ~protocol ~ipv4_or_v6 ~port ()
 
@@ -698,12 +708,10 @@ let dgram_unix_echo_client ~stream_socketfile () =
     let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
     new dgram_channel ~fd0 ~sockaddr1 ()
   in
-  let rec protocol ch =
-    pr "Enter the text to send: ";
-    let x = input_line stdin in
-    (ch#send x);
-    let y = ch#receive in
-    (if x=y then (pr "Echo received, ok.\n") else (pr "Bad echo!!!!\n"));
-    if y="quit" then (pr "client: QUIT!!!!\n") else protocol ch
+  let protocol ch =
+    simple_echo_client_protocol ch
   in
   dgram_unix_client ~bootstrap ~protocol ~filename:stream_socketfile ()
+
+end (* module Examples *)
+ENDIF

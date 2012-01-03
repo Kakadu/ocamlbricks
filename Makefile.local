@@ -129,9 +129,15 @@ clean-local:
 	rm -rf _build/does_process_exist.o
 	rm -rf _build/waitpid-c-wrapper.o
 
+TESTING_TRACE=_build/compiled-with-DDOCUMENTATION_OR_DEBUGGING
+compile_for_testing:
+	test -f  $(TESTING_TRACE) || \
+	  make clean \; \
+	  make PP_OPTION="$(PP_OPTION) -DDOCUMENTATION_OR_DEBUGGING" \; \
+	  touch $(TESTING_TRACE)
+
 # Test without installation
 LIBRARY_TO_TEST=_build/ocamlbricks.cma
-test: rebuilding
-	@test -f  $(LIBRARY_TO_TEST) || make
+test: compile_for_testing rebuilding
 	@chmod +x Makefile.d/test.sh
 	@Makefile.d/test.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"

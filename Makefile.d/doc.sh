@@ -36,7 +36,7 @@ set -x
 [[ $1 = "-pp" ]] || usage
 PP_OPTION=$(echo $2)
 if [[ $PP_OPTION != "" ]]; then
- PP_OPTION="-pp '$2'"
+ PP_OPTION="-pp '$2 -DDOCUMENTATION_OR_DEBUGGING'"
 fi
 shift 2
 

@@ -205,9 +205,6 @@ val dgram_unix_client :
   protocol:(dgram_channel -> 'a) ->
   unit -> 'a
 
-val dgram_unix_echo_server : stream_socketfile:string -> unit -> Thread.t * string
-val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit
-
 (* datagram - inet & inet6 *)
 val dgram_inet_server :
   ?max_pending_requests:int ->
@@ -241,9 +238,14 @@ val dgram_inet_client :
   protocol:(dgram_channel -> 'a) ->
   unit -> 'a
 
-val dgram_inet_echo_server  : ?inet6:unit -> port:int -> unit -> Thread.t
-val dgram_inet_echo_client  : ipv4_or_v6:string -> port:int -> unit -> unit
-(*
-val dgram_inet6_echo_server : port:int -> unit -> Thread.t * string
-*)
+IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+module Examples : sig
 
+  val dgram_unix_echo_server : stream_socketfile:string -> unit -> Thread.t * string
+  val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit
+
+  val dgram_inet_echo_server  : ?inet6:unit -> port:int -> unit -> Thread.t
+  val dgram_inet_echo_client  : ipv4_or_v6:string -> port:int -> unit -> unit
+
+end
+ENDIF
