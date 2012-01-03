@@ -15,7 +15,11 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
-val string_of_sockaddr : Unix.sockaddr -> string
+val string_of_sockaddr             : Unix.sockaddr -> string
+val socketfile_of_sockaddr         : Unix.sockaddr -> string
+val inet_addr_and_port_of_sockaddr : Unix.sockaddr -> Unix.inet_addr * int
+
+val domain_of_inet_addr : Unix.inet_addr -> Unix.socket_domain
 
 class stream_channel :
   ?max_input_size:int ->
@@ -23,7 +27,7 @@ class stream_channel :
   object
     method send    : string -> unit
     method receive : string
-    method peek    : string
+    method peek    : string option
 
     method input_char       : char
     method input_line       : string
@@ -38,6 +42,10 @@ class stream_channel :
     method output_value      : 'b -> unit
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
+
+    method sockaddr0 : Unix.sockaddr
+    method sockaddr1 : Unix.sockaddr
+
   end
 
 class seqpacket_channel :
@@ -46,12 +54,16 @@ class seqpacket_channel :
   object
     method send    : string -> unit
     method receive : string
-    method peek    : string
+    method peek    : string option
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
+
+    method sockaddr0 : Unix.sockaddr
+    method sockaddr1 : Unix.sockaddr
+
   end
 
-class datagram_channel :
+class dgram_channel :
   ?max_input_size:int ->
   fd0:Unix.file_descr ->
   sockaddr1:Unix.sockaddr ->
@@ -60,19 +72,24 @@ class datagram_channel :
  
     method send    : string -> unit
     method receive : string
-    method peek    : string
+    method peek    : string option
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
 
 end
 
+val dgram_input_socketfile_of :
+  ?dgram_output_socketfile:string ->
+  stream_socketfile:string ->
+  unit ->  Unix.file_descr * Unix.sockaddr * string
+
 type stream_protocol    = stream_channel    -> unit
 type seqpacket_protocol = seqpacket_channel -> unit
-type datagram_protocol  = (stream_channel -> datagram_channel) * (datagram_channel -> unit)
+type dgram_protocol  = (stream_channel -> dgram_channel) * (dgram_channel -> unit)
 
 (** {2 Seqpacket Unix Domain } *)
 
-val seqpacket_unix_domain_server :
+val seqpacket_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
@@ -82,7 +99,7 @@ val seqpacket_unix_domain_server :
   protocol:(seqpacket_channel -> unit) ->
   unit -> Thread.t * string
 
-val seqpacket_unix_domain_client :
+val seqpacket_unix_client :
   ?max_input_size:int ->
   filename:string ->
   protocol:(seqpacket_channel -> 'a) ->
@@ -90,7 +107,7 @@ val seqpacket_unix_domain_client :
 
 (** {2 Stream Unix Domain } *)
 
-val stream_unix_domain_server :
+val stream_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
@@ -100,7 +117,7 @@ val stream_unix_domain_server :
   protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string
 
-val stream_unix_domain_client :
+val stream_unix_client :
   ?max_input_size:int ->
   filename:string ->
   protocol:(stream_channel -> 'a) ->
@@ -108,17 +125,18 @@ val stream_unix_domain_client :
 
 (** {2 Stream Internet Domain } *)
 
-val stream_inet_domain_server :
+val stream_inet_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv4:string ->
-  port:int -> protocol:(stream_channel -> unit) ->
+  port:int ->
+  protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string
 
-val stream_inet6_domain_server :
+val stream_inet6_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
@@ -129,7 +147,7 @@ val stream_inet6_domain_server :
   protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string
 
-val stream_inet_domain_client :
+val stream_inet_client :
   ?max_input_size:int ->
   ipv4_or_v6:string ->
   port:int ->
@@ -137,24 +155,63 @@ val stream_inet_domain_client :
   unit -> 'a
 
 (* datagram - unix *)
-val datagram_unix_domain_server :
+val dgram_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?filename:string ->
-  bootstrap:(stream_channel -> datagram_channel) ->
-  protocol:(datagram_channel -> unit) ->
+  bootstrap:(stream_channel -> dgram_channel) ->
+  protocol:(dgram_channel -> unit) ->
   unit -> Thread.t * string
 
-val echo_server : filename:string -> unit -> Thread.t * string
-val echo_client : filename:string -> unit -> unit
-
-val datagram_unix_domain_client :
+val dgram_unix_client :
   ?max_input_size:int ->
   filename:string ->
-  bootstrap:(stream_channel -> datagram_channel) ->
-  protocol:(datagram_channel -> 'a) ->
+  bootstrap:(stream_channel -> dgram_channel) ->
+  protocol:(dgram_channel -> 'a) ->
   unit -> 'a
+
+val dgram_unix_echo_server : stream_socketfile:string -> unit -> Thread.t * string
+val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit
+
+(* datagram - inet & inet6 *)
+val dgram_inet_server :
+  ?max_pending_requests:int ->
+  ?max_input_size:int ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
+  ?only_threads:unit ->
+  ?ipv4:string ->
+  port:int ->
+  bootstrap:(stream_channel -> dgram_channel) ->
+  protocol:(dgram_channel -> unit) ->
+  unit -> Thread.t * string
+
+val dgram_inet6_server :
+  ?max_pending_requests:int ->
+  ?max_input_size:int ->
+  ?killable:unit ->
+  ?tutor_behaviour:(pid:int -> unit) ->
+  ?only_threads:unit ->
+  ?ipv6:string ->
+  port:int ->
+  bootstrap:(stream_channel -> dgram_channel) ->
+  protocol:(dgram_channel -> unit) ->
+  unit -> Thread.t * string
+
+val dgram_inet_client :
+  ?max_input_size:int ->
+  ipv4_or_v6:string ->
+  port:int ->
+  bootstrap:(stream_channel -> dgram_channel) ->
+  protocol:(dgram_channel -> 'a) ->
+  unit -> 'a
+
+val dgram_inet_echo_server  : ?inet6:unit -> port:int -> unit -> Thread.t
+val dgram_inet_echo_client  : ipv4_or_v6:string -> port:int -> unit -> unit
+(*
+val dgram_inet6_echo_server : port:int -> unit -> Thread.t * string
+*)
 
