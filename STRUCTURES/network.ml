@@ -146,63 +146,36 @@ let inet6_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?on
   (server_thread, (Unix.string_of_inet_addr ipv6))
 
 
+(* fix Unix.SO_RCVBUF if needed *)
+let fix_SO_RCVBUF_if_needed ~max_input_size fd =
+  let recv_buffer_size = Unix.getsockopt_int fd Unix.SO_RCVBUF in
+  (if max_input_size > recv_buffer_size then
+    Log.printf "Fixing Unix.SO_RCVBUF to the value %d\n" max_input_size;
+    Unix.setsockopt_int fd Unix.SO_RCVBUF max_input_size);
+  ()
+    
+
+class common_low_level_methods_on_socket fd =
+ object
+  method get_send_buffer_size   = Unix.getsockopt_int fd Unix.SO_SNDBUF
+  method set_send_buffer_size x = Unix.setsockopt_int fd Unix.SO_SNDBUF x
+
+  method get_recv_buffer_size   = Unix.getsockopt_int fd Unix.SO_RCVBUF
+  method set_recv_buffer_size x = Unix.setsockopt_int fd Unix.SO_RCVBUF x
+
+  method get_close_linger   = Unix.getsockopt_optint fd Unix.SO_LINGER
+  method set_close_linger x = Unix.setsockopt_optint fd Unix.SO_LINGER x
+ end
+
 (* High-level representation of the structure available, after a connection, to both endpoints.
    The max_input_size is set by default to 1514 (Ethernet: 1514=1526-12 (8 preamble and 4 CRC)) *)
 class stream_or_seqpacket_bidirectional_channel ?(max_input_size=1514) ?seqpacket fd =
-  let input_buffer = String.create max_input_size in
-  (* Send method for stream socket descriptors: *)
-  let rec send_stream_loop x off len =
-    if len=0 then () else
-    let n = Unix.send fd x off len [] in
-    if n = 0 then failwith "channel#send: failed to send in a stream channel: no more than 0 bytes sent!" else
-    if n<len then send_stream_loop x (off+n) (len-n) else
-    ()
-  in
-  (* Send method for seqpacket socket descriptors: *)
-  let send_seqpacket x off len =
-    let n = Unix.send fd x off len [] in
-    if n<len then failwith (Printf.sprintf "channel#send: failed sending a seqpacket: no more than %d bytes sent!" n) else
-    ()
-  in
-  (* Select the good method at object creation time: *)
-  let send_implementation =
-    match seqpacket with
-    | None    -> send_stream_loop
-    | Some () -> send_seqpacket
-  in
-  let () =
-    let min_byte_no_for_input  = Unix.getsockopt_int fd Unix.SO_RCVLOWAT in
-    let max_byte_no_for_output = Unix.getsockopt_int fd Unix.SO_SNDLOWAT in
-    Log.printf "Currently  min_byte_no_for_input=%d  and  max_byte_no_for_output=%d\n"
-    min_byte_no_for_input max_byte_no_for_output;
-    let timeout_for_input  = Unix.getsockopt_float fd Unix.SO_RCVTIMEO in
-    let timeout_for_output = Unix.getsockopt_float fd Unix.SO_SNDTIMEO in
-    Log.printf "Currently  timeout_for_input=%F  and  timeout_for_output=%F\n"
-    timeout_for_input timeout_for_output;
-(*    Unix.setsockopt_int fd Unix.SO_RCVLOWAT 1;
-    Unix.setsockopt_int fd Unix.SO_SNDLOWAT 1;*)
-  in
+  let () = fix_SO_RCVBUF_if_needed max_input_size fd in
   object
+  inherit common_low_level_methods_on_socket fd
 
-  method receive : string =
-    try
-      let n = Unix.recv fd input_buffer 0 max_input_size [] in
-      (if n=0 then failwith "channel#receive: received 0 bytes (peer terminated?)");
-      String.sub input_buffer 0 n
-    with e ->
-      Log.print_exn ~prefix:"channel#receive: " e;
-      raise e
-
-  method peek : string option =
-    try
-      let n = Unix.recv fd input_buffer 0 max_input_size [Unix.MSG_PEEK] in
-      if n>0 then Some (String.sub input_buffer 0 n) else None
-    with e ->
-      Log.print_exn ~prefix:"channel#peek: " e;
-      None
-
-  method send (x:string) : unit =
-    send_implementation x 0 (String.length x)
+  val input_buffer = String.create max_input_size
+  val max_input_size = max_input_size
 
   method shutdown ?receive ?send () =
     try
@@ -241,28 +214,109 @@ class stream_channel ?max_input_size fd =
       flush x
     with e -> raise_but_also_log_it caller e
   in
+  let return_of_at_least at_least =
+    match at_least with
+    | None -> fun y -> y
+    | Some m ->
+	let previous = Unix.getsockopt_int fd Unix.SO_RCVLOWAT in
+	let () = Unix.setsockopt_int fd Unix.SO_RCVLOWAT m in
+	fun y ->
+	  (* restore the previous value and return: *)
+	  let () = Unix.setsockopt_int fd Unix.SO_RCVLOWAT previous in
+	  y
+  in
   object
-    inherit stream_or_seqpacket_bidirectional_channel ?max_input_size fd
+  inherit stream_or_seqpacket_bidirectional_channel ?max_input_size fd as super
 
-    method input_char       : char   = tutor0 Pervasives.input_char in_channel "input_char"
-    method input_line       : string = tutor0 Pervasives.input_line in_channel "input_line"
-    method input_byte       : int    = tutor0 Pervasives.input_byte in_channel "input_byte"
-    method input_binary_int : int    = tutor0 Pervasives.input_binary_int in_channel "input_binary_int"
-    method input_value      : 'a. 'a = tutor0 Pervasives.input_value in_channel "input_value"
+  method receive ?at_least () : string =
+    let return = return_of_at_least at_least in
+    try
+      let n = Unix.recv fd input_buffer 0 max_input_size [] in
+      (if n=0 then failwith "stream_channel#receive: received 0 bytes (peer terminated?)");
+      return (String.sub input_buffer 0 n)
+    with e ->
+      Log.print_exn ~prefix:"stream_channel#receive: " e;
+      let _ = return "" in
+      raise e
 
-    method output_char   x = tutor1 Pervasives.output_char out_channel x "output_char"
-    method output_string x = tutor1 Pervasives.output_string out_channel x "output_string"
-    method output_byte   x = tutor1 Pervasives.output_byte out_channel x "output_byte"
-    method output_binary_int x = tutor1 Pervasives.output_binary_int out_channel x "output_binary_int"
-    method output_value : 'a. 'a -> unit =
-      fun x -> tutor1 Pervasives.output_value out_channel x "output_value"
+  method peek ?(at_least=0) () : string option =
+    try
+      Unix.set_nonblock fd;
+      let n = Unix.recv fd input_buffer 0 max_input_size [Unix.MSG_PEEK] in
+      Unix.clear_nonblock fd;
+      if n>=at_least
+       then Some (String.sub input_buffer 0 n)
+       else
+         let () = if at_least>0 then Log.printf "stream_channel#peek: received %d bytes (expected at least %d)\n" n at_least in
+         None
+    with e ->
+      Unix.clear_nonblock fd;
+      Log.print_exn ~prefix:"stream_channel#peek: result is None because of exception: " e;
+      None
+
+  method send (x:string) : unit =
+    let rec send_stream_loop x off len =
+      if len=0 then () else
+      let n = Unix.send fd x off len [] in
+      if n = 0 then failwith "stream_channel#send: failed to send in a stream channel: no more than 0 bytes sent!" else
+      if n<len then send_stream_loop x (off+n) (len-n) else
+      ()
+    in
+    send_stream_loop x 0 (String.length x)
+
+  method input_char       : char   = tutor0 Pervasives.input_char in_channel "input_char"
+  method input_line       : string = tutor0 Pervasives.input_line in_channel "input_line"
+  method input_byte       : int    = tutor0 Pervasives.input_byte in_channel "input_byte"
+  method input_binary_int : int    = tutor0 Pervasives.input_binary_int in_channel "input_binary_int"
+  method input_value      : 'a. 'a = tutor0 Pervasives.input_value in_channel "input_value"
+
+  method output_char   x = tutor1 Pervasives.output_char out_channel x "output_char"
+  method output_string x = tutor1 Pervasives.output_string out_channel x "output_string"
+  method output_byte   x = tutor1 Pervasives.output_byte out_channel x "output_byte"
+  method output_binary_int x = tutor1 Pervasives.output_binary_int out_channel x "output_binary_int"
+  method output_value : 'a. 'a -> unit =
+    fun x -> tutor1 Pervasives.output_value out_channel x "output_value"
+
+  method get_send_wait_at_least   = Unix.getsockopt_int fd Unix.SO_SNDLOWAT
+  method set_send_wait_at_least x = Unix.setsockopt_int fd Unix.SO_SNDLOWAT x
+
+  method get_recv_wait_at_least   = Unix.getsockopt_int fd Unix.SO_RCVLOWAT
+  method set_recv_wait_at_least x = Unix.setsockopt_int fd Unix.SO_RCVLOWAT x
 
 end (* class stream_channel *)
 
 
 class seqpacket_channel ?max_input_size fd =
   object
-    inherit stream_or_seqpacket_bidirectional_channel ?max_input_size ~seqpacket:() fd
+  inherit stream_or_seqpacket_bidirectional_channel ?max_input_size ~seqpacket:() fd
+
+  method receive : string =
+    try
+      let n = Unix.recv fd input_buffer 0 max_input_size [] in
+      (if n=0 then failwith "seqpacket_channel#receive: received 0 bytes (peer terminated?)");
+      String.sub input_buffer 0 n
+    with e ->
+      Log.print_exn ~prefix:"seqpacket_channel#receive: " e;
+      raise e
+
+  method peek : string option =
+    try
+      Unix.set_nonblock fd;
+      let n = Unix.recv fd input_buffer 0 max_input_size [Unix.MSG_PEEK] in
+      Unix.clear_nonblock fd;
+      if n>0 then Some (String.sub input_buffer 0 n) else None
+    with e ->
+      Unix.clear_nonblock fd;
+      Log.print_exn ~prefix:"seqpacket_channel#peek: result is None because of exception: " e;
+      None
+
+  method send (x:string) : unit =
+    let len = String.length x in
+    let n = Unix.send fd x 0 len [] in
+    if n<len then
+      failwith (Printf.sprintf "seqpacket_channel#send: failed sending a seqpacket: no more than %d bytes sent!" n)
+     else ()
+
 end (* class seqpacket_channel *)
 
 exception Unexpected_sender of string
@@ -270,9 +324,11 @@ exception Unexpected_sender of string
 (* Typically the client builds its socketfile (0), send it to the server through the stream channel, then
    receives its socketfile for output (1).  *)
 class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
+  let () = fix_SO_RCVBUF_if_needed max_input_size fd0 in
   let input_buffer = String.create max_input_size in
   let sockaddr0 = Unix.getsockname fd0 in
   object
+  inherit common_low_level_methods_on_socket fd0
 
   method receive : string =
     try
@@ -285,11 +341,14 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
 
   method peek : string option =
     try  
+      Unix.set_nonblock fd0;
       let (n, sockaddr) = Unix.recvfrom fd0 input_buffer 0 max_input_size [Unix.MSG_PEEK] in
+      Unix.clear_nonblock fd0;
       (if sockaddr <> sockaddr1 then raise (Unexpected_sender (string_of_sockaddr sockaddr)));
       if n>0 then Some (String.sub input_buffer 0 n) else None
     with e ->
-      Log.print_exn ~prefix:"dgram_channel#peek: " e;
+      Unix.clear_nonblock fd0;
+      Log.print_exn ~prefix:"dgram_channel#peek: result is None because of exception: " e;
       None
 
   method send (x:string) : unit =
@@ -326,6 +385,8 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
       Log.print_exn ~prefix:"dgram_channel#shutdown: " e;
       raise e
 
+  method sockaddr0 = sockaddr0
+  method sockaddr1 = sockaddr1
 
 end (* class dgram_channel *)
 
@@ -478,7 +539,7 @@ let dgram_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_be
 (* For both inet4 and inet6: *)
 let dgram_inet_echo_server ?inet6 ~port () =
   let (thread, _) =
-    let bootstrap (stream_channel as ch) =
+    let bootstrap (ch:stream_channel) =
       (* The client provides the port where it will receive datagrams: *)
       let peer = string_of_sockaddr ch#sockaddr1 in
       Log.printf "Receiving the dgram-inet port number (my output line) from %s\n" peer;
@@ -513,8 +574,8 @@ let dgram_inet_echo_server ?inet6 ~port () =
 (* Esempio: *)
 let dgram_unix_echo_server ~stream_socketfile () =
   let (t, socketfile) =
-    let bootstrap s =
-      let dgram_output_socketfile = s#receive in
+    let bootstrap (s:stream_channel) =
+      let dgram_output_socketfile = s#receive () in
       let (fd0, sockaddr0, socketfile0) =
         dgram_input_socketfile_of ~dgram_output_socketfile ~stream_socketfile ()
       in
@@ -628,12 +689,12 @@ let dgram_inet_echo_client ~ipv4_or_v6 ~port () =
 
 let dgram_unix_echo_client ~stream_socketfile () =
   let pr = Printf.kfprintf flush stderr in
-  let bootstrap s =
+  let bootstrap (s:stream_channel) =
     let (fd0, sockaddr0, socketfile0) =
       dgram_input_socketfile_of ~stream_socketfile ()
     in
     (s#send socketfile0);
-    let socketfile1 = s#receive in
+    let socketfile1 = s#receive () in
     let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
     new dgram_channel ~fd0 ~sockaddr1 ()
   in

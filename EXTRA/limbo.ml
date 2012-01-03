@@ -143,3 +143,4 @@ Array.iteri (fun i t -> Thread.delay 0.1; if i mod 3 = 0 then () else ignore (Th
 let k = ThreadExtra.killer ts.(2) ;;
 ThreadExtra.fork (fun () -> Thread.delay 1.; k (); Thread.delay 1.;) () ;;
 
+Log.printf "Peeking: %s\n" (Option.string_of (fun x-> string_of_int (Obj.magic x)) (ch#peek ~at_least:8 ()));

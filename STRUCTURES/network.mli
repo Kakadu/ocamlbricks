@@ -26,8 +26,8 @@ class stream_channel :
   Unix.file_descr ->
   object
     method send    : string -> unit
-    method receive : string
-    method peek    : string option
+    method receive : ?at_least:int -> unit -> string
+    method peek    : ?at_least:int -> unit -> string option
 
     method input_char       : char
     method input_line       : string
@@ -46,6 +46,19 @@ class stream_channel :
     method sockaddr0 : Unix.sockaddr
     method sockaddr1 : Unix.sockaddr
 
+    method get_recv_wait_at_least : int
+    method get_send_wait_at_least : int
+    method set_recv_wait_at_least : int -> unit
+    method set_send_wait_at_least : int -> unit
+
+    method get_recv_buffer_size : int
+    method get_send_buffer_size : int
+    method set_recv_buffer_size : int -> unit
+    method set_send_buffer_size : int -> unit
+
+    method get_close_linger : int option
+    method set_close_linger : int option -> unit
+
   end
 
 class seqpacket_channel :
@@ -61,6 +74,14 @@ class seqpacket_channel :
     method sockaddr0 : Unix.sockaddr
     method sockaddr1 : Unix.sockaddr
 
+    method get_recv_buffer_size : int
+    method get_send_buffer_size : int
+    method set_recv_buffer_size : int -> unit
+    method set_send_buffer_size : int -> unit
+
+    method get_close_linger : int option
+    method set_close_linger : int option -> unit
+
   end
 
 class dgram_channel :
@@ -75,6 +96,17 @@ class dgram_channel :
     method peek    : string option
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
+
+    method sockaddr0 : Unix.sockaddr
+    method sockaddr1 : Unix.sockaddr
+
+    method get_recv_buffer_size : int
+    method get_send_buffer_size : int
+    method set_recv_buffer_size : int -> unit
+    method set_send_buffer_size : int -> unit
+
+    method get_close_linger : int option
+    method set_close_linger : int option -> unit
 
 end
 
