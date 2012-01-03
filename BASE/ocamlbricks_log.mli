@@ -18,7 +18,7 @@ val enable  : unit -> unit
 val disable : unit -> unit
 
 val printf        : ?v:int -> ?force:bool -> ?banner:bool -> ('a, out_channel, unit) format -> 'a
-val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> exn -> unit
+val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> ?prefix:string -> ?suffix:string -> exn -> unit
 val print_string  : ?v:int -> ?force:bool -> string -> unit
 val print_int     : ?v:int -> ?force:bool -> int -> unit
 val print_float   : ?v:int -> ?force:bool -> float -> unit

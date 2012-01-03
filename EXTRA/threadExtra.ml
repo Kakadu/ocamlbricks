@@ -206,7 +206,8 @@ end (* module Available_signals *)
 let create_killable =
   let handler id s =
     let id' = Thread.id (Thread.self ()) in
-    (if id <> id' then Log.printf ~v:0 "Wrong behaviour: thread %d should be killed by signal #%d but I'm killed instead\n" id s);
+    (if id <> id' then
+       Log.printf ~v:0 "Wrong behaviour: thread %d should be killed by signal #%d but I'm killed instead\n" id s);
     Log.printf "Killed by signal #%d\n" s;
     raise Available_signals.Has_been_killed
   in
@@ -236,6 +237,7 @@ let create_killable =
         result
       with e -> begin
         (final_actions ());
+        Log.print_exn ~prefix:"Terminated by uncaught exception: " e;
         let () = Thread.exit () in
         (* Not really executed: *)
         raise e
@@ -254,6 +256,7 @@ let create_non_killable f x =
         result
       with e -> begin
         Exit_function.do_at_exit ();
+        Log.print_exn ~prefix:"Terminated by uncaught exception: " e;
         let () = Thread.exit () in
         (* Not really executed: *)
         raise e
@@ -312,7 +315,12 @@ let fork ?killable ?behaviour f x =
 	(* The child here: *)
 	begin
 	  Log.printf "Process Fork: activated by %d.%d\n" pid id;
-	  let _ = f x in
+	  let _ =
+	    try f x
+            with e ->
+              Log.print_exn ~prefix:"Terminated by uncaught exception: " e;
+              raise e
+	  in
 	  let () = exit 0 in
 	  raise Not_found (* not really executed, just to get around the type system *)
 	end
