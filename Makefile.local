@@ -132,8 +132,8 @@ clean-local:
 TESTING_TRACE=_build/compiled-with-DDOCUMENTATION_OR_DEBUGGING
 compile_for_testing:
 	test -f  $(TESTING_TRACE) || \
-	  make clean \; \
-	  make PP_OPTION="$(PP_OPTION) -DDOCUMENTATION_OR_DEBUGGING" \; \
+	  make clean && \
+	  make PP_OPTION="$(PP_OPTION) -DDOCUMENTATION_OR_DEBUGGING" && \
 	  touch $(TESTING_TRACE)
 
 # Test without installation
