@@ -21,6 +21,27 @@ val inet_addr_and_port_of_sockaddr : Unix.sockaddr -> Unix.inet_addr * int
 
 val domain_of_inet_addr : Unix.inet_addr -> Unix.socket_domain
 
+(** Example:
+{[# Network.socketname_in_a_fresh_made_directory "ctrl" ;;
+  : string = "/tmp/.toplevel-2dd2c2-sockets/ctrl"
+
+# Sys.file_exists "/tmp/.toplevel-2dd2c2-sockets/ctrl" ;;
+  : bool = false
+
+# Sys.file_exists "/tmp/.toplevel-2dd2c2-sockets" ;;
+  : bool = true
+
+# exit 0 ;;
+$ test -e /tmp/.toplevel-2dd2c2-sockets || echo "Directory automatically removed"
+Directory automatically removed
+]} *)
+val socketname_in_a_fresh_made_directory :
+  ?temp_dir:string ->
+  ?prefix:string ->
+  ?suffix:string ->
+  ?perm:int->
+  string -> string
+  
 class stream_channel :
   ?max_input_size:int ->
   Unix.file_descr ->
@@ -115,9 +136,14 @@ val dgram_input_socketfile_of :
   stream_socketfile:string ->
   unit ->  Unix.file_descr * Unix.sockaddr * string
 
+val dgram_input_port_of : 
+  ?dgram_output_port:int -> 
+  my_stream_inet_addr:Unix.inet_addr ->
+  unit -> Unix.file_descr * Unix.sockaddr * int
+ 
 type stream_protocol    = stream_channel    -> unit
 type seqpacket_protocol = seqpacket_channel -> unit
-type dgram_protocol  = (stream_channel -> dgram_channel) * (dgram_channel -> unit)
+type dgram_protocol     = (stream_channel -> dgram_channel) * (dgram_channel -> unit)
 
 (** {2 Seqpacket Unix Domain } *)
 
@@ -127,13 +153,13 @@ val seqpacket_unix_server :
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
-  ?filename:string ->
+  ?socketfile:string ->
   protocol:(seqpacket_channel -> unit) ->
   unit -> Thread.t * string
 
 val seqpacket_unix_client :
   ?max_input_size:int ->
-  filename:string ->
+  socketfile:string ->
   protocol:(seqpacket_channel -> 'a) ->
   unit -> 'a
 
@@ -145,28 +171,28 @@ val stream_unix_server :
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
-  ?filename:string ->
+  ?socketfile:string ->
   protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string
 
 val stream_unix_client :
   ?max_input_size:int ->
-  filename:string ->
+  socketfile:string ->
   protocol:(stream_channel -> 'a) ->
   unit -> 'a
 
 (** {2 Stream Internet Domain } *)
 
-val stream_inet_server :
+val stream_inet4_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv4:string ->
-  port:int ->
+  ?port:int ->
   protocol:(stream_channel -> unit) ->
-  unit -> Thread.t * string
+  unit -> Thread.t * string * int
 
 val stream_inet6_server :
   ?max_pending_requests:int ->
@@ -175,9 +201,9 @@ val stream_inet6_server :
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv6:string ->
-  port:int ->
+  ?port:int ->
   protocol:(stream_channel -> unit) ->
-  unit -> Thread.t * string
+  unit -> Thread.t * string * int
 
 val stream_inet_client :
   ?max_input_size:int ->
@@ -193,30 +219,31 @@ val dgram_unix_server :
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
-  ?filename:string ->
+  ?socketfile:string ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> unit) ->
   unit -> Thread.t * string
 
 val dgram_unix_client :
   ?max_input_size:int ->
-  filename:string ->
+  socketfile:string ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> 'a) ->
   unit -> 'a
 
 (* datagram - inet & inet6 *)
-val dgram_inet_server :
+
+val dgram_inet4_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv4:string ->
-  port:int ->
+  ?port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> unit) ->
-  unit -> Thread.t * string
+  unit -> Thread.t * string * int
 
 val dgram_inet6_server :
   ?max_pending_requests:int ->
@@ -225,10 +252,10 @@ val dgram_inet6_server :
   ?tutor_behaviour:(pid:int -> unit) ->
   ?only_threads:unit ->
   ?ipv6:string ->
-  port:int ->
+  ?port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> unit) ->
-  unit -> Thread.t * string
+  unit -> Thread.t * string * int
 
 val dgram_inet_client :
   ?max_input_size:int ->
@@ -241,10 +268,10 @@ val dgram_inet_client :
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Examples : sig
 
-  val dgram_unix_echo_server : stream_socketfile:string -> unit -> Thread.t * string
+  val dgram_unix_echo_server : ?stream_socketfile:string -> unit -> Thread.t * string
   val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit
 
-  val dgram_inet_echo_server  : ?inet6:unit -> port:int -> unit -> Thread.t
+  val dgram_inet_echo_server  : ?inet6:unit -> ?port:int -> unit -> Thread.t * string * int
   val dgram_inet_echo_client  : ipv4_or_v6:string -> port:int -> unit -> unit
 
 end

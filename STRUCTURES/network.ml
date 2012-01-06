@@ -52,10 +52,16 @@ let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?only
   let domain = Unix.domain_of_sockaddr sockaddr in
   let listen_socket = Unix.socket domain socket_type 0 in
   (* listen_socket initialization: *)
-  let () =
+  let assigned_port =
     Unix.setsockopt listen_socket Unix.SO_REUSEADDR true;
     Unix.bind listen_socket sockaddr;
-    Unix.listen listen_socket max_pending_requests
+    Unix.listen listen_socket max_pending_requests;
+    (* The assigned port will be interesting for the caller only if the port number 
+       provided with ~sockaddr has been set to 0 (in order to ask the kernel to choose
+       itself): *)
+    match Unix.getsockname listen_socket with
+    | Unix.ADDR_INET (_, assigned_port) -> Some assigned_port
+    | _ -> None
   in
   let process_forking_loop () =
     let connexion_no = ref 0 in
@@ -105,46 +111,59 @@ let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?only
     | Some () -> thread_forking_loop ()
   in
   let server_thread = ThreadExtra.create ?killable forking_loop () in
-  server_thread
+  (server_thread, assigned_port)
   
 
-let unix_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?filename server_fun =
-  let filename = match filename with
+let socketname_in_a_fresh_made_directory ?temp_dir ?prefix ?suffix ?(perm=0o733) basename =
+  let prefix = match prefix with
     | Some x -> x
-    | None ->
-        let prefix = "."^(Filename.basename (Sys.executable_name))^"-" in
-        let suffix = "-unix" in
-        let temp_dir =
-          let result = Filename.temp_file prefix suffix in
-          Sys.remove result;
-          Unix.mkdir result 0o600;
-          result
-        in
-        (temp_dir^"/listen-socket")
+    | None   ->
+        Printf.sprintf ".%s-%d.%d-sockets-"
+          (Filename.basename (Sys.executable_name))
+          (Unix.getpid ())
+          (Thread.id (Thread.self ()))
   in
-  let sockaddr = Unix.ADDR_UNIX filename in
-  let server_thread = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
-  (server_thread, filename)
+  let fresh_made_dir = FilenameExtra.temp_dir ?temp_dir ~prefix ?suffix ~perm () in
+  let result = (String.concat "/" [fresh_made_dir; basename]) in
+  let () = ThreadExtra.at_exit (fun () -> Unix.rmdir fresh_made_dir) in
+  let () = ThreadExtra.at_exit (fun () -> Unix.unlink result) in
+  result
 
+let unix_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?socketfile server_fun =
+  let socketfile = Option.extract_or_force socketfile (lazy (socketname_in_a_fresh_made_directory "ctrl")) in
+  let sockaddr = Unix.ADDR_UNIX socketfile in
+  let (server_thread, _) = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
+  (server_thread, socketfile)
 
-let inet_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port server_fun =
+let inet4_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?ipv4 ?(port=0) server_fun =
   let ipv4 = match ipv4 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv4, port) in
-  let server_thread = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
-  (server_thread, (Unix.string_of_inet_addr ipv4))
+  let (server_thread, assigned_port) = 
+    server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr 
+  in
+  let assigned_port = match assigned_port with
+  | Some x -> x 
+  | None -> assert false
+  in
+  (server_thread, (Unix.string_of_inet_addr ipv4), assigned_port)
 
-let inet6_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port server_fun =
+let inet6_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads ?ipv6 ?(port=0) server_fun =
   let ipv6 = match ipv6 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet6_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv6, port) in
-  let server_thread = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr in
-  (server_thread, (Unix.string_of_inet_addr ipv6))
-
+  let (server_thread, assigned_port) = 
+    server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?only_threads server_fun sockaddr 
+  in
+  let assigned_port = match assigned_port with
+  | Some x -> x 
+  | None -> assert false
+  in
+  (server_thread, (Unix.string_of_inet_addr ipv6), assigned_port)
 
 (* fix Unix.SO_RCVBUF if needed *)
 let fix_SO_RCVBUF_if_needed ~max_input_size fd =
@@ -402,30 +421,57 @@ let dgram_input_socketfile_of ?dgram_output_socketfile ~stream_socketfile () =
   let socketfile1 = dgram_output_socketfile in
   let socketfile0 =
     let temp_dir = Filename.dirname stream_socketfile in
-    let prefix = "wire--" in
-    let suffix = Printf.sprintf "--to--%d.%d" (Unix.getpid ()) (Thread.id (Thread.self ())) in
+    (* Example: 14219.0<===8173az2 *)
+    let prefix = Printf.sprintf "%d.%d<===" (Unix.getpid ()) (Thread.id (Thread.self ())) in
     let create_name_from_socketfile () =
-      (* Filename.temp_file add an hexadecimal string between the prefix and the suffix: *)
-      let result = Filename.temp_file ~temp_dir prefix suffix in
+      (* Filename.temp_file add an hexadecimal string after the prefix: *)
+      let result = Filename.temp_file ~temp_dir prefix "" in
       let () = Unix.unlink result in
       result
     in
-    let try_to_create_name_from_socketfile1 () =
+    let make_the_symlink ~link_suffix ~target =
+      let link_prefix = Printf.sprintf "%d.%d>===" (Unix.getpid ()) (Thread.id (Thread.self ())) in
+      let link_name = Printf.sprintf "%s/%s%s" temp_dir link_prefix link_suffix in
+      Unix.symlink target link_name;
+      ThreadExtra.at_exit (fun () -> Unix.unlink link_name)
+    in
+    let try_to_create_name_from_socketfile1_generated_by_this_library () =
       let socketfile1 = Option.extract socketfile1 in
       (assert (temp_dir = Filename.dirname socketfile1));
       let basename1 = Filename.basename socketfile1 in
-      let inner_hex_string = 
-        Scanf.sscanf basename1 "wire--%x--to--%d.%d" (fun s p t -> Printf.sprintf "%x" s)
+      let (process, thread, channel_tag) =
+        Scanf.sscanf basename1 "%d.%d<===%s" (fun p t s -> (p,t,s))
       in
-      let candidate = Printf.sprintf "%s/%s%s%s" temp_dir prefix inner_hex_string suffix in
+      (* Example: 14219.0<===8173az2===<14220.1 *)
+      let candidate = Printf.sprintf "%s/%s%s===<%d.%d" temp_dir prefix channel_tag process thread in
       (assert (not (Sys.file_exists candidate)));
+      let () =
+        (* Make a symlink useful to understand what's happening:
+           Example: 14219.0>===8173az2===>14220.1 *)
+        make_the_symlink
+          ~link_suffix:(Printf.sprintf "%s===>%d.%d" channel_tag process thread)
+          ~target:basename1
+      in
       candidate
     in
-    (try
-      try_to_create_name_from_socketfile1 ()
-     with
-      _ -> create_name_from_socketfile ()
-    ) (* end of socketfile0 definition *)
+    let try_to_create_name_from_exogenous_socketfile1 () =
+      let socketfile1 = Option.extract socketfile1 in
+      (assert (temp_dir = Filename.dirname socketfile1));
+      let basename1 = Filename.basename socketfile1 in
+      (* Example: 14219.0<===foo *)
+      let candidate = Printf.sprintf "%s/%s%s" temp_dir prefix basename1 in
+      (assert (not (Sys.file_exists candidate)));
+      let () =
+        (* Make a symlink useful to understand what's happening:
+           Example: 14219.0>===foo *)
+        make_the_symlink ~link_suffix:basename1 ~target:basename1
+      in
+      candidate
+    in
+    (try try_to_create_name_from_socketfile1_generated_by_this_library () with _ ->
+     try try_to_create_name_from_exogenous_socketfile1 () with _ ->
+       create_name_from_socketfile ()
+     ) (* end of socketfile0 definition *)
   in
   let sockaddr0 = Unix.ADDR_UNIX socketfile0 in
   let fd0 = make_socket ~bind_to:socketfile0 in
@@ -476,24 +522,24 @@ let server_fun_of_seqpacket_protocol ?max_input_size protocol =
     result
 
 (* seqpacket - unix *)
-let seqpacket_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?filename ~(protocol:seqpacket_channel -> unit) () =
+let seqpacket_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?socketfile ~(protocol:seqpacket_channel -> unit) () =
   let server_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  unix_server ?max_pending_requests ~seqpacket:() ?killable ?tutor_behaviour ?only_threads ?filename server_fun
+  unix_server ?max_pending_requests ~seqpacket:() ?killable ?tutor_behaviour ?only_threads ?socketfile server_fun
 
 (* stream - unix *)
-let stream_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?filename ~(protocol:stream_channel -> unit) () =
+let stream_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?socketfile ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  unix_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?filename server_fun
+  unix_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?socketfile server_fun
 
 (* stream - inet *)
-let stream_inet_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port ~(protocol:stream_channel -> unit) () =
+let stream_inet4_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv4 ?port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port server_fun
+  inet4_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv4 ?port server_fun
 
 (* stream - inet6 *)
-let stream_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port ~(protocol:stream_channel -> unit) () =
+let stream_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv6 ?port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port server_fun
+  inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv6 ?port server_fun
 
 
 let stream_dgram_protocol_composition
@@ -509,31 +555,31 @@ let stream_dgram_protocol_composition
     end
 
 (* datagram - unix *)
-let dgram_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?filename
+let dgram_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?socketfile
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  unix_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?filename server_fun
+  unix_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?socketfile server_fun
 
 (* datagram - inet *)
-let dgram_inet_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port 
+let dgram_inet4_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv4 ?port 
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv4 ~port server_fun
+  inet4_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv4 ?port server_fun
 
 (* datagram - inet6 *)
-let dgram_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port
+let dgram_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?only_threads ?ipv6 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv6 ~port server_fun
+  inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?only_threads ?ipv6 ?port server_fun
 
 
 
@@ -554,8 +600,8 @@ let client ?seqpacket client_fun sockaddr =
       raise e
     end
 
-let unix_client ?seqpacket ~filename client_fun =
-  let sockaddr = Unix.ADDR_UNIX filename in
+let unix_client ?seqpacket ~socketfile client_fun =
+  let sockaddr = Unix.ADDR_UNIX socketfile in
   client ?seqpacket client_fun sockaddr
 
 let inet_client ~ipv4_or_v6 ~port client_fun =
@@ -564,14 +610,14 @@ let inet_client ~ipv4_or_v6 ~port client_fun =
   client client_fun sockaddr
 
 (* seqpacket - unix *)
-let seqpacket_unix_client ?max_input_size ~filename ~(protocol:seqpacket_channel -> 'a) () =
+let seqpacket_unix_client ?max_input_size ~socketfile ~(protocol:seqpacket_channel -> 'a) () =
   let client_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  unix_client ~seqpacket:() ~filename client_fun
+  unix_client ~seqpacket:() ~socketfile client_fun
 
 (* stream - unix *)
-let stream_unix_client ?max_input_size ~filename ~(protocol:stream_channel -> 'a) () =
+let stream_unix_client ?max_input_size ~socketfile ~(protocol:stream_channel -> 'a) () =
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  unix_client ~filename client_fun
+  unix_client ~socketfile client_fun
 
 (* stream - inet (v4 or v6) *)
 let stream_inet_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:stream_channel -> 'a) () =
@@ -579,13 +625,13 @@ let stream_inet_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:stream_chann
   inet_client ~ipv4_or_v6 ~port client_fun
 
 (* datagram - unix *)
-let dgram_unix_client ?max_input_size ~filename
+let dgram_unix_client ?max_input_size ~socketfile
   ~(bootstrap : stream_channel -> dgram_channel)
   ~(protocol  : dgram_channel  -> 'a)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  unix_client ~filename client_fun
+  unix_client ~socketfile client_fun
 
 (* datagram - inet4 or inet6 *)
 let dgram_inet_client ?max_input_size
@@ -622,8 +668,8 @@ let rec simple_echo_client_protocol ch =
    else simple_echo_client_protocol ch
 
 (* For both inet4 and inet6: *)
-let dgram_inet_echo_server ?inet6 ~port () =
-  let (thread, _) =
+let dgram_inet_echo_server ?inet6 ?port () =
+  let (thread, ip, port) =
     let bootstrap (ch:stream_channel) =
       (* The client provides the port where it will receive datagrams: *)
       let peer = string_of_sockaddr ch#sockaddr1 in
@@ -645,13 +691,18 @@ let dgram_inet_echo_server ?inet6 ~port () =
       simple_echo_server_protocol ch
     in
     match inet6 with
-    | None    -> dgram_inet_server  ~port ~bootstrap ~protocol ()
-    | Some () -> dgram_inet6_server ~port ~bootstrap ~protocol ()
+    | None    -> dgram_inet4_server ?port ~bootstrap ~protocol ()
+    | Some () -> dgram_inet6_server ?port ~bootstrap ~protocol ()
   in
-  thread
+  (thread, ip, port)
 
 
-let dgram_unix_echo_server ~stream_socketfile () =
+let dgram_unix_echo_server ?stream_socketfile () =
+  let stream_socketfile =
+    match stream_socketfile with
+    | Some x -> x
+    | None -> socketname_in_a_fresh_made_directory "ctrl"
+  in
   let (t, socketfile) =
     let bootstrap (ch:stream_channel) =
       let sockname = string_of_sockaddr ch#sockaddr0 in
@@ -670,7 +721,7 @@ let dgram_unix_echo_server ~stream_socketfile () =
     let protocol (ch:dgram_channel) =
       simple_echo_server_protocol ch
     in
-    dgram_unix_server ~bootstrap ~protocol ~filename:stream_socketfile ()
+    dgram_unix_server ~bootstrap ~protocol ~socketfile:stream_socketfile ()
   in
   (t, socketfile)
 
@@ -698,20 +749,19 @@ let dgram_inet_echo_client ~ipv4_or_v6 ~port () =
   dgram_inet_client ~bootstrap ~protocol ~ipv4_or_v6 ~port ()
 
 let dgram_unix_echo_client ~stream_socketfile () =
-  let pr = Printf.kfprintf flush stderr in
-  let bootstrap (s:stream_channel) =
+  let bootstrap (ch:stream_channel) =
     let (fd0, sockaddr0, socketfile0) =
       dgram_input_socketfile_of ~stream_socketfile ()
     in
-    (s#send socketfile0);
-    let socketfile1 = s#receive () in
+    (ch#send socketfile0);
+    let socketfile1 = ch#receive () in
     let sockaddr1 = Unix.ADDR_UNIX socketfile1 in
     new dgram_channel ~fd0 ~sockaddr1 ()
   in
-  let protocol ch =
+  let protocol (ch:dgram_channel) =
     simple_echo_client_protocol ch
   in
-  dgram_unix_client ~bootstrap ~protocol ~filename:stream_socketfile ()
+  dgram_unix_client ~bootstrap ~protocol ~socketfile:stream_socketfile ()
 
 end (* module Examples *)
 ENDIF
