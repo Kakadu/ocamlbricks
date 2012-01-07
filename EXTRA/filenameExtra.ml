@@ -78,4 +78,5 @@ let temp_dir ?temp_dir ?(prefix="") ?(suffix="") ?(perm=0o755) () =
   let result = Filename.temp_file ?temp_dir prefix suffix in
   Sys.remove result;
   Unix.mkdir result perm;
+  Unix.chmod result perm; (* insist! it seems necessary... *)
   result

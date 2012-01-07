@@ -1,5 +1,5 @@
 (* This file is part of ocamlbricks
-   Copyright (C) 2011 Jean-Vincent Loddo
+   Copyright (C) 2011, 2012 Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,13 @@ val socketname_in_a_fresh_made_directory :
   ?suffix:string ->
   ?perm:int->
   string -> string
-  
+
+val fresh_socketname :
+  ?temp_dir:string ->
+  ?prefix:string ->
+  ?suffix:string ->
+  unit -> string
+
 class stream_channel :
   ?max_input_size:int ->
   Unix.file_descr ->
@@ -50,14 +56,14 @@ class stream_channel :
     method receive : ?at_least:int -> unit -> string
     method peek    : ?at_least:int -> unit -> string option
 
-    method input_char       : char
-    method input_line       : string
-    method input_byte       : int
-    method input_binary_int : int
-    method input_value      : 'a
+    method input_char       : unit -> char
+    method input_line       : unit -> string
+    method input_byte       : unit -> int
+    method input_binary_int : unit -> int
+    method input_value      : unit -> 'a
 
     method output_char       : char -> unit
-    method output_string     : string -> unit
+    method output_line       : string -> unit
     method output_byte       : int -> unit
     method output_binary_int : int -> unit
     method output_value      : 'b -> unit
@@ -82,13 +88,21 @@ class stream_channel :
 
   end
 
+
+val line_oriented_channel_of_stream_channel : stream_channel ->
+  < receive : unit   -> string;
+    send    : string -> unit;
+    peek    : unit   -> string option;
+    >
+
+
 class seqpacket_channel :
   ?max_input_size:int ->
   Unix.file_descr ->
   object
     method send    : string -> unit
-    method receive : string
-    method peek    : string option
+    method receive : unit -> string
+    method peek    : unit -> string option
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
 
@@ -113,13 +127,15 @@ class dgram_channel :
   object
  
     method send    : string -> unit
-    method receive : string
-    method peek    : string option
+    method receive : unit -> string
+    method peek    : unit -> string option
 
     method shutdown : ?receive:unit -> ?send:unit -> unit -> unit
 
     method sockaddr0 : Unix.sockaddr
     method sockaddr1 : Unix.sockaddr
+
+    method chmod_sockaddr0 : int -> unit
 
     method get_recv_buffer_size : int
     method get_send_buffer_size : int
@@ -152,7 +168,7 @@ val seqpacket_unix_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?socketfile:string ->
   protocol:(seqpacket_channel -> unit) ->
   unit -> Thread.t * string
@@ -170,7 +186,7 @@ val stream_unix_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?socketfile:string ->
   protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string
@@ -188,7 +204,7 @@ val stream_inet4_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?ipv4:string ->
   ?port:int ->
   protocol:(stream_channel -> unit) ->
@@ -199,7 +215,7 @@ val stream_inet6_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?ipv6:string ->
   ?port:int ->
   protocol:(stream_channel -> unit) ->
@@ -218,7 +234,7 @@ val dgram_unix_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?socketfile:string ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> unit) ->
@@ -238,7 +254,7 @@ val dgram_inet4_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?ipv4:string ->
   ?port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
@@ -250,7 +266,7 @@ val dgram_inet6_server :
   ?max_input_size:int ->
   ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
-  ?only_threads:unit ->
+  ?no_fork:unit ->
   ?ipv6:string ->
   ?port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
@@ -268,11 +284,23 @@ val dgram_inet_client :
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Examples : sig
 
-  val dgram_unix_echo_server : ?stream_socketfile:string -> unit -> Thread.t * string
+  val simple_echo_server_protocol : < receive : unit -> string; send : string -> unit; .. > -> unit
+  val simple_echo_client_protocol : < receive : unit -> string; send : string -> unit; .. > -> unit
+
+  val stream_unix_echo_server : ?no_fork:unit -> ?socketfile:string -> unit -> Thread.t * string
+  val stream_unix_echo_client : socketfile:string -> unit -> unit
+
+  val seqpacket_unix_echo_server : ?no_fork:unit -> ?socketfile:string -> unit -> Thread.t * string
+  val seqpacket_unix_echo_client : socketfile:string -> unit -> unit
+
+  val dgram_unix_echo_server : ?no_fork:unit -> ?stream_socketfile:string -> unit -> Thread.t * string
   val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit
 
-  val dgram_inet_echo_server  : ?inet6:unit -> ?port:int -> unit -> Thread.t * string * int
-  val dgram_inet_echo_client  : ipv4_or_v6:string -> port:int -> unit -> unit
+  val stream_inet_echo_server : ?no_fork:unit -> ?inet6:unit -> ?port:int -> unit -> Thread.t * string * int
+  val stream_inet_echo_client : ipv4_or_v6:string -> port:int -> unit -> unit
+
+  val dgram_inet_echo_server : ?no_fork:unit -> ?inet6:unit -> ?port:int -> unit -> Thread.t * string * int
+  val dgram_inet_echo_client : ipv4_or_v6:string -> port:int -> unit -> unit
 
 end
 ENDIF
