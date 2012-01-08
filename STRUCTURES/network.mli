@@ -14,6 +14,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+exception Accepting of exn
+exception Connecting of exn
+exception Receiving of exn
+exception Sending   of exn
+exception Closing   of exn
+exception Binding   of exn
 
 val string_of_sockaddr             : Unix.sockaddr -> string
 val socketfile_of_sockaddr         : Unix.sockaddr -> string
@@ -166,7 +172,6 @@ type dgram_protocol     = (stream_channel -> dgram_channel) * (dgram_channel -> 
 val seqpacket_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?socketfile:string ->
@@ -184,7 +189,6 @@ val seqpacket_unix_client :
 val stream_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?socketfile:string ->
@@ -202,7 +206,6 @@ val stream_unix_client :
 val stream_inet4_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?ipv4:string ->
@@ -213,13 +216,23 @@ val stream_inet4_server :
 val stream_inet6_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?ipv6:string ->
   ?port:int ->
   protocol:(stream_channel -> unit) ->
   unit -> Thread.t * string * int
+
+val stream_inet_server :
+  ?max_pending_requests:int ->
+  ?max_input_size:int ->
+  ?tutor_behaviour:(pid:int -> unit) ->
+  ?no_fork:unit ->
+  ?ipv4:string ->
+  ?ipv6:string ->
+  ?port:int ->
+  protocol:(stream_channel -> unit) ->
+  unit -> (Thread.t * string * int) * (Thread.t * string * int)
 
 val stream_inet_client :
   ?max_input_size:int ->
@@ -229,10 +242,10 @@ val stream_inet_client :
   unit -> 'a
 
 (* datagram - unix *)
+
 val dgram_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?socketfile:string ->
@@ -252,7 +265,6 @@ val dgram_unix_client :
 val dgram_inet4_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?ipv4:string ->
@@ -264,7 +276,6 @@ val dgram_inet4_server :
 val dgram_inet6_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?killable:unit ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?ipv6:string ->
@@ -273,6 +284,18 @@ val dgram_inet6_server :
   protocol:(dgram_channel -> unit) ->
   unit -> Thread.t * string * int
 
+val dgram_inet_server :
+  ?max_pending_requests:int ->
+  ?max_input_size:int ->
+  ?tutor_behaviour:(pid:int -> unit) ->
+  ?no_fork:unit ->
+  ?ipv4:string ->
+  ?ipv6:string ->
+  ?port:int ->
+  bootstrap:(stream_channel -> dgram_channel) ->
+  protocol:(dgram_channel -> unit) ->
+  unit -> (Thread.t * string * int) * (Thread.t * string * int)
+
 val dgram_inet_client :
   ?max_input_size:int ->
   ipv4_or_v6:string ->
@@ -280,6 +303,54 @@ val dgram_inet_client :
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> 'a) ->
   unit -> 'a
+
+
+module Socat : sig
+
+  val inet4_of_unix_stream_server :
+    (* inet4 server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?ipv4:string ->
+    ?port:int ->
+    (* unix client parameters: *)
+    socketfile:string ->
+    unit ->
+      (* inet4 server result: *)
+      Thread.t * string * int
+
+  val inet6_of_unix_stream_server :
+    (* inet6 server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?ipv6:string ->
+    ?port:int ->
+    (* unix client parameters: *)
+    socketfile:string ->
+    unit ->
+      (* inet6 server result: *)
+      Thread.t * string * int
+
+  val inet_of_unix_stream_server :
+    (* inet4 and inet6 server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?ipv4:string ->
+    ?ipv6:string ->
+    ?port:int ->
+    (* unix client parameters: *)
+    socketfile:string ->
+    unit ->
+      (* inet4 and inet6 server result: *)
+      (Thread.t * string * int) * (Thread.t * string * int)
+
+end 
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Examples : sig

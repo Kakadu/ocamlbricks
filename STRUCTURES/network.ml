@@ -17,6 +17,13 @@
 
 module Log = Ocamlbricks_log
 
+exception Accepting of exn
+exception Connecting of exn
+exception Receiving of exn
+exception Sending   of exn
+exception Closing   of exn
+exception Binding   of exn
+
 let string_of_sockaddr = function
   | Unix.ADDR_UNIX x -> x
   | Unix.ADDR_INET (inet_addr, port) ->
@@ -37,13 +44,39 @@ let inet_addr_and_port_of_sockaddr = function
 let domain_of_inet_addr x =
   Unix.domain_of_sockaddr (Unix.ADDR_INET (x, 0))
 
-(* From standard library unix.ml *)
+let string_of_domain = function
+| Unix.PF_UNIX  -> "Unix domain"
+| Unix.PF_INET  -> "Internet domain (IPv4)"
+| Unix.PF_INET6 -> "Internet domain (IPv6)"
+
+(* Inspired by the homonymous function in the standard library unix.ml *)
 let rec accept_non_intr s =
   try Unix.accept s
-  with Unix.Unix_error (Unix.EINTR, _, _) -> accept_non_intr s
+  with
+  | Unix.Unix_error (Unix.EINTR, _, _) -> accept_non_intr s
+  | e -> raise (Accepting e)
+
+(* Unix.bind wrapper: raises the exception Binding if something goes wrong: *)
+let bind socket sockaddr =
+  try
+    Unix.bind socket sockaddr
+  with e ->
+    let (inet_addr, port) = inet_addr_and_port_of_sockaddr sockaddr in
+    let domain = string_of_domain (domain_of_inet_addr inet_addr) in
+    Log.print_exn ~prefix:(Printf.sprintf "binding socket to %s address %s: " domain (string_of_sockaddr sockaddr)) e;
+    raise (Binding e)
+
+(* fix Unix.IPV6_ONLY if needed *)
+let fix_IPV6_ONLY_if_needed ~domain fd =
+  if domain <> Unix.PF_INET6 then () else
+  let ipv6_only = Unix.getsockopt fd Unix.IPV6_ONLY in
+  (if not ipv6_only then
+    Log.printf "Fixing option Unix.IPV6_ONLY to true\n";
+    Unix.setsockopt fd Unix.IPV6_ONLY true);
+  ()
 
 (* Generic function able to establish a server on a sockaddr. *)
-let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?no_fork server_fun sockaddr =
+let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server_fun sockaddr =
   let socket_type =
     match seqpacket with
     | None    -> Unix.SOCK_STREAM
@@ -54,7 +87,8 @@ let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?no_f
   (* listen_socket initialization: *)
   let assigned_port =
     Unix.setsockopt listen_socket Unix.SO_REUSEADDR true;
-    Unix.bind listen_socket sockaddr;
+    fix_IPV6_ONLY_if_needed ~domain listen_socket;
+    bind listen_socket sockaddr;
     Unix.listen listen_socket max_pending_requests;
     (* The assigned port will be interesting for the caller only if the port number 
        provided with ~sockaddr has been set to 0 (in order to ask the kernel to choose
@@ -67,7 +101,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?no_f
   in
   let process_forking_loop () =
     let connexion_no = ref 0 in
-    let tutor = ThreadExtra.tutor (*~killable:()*) ?behaviour:tutor_behaviour () in
+    let tutor = ThreadExtra.tutor ?behaviour:tutor_behaviour () in
     while true do
       let (service_socket, _) = accept_non_intr listen_socket in
       incr connexion_no;
@@ -99,6 +133,11 @@ let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?no_f
     done
   in
   let forking_loop () =
+    (* Provide to the other threads a mean to kill this forking_loop: *)
+    let () =
+      let shutdown () = Unix.shutdown listen_socket Unix.SHUTDOWN_RECEIVE in
+      ThreadExtra.set_killable_with_thunk (fun () -> shutdown ())
+    in
     (* listen_socket finalization: *)
     let () =
       match sockaddr with
@@ -111,7 +150,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?killable ?tutor_behaviour ?no_f
     | None    -> process_forking_loop ()
     | Some () -> thread_forking_loop ()
   in
-  let server_thread = ThreadExtra.create ?killable forking_loop () in
+  let server_thread = ThreadExtra.create forking_loop () in
   (server_thread, assigned_port)
   
 
@@ -144,20 +183,20 @@ let fresh_socketname ?temp_dir ?prefix ?(suffix="") () =
   let () = ThreadExtra.at_exit (fun () -> Unix.unlink result) in
   result
 
-let unix_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no_fork ?socketfile server_fun =
+let unix_server ?max_pending_requests ?seqpacket ?tutor_behaviour ?no_fork ?socketfile server_fun =
   let socketfile = Option.extract_or_force socketfile (lazy (socketname_in_a_fresh_made_directory "ctrl")) in
   let sockaddr = Unix.ADDR_UNIX socketfile in
-  let (server_thread, _) = server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no_fork server_fun sockaddr in
+  let (server_thread, _) = server ?max_pending_requests ?seqpacket ?tutor_behaviour ?no_fork server_fun sockaddr in
   (server_thread, socketfile)
 
-let inet4_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no_fork ?ipv4 ?(port=0) server_fun =
+let inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?(port=0) server_fun =
   let ipv4 = match ipv4 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv4, port) in
   let (server_thread, assigned_port) = 
-    server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no_fork server_fun sockaddr
+    server ?max_pending_requests ?tutor_behaviour ?no_fork server_fun sockaddr
   in
   let assigned_port = match assigned_port with
   | Some x -> x 
@@ -165,14 +204,14 @@ let inet4_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no
   in
   (server_thread, (Unix.string_of_inet_addr ipv4), assigned_port)
 
-let inet6_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no_fork ?ipv6 ?(port=0) server_fun =
+let inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?(port=0) server_fun =
   let ipv6 = match ipv6 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet6_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv6, port) in
   let (server_thread, assigned_port) = 
-    server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no_fork server_fun sockaddr
+    server ?max_pending_requests ?tutor_behaviour ?no_fork server_fun sockaddr
   in
   let assigned_port = match assigned_port with
   | Some x -> x 
@@ -180,14 +219,38 @@ let inet6_server ?max_pending_requests ?seqpacket ?killable ?tutor_behaviour ?no
   in
   (server_thread, (Unix.string_of_inet_addr ipv6), assigned_port)
 
+(* Dual stack inet4 and inet6: *)
+let inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port server_fun =
+  let (thrd4, addr4, port4) as r4 = inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun in
+  Log.printf "dual stack server: inet4 thread started (%d)\n" (Thread.id thrd4);
+  let return_raising e =
+    Log.print_exn ~prefix:"dual stack server: I cannot start both servers because of: " e;
+    (* Try to kill thrd4 after having waited 1 second (thrd4 shoud have the time tu register its killing thunk),
+       but do this in another thread, in order to return immediately: *)
+    ThreadExtra.delayed_kill 1. thrd4;
+    raise e
+  in
+  let (thrd6, addr6, port6) as r6 =
+    try
+      inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ~port:port4 server_fun
+    with
+    | Binding e when port=None ->
+	(try
+	   inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+	 with e -> return_raising e)
+    | e -> return_raising e
+  in
+  Log.printf "dual stack server: inet6 thread started (%d)\n" (Thread.id thrd6);
+  (r4,r6)
+
 (* fix Unix.SO_RCVBUF if needed *)
 let fix_SO_RCVBUF_if_needed ~max_input_size fd =
   let recv_buffer_size = Unix.getsockopt_int fd Unix.SO_RCVBUF in
   (if max_input_size > recv_buffer_size then
-    Log.printf "Fixing Unix.SO_RCVBUF to the value %d\n" max_input_size;
+    Log.printf "Fixing option Unix.SO_RCVBUF to the value %d\n" max_input_size;
     Unix.setsockopt_int fd Unix.SO_RCVBUF max_input_size);
   ()
-    
+
 
 class common_low_level_methods_on_socket fd =
  object
@@ -204,7 +267,7 @@ class common_low_level_methods_on_socket fd =
 (* High-level representation of the structure available, after a connection, to both endpoints.
    The max_input_size is set by default to 1514 (Ethernet: 1514=1526-12 (8 preamble and 4 CRC)) *)
 class stream_or_seqpacket_bidirectional_channel ?(max_input_size=1514) ?seqpacket fd =
-  let () = fix_SO_RCVBUF_if_needed max_input_size fd in
+  let () = fix_SO_RCVBUF_if_needed ~max_input_size fd in
   object
   inherit common_low_level_methods_on_socket fd
 
@@ -215,14 +278,14 @@ class stream_or_seqpacket_bidirectional_channel ?(max_input_size=1514) ?seqpacke
     try
       let shutdown_command =
 	match receive, send with
-	| None, None | Some (), Some () -> Unix.SHUTDOWN_ALL
+	| None, None | Some (), None -> Unix.SHUTDOWN_RECEIVE
 	| None, Some () -> Unix.SHUTDOWN_SEND
-	| Some (), None -> Unix.SHUTDOWN_RECEIVE
+	| Some (), Some () -> Unix.SHUTDOWN_ALL
       in
       Unix.shutdown fd shutdown_command
     with e ->
       Log.print_exn ~prefix:"channel#shutdown: " e;
-      raise e
+      raise (Closing e)
 
   method sockaddr0 = Unix.getsockname fd
   method sockaddr1 = Unix.getpeername fd
@@ -232,10 +295,10 @@ end (* class stream_or_seqpacket_bidirectional_channel *)
 class stream_channel ?max_input_size fd =
   let in_channel  = Unix.in_channel_of_descr  fd in
   let out_channel = Unix.out_channel_of_descr fd in
-  let raise_but_also_log_it caller e =
+  let raise_but_also_log_it ?sending caller e =
     let prefix = Printf.sprintf "stream_channel#%s: " caller in
     let () = Log.print_exn ~prefix e in
-    raise e
+    if sending=None then raise (Receiving e) else raise (Sending e)
   in
   let tutor0 f x caller =
     try
@@ -246,7 +309,7 @@ class stream_channel ?max_input_size fd =
     try
       f x y;
       flush x
-    with e -> raise_but_also_log_it caller e
+    with e -> raise_but_also_log_it ~sending:() caller e
   in
   let return_of_at_least at_least =
     match at_least with
@@ -266,12 +329,12 @@ class stream_channel ?max_input_size fd =
     let return = return_of_at_least at_least in
     try
       let n = Unix.recv fd input_buffer 0 max_input_size [] in
-      (if n=0 then failwith "stream_channel#receive: received 0 bytes (peer terminated?)");
+      (if n=0 then failwith "received 0 bytes (peer terminated?)");
       return (String.sub input_buffer 0 n)
     with e ->
       Log.print_exn ~prefix:"stream_channel#receive: " e;
       let _ = return "" in
-      raise e
+      raise (Receiving e)
 
   method peek ?(at_least=0) () : string option =
     try
@@ -292,11 +355,15 @@ class stream_channel ?max_input_size fd =
     let rec send_stream_loop x off len =
       if len=0 then () else
       let n = Unix.send fd x off len [] in
-      if n = 0 then failwith "stream_channel#send: failed to send in a stream channel: no more than 0 bytes sent!" else
+      if n = 0 then failwith "failed to send in a stream channel: no more than 0 bytes sent!" else
       if n<len then send_stream_loop x (off+n) (len-n) else
       ()
     in
-    send_stream_loop x 0 (String.length x)
+    try
+      send_stream_loop x 0 (String.length x)
+    with e ->
+      Log.print_exn ~prefix:"stream_channel#send: " e;
+      raise (Sending e)
 
   method input_char       () : char   = tutor0 Pervasives.input_char in_channel "input_char"
   method input_line       () : string = tutor0 Pervasives.input_line in_channel "input_line"
@@ -341,11 +408,11 @@ class seqpacket_channel ?max_input_size fd =
   method receive () : string =
     try
       let n = Unix.recv fd input_buffer 0 max_input_size [] in
-      (if n=0 then failwith "seqpacket_channel#receive: received 0 bytes (peer terminated?)");
+      (if n=0 then failwith "received 0 bytes (peer terminated?)");
       String.sub input_buffer 0 n
     with e ->
       Log.print_exn ~prefix:"seqpacket_channel#receive: " e;
-      raise e
+      raise (Receiving e)
 
   method peek () : string option =
     try
@@ -359,11 +426,15 @@ class seqpacket_channel ?max_input_size fd =
       None
 
   method send (x:string) : unit =
-    let len = String.length x in
-    let n = Unix.send fd x 0 len [] in
-    if n<len then
-      failwith (Printf.sprintf "seqpacket_channel#send: failed sending a seqpacket: no more than %d bytes sent!" n)
-     else ()
+    try
+      let len = String.length x in
+      let n = Unix.send fd x 0 len [] in
+      if n<len then
+	failwith (Printf.sprintf "failed sending a seqpacket: no more than %d bytes sent!" n)
+      else ()
+    with e ->
+      Log.print_exn ~prefix:"seqpacket_channel#send: " e;
+      raise (Sending e)
 
 end (* class seqpacket_channel *)
 
@@ -372,7 +443,7 @@ exception Unexpected_sender of string
 (* Typically the client builds its socketfile (0), send it to the server through the stream channel, then
    receives its socketfile for output (1).  *)
 class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
-  let () = fix_SO_RCVBUF_if_needed max_input_size fd0 in
+  let () = fix_SO_RCVBUF_if_needed ~max_input_size fd0 in
   let input_buffer = String.create max_input_size in
   let sockaddr0 = Unix.getsockname fd0 in
   object (self)
@@ -385,7 +456,7 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
       String.sub input_buffer 0 n
     with e ->
       Log.print_exn ~prefix:"dgram_channel#receive: " e;
-      raise e
+      raise (Receiving e)
 
   method peek () : string option =
     try  
@@ -408,15 +479,15 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
       ()
     with e ->
       Log.print_exn ~prefix:"dgram_channel#send: " e;
-      raise e
+      raise (Sending e)
     
   method shutdown ?receive ?send () =
     try
       let shutdown_command =
 	match receive, send with
-	| None, None | Some (), Some () -> Unix.SHUTDOWN_ALL
+	| None, None | Some (), None -> Unix.SHUTDOWN_RECEIVE
 	| None, Some () -> Unix.SHUTDOWN_SEND
-	| Some (), None -> Unix.SHUTDOWN_RECEIVE
+	| Some (), Some () -> Unix.SHUTDOWN_ALL
       in
       (match shutdown_command with
       | Unix.SHUTDOWN_RECEIVE | Unix.SHUTDOWN_ALL ->
@@ -431,7 +502,7 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
       )
     with e ->
       Log.print_exn ~prefix:"dgram_channel#shutdown: " e;
-      raise e
+      raise (Closing e)
 
   method sockaddr0 = sockaddr0
   method sockaddr1 = sockaddr1
@@ -451,7 +522,7 @@ let dgram_input_socketfile_of ?dgram_output_socketfile ~stream_socketfile () =
   let make_socket ~bind_to =
     let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
     let socketfile = bind_to in
-    Unix.bind result (Unix.ADDR_UNIX socketfile);
+    bind result (Unix.ADDR_UNIX socketfile);
     Log.printf "Unix datagram socket bound to %s\n" socketfile;
     result
   in
@@ -521,7 +592,7 @@ let dgram_input_port_of ?dgram_output_port ~my_stream_inet_addr () =
   let (sockaddr0, dgram_input_port) =
     let () = 
       match dgram_output_port with
-      | None   -> Unix.bind fd0 (Unix.ADDR_INET (my_stream_inet_addr, 0))
+      | None   -> bind fd0 (Unix.ADDR_INET (my_stream_inet_addr, 0))
       | Some p ->
           (* Try to reserve the same port of the client: *)
           try
@@ -530,7 +601,7 @@ let dgram_input_port_of ?dgram_output_port ~my_stream_inet_addr () =
             (* Note here that the exception is Unix.Unix_error(50, "bind", "")
             but for a very strange OCaml (toplevel 3.11.2) behaviour (bug?) the
             pattern Unix.Unix_error (_, _, _) doesn't catch the exception!!! *)
-            Unix.bind fd0 (Unix.ADDR_INET (my_stream_inet_addr, 0));
+            bind fd0 (Unix.ADDR_INET (my_stream_inet_addr, 0));
     in
     match Unix.getsockname fd0 with
     | (Unix.ADDR_INET (_, assigned_port)) as sockaddr0 -> (sockaddr0, assigned_port)
@@ -559,25 +630,30 @@ let server_fun_of_seqpacket_protocol ?max_input_size protocol =
     result
 
 (* seqpacket - unix *)
-let seqpacket_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?socketfile ~(protocol:seqpacket_channel -> unit) () =
+let seqpacket_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile ~(protocol:seqpacket_channel -> unit) () =
   let server_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  unix_server ?max_pending_requests ~seqpacket:() ?killable ?tutor_behaviour ?no_fork ?socketfile server_fun
+  unix_server ?max_pending_requests ~seqpacket:() ?tutor_behaviour ?no_fork ?socketfile server_fun
 
 (* stream - unix *)
-let stream_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?socketfile ~(protocol:stream_channel -> unit) () =
+let stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  unix_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?socketfile server_fun
+  unix_server ?max_pending_requests ?tutor_behaviour ?no_fork ?socketfile server_fun
 
-(* stream - inet *)
-let stream_inet4_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?ipv4 ?port ~(protocol:stream_channel -> unit) () =
+(* stream - inet4 *)
+let stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet4_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun
+  inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun
 
 (* stream - inet6 *)
-let stream_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?ipv6 ?port ~(protocol:stream_channel -> unit) () =
+let stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port ~(protocol:stream_channel -> unit) () =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+  inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
 
+
+(* stream - inet (both 4 and 6) trying to reserve for ipv6 the same port reserved for ipv4: *)
+let stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port ~(protocol:stream_channel -> unit) () =
+  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
+  inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port server_fun
 
 let stream_dgram_protocol_composition
   ~(bootstrap : stream_channel -> dgram_channel)
@@ -592,32 +668,40 @@ let stream_dgram_protocol_composition
     end
 
 (* datagram - unix *)
-let dgram_unix_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?socketfile
+let dgram_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  unix_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?socketfile server_fun
+  unix_server ?max_pending_requests ?tutor_behaviour ?no_fork ?socketfile server_fun
 
-(* datagram - inet *)
-let dgram_inet4_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?ipv4 ?port
+(* datagram - inet4 *)
+let dgram_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet4_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun
+  inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun
 
 (* datagram - inet6 *)
-let dgram_inet6_server ?max_pending_requests ?max_input_size ?killable ?tutor_behaviour ?no_fork ?ipv6 ?port
+let dgram_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+  inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
 
+(* datagram - inet *)
+let dgram_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+  ~(bootstrap : stream_channel   -> dgram_channel)
+  ~(protocol  : dgram_channel -> unit)
+  () =
+  let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
+  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port server_fun
 
 
 let client ?seqpacket client_fun sockaddr =
@@ -634,7 +718,7 @@ let client ?seqpacket client_fun sockaddr =
   with e ->
     begin
       Unix.close socket;
-      raise e
+      raise (Connecting e)
     end
 
 let unix_client ?seqpacket ~socketfile client_fun =
@@ -680,6 +764,99 @@ let dgram_inet_client ?max_input_size
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
   inet_client ~ipv4_or_v6 ~port client_fun
+
+
+module Socat = struct
+
+(* The following code is a macro, not a function, in order to bypass the type-system.
+   Actually, the type-system doesn't understand the compatibility among a function and
+   actuals that are objects of different types. In our case, channel objects may have
+   the #receive method slightly different, but all of these methods can be called in a
+   default way, just giving them the argument (). The following code should generate
+   only this constraint, even if it would not so easy to express. On the contrary,
+   the generated constraint is that the function will accept only actuals of type
+   < receive : unit -> string; send : string -> unit; .. >.
+   We bypass this problem using a macro: *)
+DEFINE MACRO_CROSSOVER_LINK (chA,chB) =
+  let rec loop_A_to_B () =
+    try
+      let x  = chA#receive () in
+      let () = chB#send x in
+      loop_A_to_B ()
+    with _ -> chB#shutdown ()
+  in
+  let rec loop_B_to_A () =
+    try
+      let x  = chB#receive () in
+      let () = chA#send x in
+      loop_B_to_A ()
+    with _ -> chA#shutdown ()
+  in
+  let thread_A_to_B = Thread.create loop_A_to_B () in
+  let thread_B_to_A = Thread.create loop_B_to_A () in
+  Thread.join thread_A_to_B;
+  Thread.join thread_B_to_A;
+  ()
+
+(* Example:
+{[# Sys.command "xterm" ;;
+  : int = 0
+
+# Sys.command "DISPLAY=127.0.0.1:42 xterm" ;;
+xterm Xt error: Can't open display: 127.0.0.1:42
+  : int = 1
+
+# Network.Socat.inet4_of_unix_stream_server ~port:6042 ~socketfile:"/tmp/.X11-unix/X0" () ;;
+  : Thread.t * string * int = (<abstr>, "0.0.0.0", 6042)
+
+# Sys.command "DISPLAY=127.0.0.1:42 xterm" ;;
+  : int = 0 ]} *)
+  let inet4_of_unix_stream_server 
+    (* inet4 server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+    (* unix client parameters and inet4 server result: *)
+    ~socketfile () : Thread.t * string * int
+    =
+    stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_unix_client ?max_input_size ~socketfile
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+  let inet6_of_unix_stream_server
+    (* inet6 server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+    (* unix client parameters and inet6 server result: *)
+    ~socketfile () : Thread.t * string * int
+    =
+    stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_unix_client ?max_input_size ~socketfile
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+  let inet_of_unix_stream_server
+    (* inet6 server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+    (* unix client parameters and inet6 server result: *)
+    ~socketfile () : (Thread.t * string * int) * (Thread.t * string * int)
+    =
+    stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_unix_client ?max_input_size ~socketfile
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+end (* module Socat *)
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Examples = struct
