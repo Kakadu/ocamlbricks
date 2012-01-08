@@ -27,6 +27,13 @@ val killall   : unit -> unit
 val killable  : unit -> int list
 val killer    : Thread.t -> unit -> unit
 
+val set_killable_with_thunk : ?who:Thread.t -> (unit -> unit) -> unit
+
 val id_kill   : int -> bool
 val id_killer : int -> unit -> unit
+
+val delayed_kill    : float -> Thread.t -> unit
+val delayed_killall : float -> unit
+val delayed_id_kill : float -> int -> unit
+
 

@@ -144,3 +144,25 @@ let k = ThreadExtra.killer ts.(2) ;;
 ThreadExtra.fork (fun () -> Thread.delay 1.; k (); Thread.delay 1.;) () ;;
 
 Log.printf "Peeking: %s\n" (Option.string_of (fun x-> string_of_int (Obj.magic x)) (ch#peek ~at_least:8 ()));
+
+let (thrd4, addr4, port4) as r4 = inet4_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun in
+  Log.printf "stream_inet_server: inet4 thread started (%d)\n" (Thread.id thrd4);
+  let return_raising e =
+    Log.print_exn ~prefix:"stream_inet_server: I cannot start both servers because of: " e;
+    (* Try to kill thrd4 after having waited 1 second (thrd4 shoud have the time tu register its killing thunk),
+       but do this in another thread, in order to return immediately: *)
+    ThreadExtra.delayed_kill 1. thrd4;
+    raise e
+  in
+  let (thrd6, addr6, port6) as r6 =
+    try
+      inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv6 ~port:port4 server_fun
+    with
+    | Binding e when port=None ->
+	(try
+	   inet6_server ?max_pending_requests ?killable ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+	 with e -> return_raising e)
+    | e -> return_raising e
+  in
+  Log.printf "stream_inet_server: inet6 thread started (%d)\n" (Thread.id thrd6);
+  (r4,r6)

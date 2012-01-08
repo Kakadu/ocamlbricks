@@ -105,7 +105,7 @@ module Available_signals = struct
   (* We will use signals from SIGRTMIN (34) to SIGRTMAX (64) included: *)
   module Sem = Semaphore.Array_or (struct let dim = 64 - 34 + 1 end)
 
-  (* The thread -> signal mapping: *)
+  (* For managing both the thread -> signal mapping and the thread -> thunk one: *)
   module Map = MapExtra.Destructive.Int_map
   
   let all_usable_signals =
@@ -122,20 +122,42 @@ module Available_signals = struct
       (semaphores, mapping)
   end)
 
+  module EMutex = MutexExtra.EMutex
+  
+  (* The secondary structure of this module is the container where threads
+     may provide themselves a mean to kill them. *)
+  module H = Stateful_modules.Process_private_thread_shared_variable (struct
+    type t = (unit->unit) Map.t
+    let name = None
+    let init () = Map.create ()
+  end)
+
+  let set_killable_with_thunk ?(who=(Thread.self ())) thunk =
+    let mapping = H.extract () in
+    let id = Thread.id who in
+    let () = H.apply_with_mutex (Map.add id thunk) mapping in
+    ()
+
+  let child_remove_thunk_for_killing_me_if_any () =
+    let mapping = H.extract () in
+    let id = Thread.id (Thread.self ()) in
+    let () = H.apply_with_mutex (Map.remove id) mapping in
+    ()
+
   (* Called by the father: *)
-  let father_acquire_slot () =
+  let father_acquire_signal_slot () =
     let (semaphores, mapping) = T.extract () in
     let (i,n) = Sem.p semaphores in (* n=1 *)
     i
 
   (* Called by the child: *)
-  let child_take_possession_of_slot i =
+  let child_take_possession_of_signal_slot i =
     let (semaphores, mapping) = T.extract () in
     let id = Thread.id (Thread.self ()) in
     let () = T.apply_with_mutex (Map.add id (i+34)) mapping in
     ()
 
-  let child_release_slot i =
+  let child_release_signal_slot i =
     let (semaphores, mapping) = T.extract () in
     let id = Thread.id (Thread.self ()) in
     let () = T.apply_with_mutex (Map.remove id) mapping in
@@ -143,13 +165,17 @@ module Available_signals = struct
     ()
 
   let killall () =
+    (* Looking in the primary structure: *)
     let (semaphores, mapping) = T.extract () in
     let pid = Unix.getpid () in
     let () = T.apply_with_mutex (Map.iter (fun _ s -> Unix.kill pid s)) mapping in
+    (* Looking in the secondary structure: *)
+    let mapping = H.extract () in
+    let () = H.apply_with_mutex (Map.iter (fun _ thunk -> try thunk () with _ -> ())) mapping in
     ()
 
-  let id_kill id =
-    Log.printf "Attempting to kill the thread %d...\n" id;
+  let id_kill_by_signal id =
+    Log.printf "Attempting to kill the thread %d by signal...\n" id;
     let (semaphores, mapping) = T.extract () in
     let result = T.apply_with_mutex
      (fun () ->
@@ -161,27 +187,72 @@ module Available_signals = struct
 	with Not_found -> false)
       ()
     in
-    Log.printf "Thread %d killed: %b\n" id result;
     result
 
+  let id_kill_by_thunk id =
+    Log.printf "Attempting to kill the thread %d by thunk...\n" id;
+    let mapping = H.extract () in
+    let result = H.apply_with_mutex
+     (fun () ->
+	try
+	  let thunk = Map.find id mapping in
+	  (try thunk (); true with _ -> false)
+	with Not_found -> false)
+      ()
+    in
+    result
+
+  let id_kill id =
+    Log.printf "Attempting to kill the thread %d...\n" id;
+    let result = (id_kill_by_signal id) || (id_kill_by_thunk id) in
+    Log.printf "Thread %d killed: %b\n" id result;
+    result
+    
   let kill t = id_kill (Thread.id t)
 
   let killable () =
     let (semaphores, mapping) = T.extract () in
-    T.apply_with_mutex Map.domain mapping
-
-  (* The result of the partial application may be transmitted to another process: *)
-  let id_killer id =
-    let pid = Unix.getpid () in
+    let xs = T.apply_with_mutex Map.domain mapping in
+    let mapping = H.extract () in
+    let ys = H.apply_with_mutex Map.domain mapping in
+    List.append xs ys
+    
+  let id_killer_by_signal id =
     let (semaphores, mapping) = T.extract () in
     let s = T.apply_with_mutex (fun () -> try Some (Map.find id mapping) with Not_found -> None) () in
     match s with
     | Some s ->
-        Log.printf "Built a killer thunk able to kill %d.%d\n" pid id;
+        let pid = Unix.getpid () in
         (fun () -> Unix.kill pid s)
+    | None   -> raise Not_found
+
+  let id_killer_by_thunk id =
+    let mapping = H.extract () in
+    let thunk = H.apply_with_mutex (fun () -> try Some (Map.find id mapping) with Not_found -> None) () in
+    match thunk with
+    | Some thunk -> thunk
     | None -> raise Not_found
 
+  (* The result of the partial application may be transmitted to another process: *)
+  let id_killer id =
+    let result = 
+      try id_killer_by_signal id
+      with Not_found -> id_killer_by_thunk id
+    in
+    let pid = Unix.getpid () in
+    Log.printf "Built a killer thunk able to kill %d.%d\n" pid id;
+    result
+
   let killer t = id_killer (Thread.id t)
+
+  let delayed_kill s t =
+    ignore (Thread.create (fun () -> Thread.delay s; kill t) ())
+
+  let delayed_killall s =
+    ignore (Thread.create (fun () -> Thread.delay s; killall ()) ())
+
+  let delayed_id_kill s id =
+    ignore (Thread.create (fun () -> Thread.delay s; id_kill id) ())
 
   exception Has_been_killed
 
@@ -213,7 +284,7 @@ let create_killable =
   in
   fun f x ->
     (* The *father* thread executes the following lines: *)
-    let i = Available_signals.father_acquire_slot () in
+    let i = Available_signals.father_acquire_signal_slot () in
     let s = 34 + i in
     let _ = Thread.sigmask Unix.SIG_BLOCK [s] in
     (* The *child* thread executes the following lines: *)
@@ -223,12 +294,13 @@ let create_killable =
       let _ = Thread.sigmask Unix.SIG_UNBLOCK [s] in
       let id = Thread.id (Thread.self ()) in
       let previous_handler = Sys.signal s (Sys.Signal_handle (handler id)) in
-      let () = Available_signals.child_take_possession_of_slot i in
+      let () = Available_signals.child_take_possession_of_signal_slot i in
       Log.printf "Signal #%d reserved to be able to kill this thread\n" s;
       let final_actions () =
         (* The thread should make free the owned signal: *)
         (Sys.set_signal s previous_handler);
-        Available_signals.child_release_slot i;
+        Available_signals.child_release_signal_slot i;
+        Available_signals.child_remove_thunk_for_killing_me_if_any ();
         Exit_function.do_at_exit ()
       in      
       try
@@ -249,13 +321,17 @@ let create_killable =
 
 (** Similar to [Thread.create] but you must call this function if you want to use [ThreadExtra.at_exit] in your thread. *)
 let create_non_killable f x =
+    let final_actions () =
+      Available_signals.child_remove_thunk_for_killing_me_if_any ();
+      Exit_function.do_at_exit ()
+    in
     let f' y =
       try
         let result = f y in
-        Exit_function.do_at_exit ();
+        (final_actions ());
         result
       with e -> begin
-        Exit_function.do_at_exit ();
+        (final_actions ());
         Log.print_exn ~prefix:"Terminated by uncaught exception: " e;
         let () = Thread.exit () in
         (* Not really executed: *)
@@ -282,10 +358,10 @@ let rec waitpid_non_intr pid =
 let tutor ?killable ?behaviour () =
   let tutor_behaviour =
     let tutor_preamble pid =
-      Log.printf "Thread Tutor: activated for pid %d\n" pid;
+      Log.printf "Process Tutor: activated for pid %d\n" pid;
       Exit_function.at_exit
 	(fun () ->
-	  Log.printf "Thread Tutor: killing tutored pid %d...\n" pid;
+	  Log.printf "Process Tutor: killing tutored pid %d...\n" pid;
 	  Unix.kill pid 15);
       ()
     in
