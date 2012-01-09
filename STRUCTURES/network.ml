@@ -798,7 +798,11 @@ DEFINE MACRO_CROSSOVER_LINK (chA,chB) =
   Thread.join thread_B_to_A;
   ()
 
-(* Example:
+ (* -------------------------------- *
+         of_unix_stream_server
+  * -------------------------------- *)
+
+(** Example:
 {[# Sys.command "xterm" ;;
   : int = 0
 
@@ -851,6 +855,87 @@ xterm Xt error: Can't open display: 127.0.0.1:42
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  stream_unix_client ?max_input_size ~socketfile
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+
+  let unix_of_unix_stream_server
+    (* unix server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
+    (* unix client parameters and unix server result: *)
+    ~dsocketfile () : Thread.t * string
+    =
+    stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_unix_client ?max_input_size ~socketfile:dsocketfile
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+
+ (* -------------------------------- *
+         of_inet_stream_server
+  * -------------------------------- *)
+
+  let unix_of_inet_stream_server
+    (* unix server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
+    (* inet client parameters and unix server result: *)
+    ~ipv4_or_v6 ~port () : Thread.t * string
+    =
+    stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+  let inet4_of_inet_stream_server
+    (* inet4 server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+    (* inet client parameters and inet4 server result: *)
+    ~ipv4_or_v6 ~dport () : Thread.t * string * int
+    =
+    stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+  let inet6_of_inet_stream_server
+    (* inet4 server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+    (* inet client parameters and inet4 server result: *)
+    ~ipv4_or_v6 ~dport () : Thread.t * string * int
+    =
+    stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
+	    ~protocol:begin fun (chB:stream_channel) ->
+	        MACRO_CROSSOVER_LINK (chA,chB)
+	     end (* client protocol *) ()
+       end (* server protocol *) ()
+
+  let inet_of_inet_stream_server
+    (* inet4 server parameters: *)
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+    (* inet client parameters and inet4 server result: *)
+    ~ipv4_or_v6 ~dport () : (Thread.t * string * int) * (Thread.t * string * int)
+    =
+    stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+      ~protocol:begin fun (chA:stream_channel) ->
+	  (* When a connection is accepted the server became a client of the remote unix server: *)
+	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
 	     end (* client protocol *) ()

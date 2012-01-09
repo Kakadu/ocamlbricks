@@ -307,6 +307,10 @@ val dgram_inet_client :
 
 module Socat : sig
 
+ (* -------------------------------- *
+         of_unix_stream_server
+  * -------------------------------- *)
+ 
   val inet4_of_unix_stream_server :
     (* inet4 server parameters: *)
     ?max_pending_requests:int ->
@@ -347,7 +351,85 @@ module Socat : sig
     (* unix client parameters: *)
     socketfile:string ->
     unit ->
-      (* inet4 and inet6 server result: *)
+      (* inet4 and inet6 dual server result: *)
+      (Thread.t * string * int) * (Thread.t * string * int)
+
+  val unix_of_unix_stream_server :
+    (* unix server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?socketfile:string ->
+    (* unix client parameters: *)
+    dsocketfile:string ->
+    unit ->
+      (* unix server result: *)
+      Thread.t * string
+
+
+ (* -------------------------------- *
+         of_inet_stream_server
+  * -------------------------------- *)
+
+  val unix_of_inet_stream_server :
+    (* unix server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?socketfile:string ->
+    (* inet client parameters: *)
+    ipv4_or_v6:string ->
+    port:int ->
+    unit ->
+      (* unix server result: *)
+      Thread.t * string
+
+  val inet4_of_inet_stream_server :
+    (* inet4 server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?ipv4:string ->
+    ?port:int ->
+    (* inet client parameters: *)
+    ipv4_or_v6:string ->
+    dport:int ->
+    unit ->
+      (* inet4 server result: *)
+      Thread.t * string * int
+
+  val inet6_of_inet_stream_server :
+    (* inet4 server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?ipv6:string ->
+    ?port:int ->
+    (* inet client parameters: *)
+    ipv4_or_v6:string ->
+    dport:int ->
+    unit ->
+      (* inet4 server result: *)
+      Thread.t * string * int
+
+  val inet_of_inet_stream_server :
+    (* inet4 server parameters: *)
+    ?max_pending_requests:int ->
+    ?max_input_size:int ->
+    ?tutor_behaviour:(pid:int -> unit) ->
+    ?no_fork:unit ->
+    ?ipv4:string ->
+    ?ipv6:string ->
+    ?port:int ->
+    (* inet client parameters: *)
+    ipv4_or_v6:string ->
+    dport:int ->
+    unit ->
+      (* inet4 and inet6 dual server result: *)
       (Thread.t * string * int) * (Thread.t * string * int)
 
 end 
