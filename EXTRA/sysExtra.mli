@@ -31,5 +31,17 @@ val put : ?callback:(string -> unit) -> string -> string -> unit
 
 (** {2 Signals} *)
 
-val int_of_signal    : int -> int
-val string_of_signal : int -> string
+val int_of_signal  : int -> int
+val name_of_signal : int -> string
+val description_of_signal : int -> string * string * string * string
+val description_of_name   : string -> string * string * string
+
+val signal_behavior : int -> Sys.signal_behavior
+val iter_on_signals : ?except:(int list) -> (int -> Sys.signal_behavior -> unit) -> unit
+val fold_on_signals : ?except:(int list) -> ('a -> int -> Sys.signal_behavior -> 'a) -> 'a -> 'a
+
+val log_signal_reception : ?except:(int list) -> unit -> unit
+
+IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+val test_log_signal_reception : unit -> unit
+ENDIF

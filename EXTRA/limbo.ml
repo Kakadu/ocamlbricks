@@ -166,3 +166,33 @@ let (thrd4, addr4, port4) as r4 = inet4_server ?max_pending_requests ?killable ?
   in
   Log.printf "stream_inet_server: inet6 thread started (%d)\n" (Thread.id thrd6);
   (r4,r6)
+
+
+let log_signal_receptions () =
+  let simulated_handler_of_default_action = function
+  | Ign  -> Some ignore
+  | Term -> Some (fun i -> exit (128+(int_of_signal i)))
+  | Core -> Some (fun i -> Sys.set_signal i Sys.Signal_default; Unix.kill (Unix.getpid ()) i)
+  | _ -> None
+  in
+  let wrapper ~signo ~name ~descr ~current_handler =
+    Sys.Signal_handle
+      (fun i ->
+	 Log.printf "Received signal %d (%s): %s\n" signo name descr;
+         current_handler i)
+  in
+  iter_on_signals
+    (fun i behavior ->
+       let signo = int_of_signal i in
+       let name  = string_of_signal signo in
+       let (_, action, descr) = description_of_signal name in
+       match behavior with
+       | Sys.Signal_handle current_handler -> Sys.set_signal i (wrapper ~signo ~name ~descr ~current_handler)
+       | Sys.Signal_ignore                 -> Sys.set_signal i (wrapper ~signo ~name ~descr ~current_handler:ignore)
+       | Sys.Signal_default ->
+           (match simulated_handler_of_default_action action with
+           | None -> ()
+           | Some current_handler -> Sys.set_signal i (wrapper ~signo ~name ~descr ~current_handler)
+           )
+       )
+

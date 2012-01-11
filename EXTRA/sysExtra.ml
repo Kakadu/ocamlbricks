@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2007  Jean-Vincent Loddo, Luca Saiu
+   Copyright (C) 2007-2012  Jean-Vincent Loddo, Luca Saiu
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,122 @@ let put =
   (close_out out_channel);
  with Sys_error msg -> callback msg)
 
-(** Convert the signal in an integer as indicated by the unix command [kill -l]. *)
+
+(* Note: list built using "kill -l" on a GNU/Linux: *)
+let signal_list = [
+  (1,"SIGHUP");        (2,"SIGINT");       (3,"SIGQUIT");      (4,"SIGILL");
+  (5,"SIGTRAP");       (6,"SIGABRT");      (7,"SIGBUS");       (8,"SIGFPE");
+  (9,"SIGKILL");      (10,"SIGUSR1");     (11,"SIGSEGV");     (12,"SIGUSR2");
+  (13,"SIGPIPE");     (14,"SIGALRM");     (15,"SIGTERM");     (16,"SIGSTKFLT");
+  (17,"SIGCHLD");     (18,"SIGCONT");     (19,"SIGSTOP");     (20,"SIGTSTP");
+  (21,"SIGTTIN");     (22,"SIGTTOU");     (23,"SIGURG");      (24,"SIGXCPU");
+  (25,"SIGXFSZ");     (26,"SIGVTALRM");   (27,"SIGPROF");     (28,"SIGWINCH");
+  (29,"SIGIO");       (30,"SIGPWR");      (31,"SIGSYS");      (34,"SIGRTMIN");
+  (35,"SIGRTMIN+1");  (36,"SIGRTMIN+2");  (37,"SIGRTMIN+3");  (38,"SIGRTMIN+4");
+  (39,"SIGRTMIN+5");  (40,"SIGRTMIN+6");  (41,"SIGRTMIN+7");  (42,"SIGRTMIN+8");
+  (43,"SIGRTMIN+9");  (44,"SIGRTMIN+10"); (45,"SIGRTMIN+11"); (46,"SIGRTMIN+12");
+  (47,"SIGRTMIN+13"); (48,"SIGRTMIN+14"); (49,"SIGRTMIN+15"); (50,"SIGRTMAX-14");
+  (51,"SIGRTMAX-13"); (52,"SIGRTMAX-12"); (53,"SIGRTMAX-11"); (54,"SIGRTMAX-10");
+  (55,"SIGRTMAX-9");  (56,"SIGRTMAX-8");  (57,"SIGRTMAX-7");  (58,"SIGRTMAX-6");
+  (59,"SIGRTMAX-5");  (60,"SIGRTMAX-4");  (61,"SIGRTMAX-3");  (62,"SIGRTMAX-2");
+  (63,"SIGRTMAX-1");  (64,"SIGRTMAX");
+];;
+
+let the_SIGRTMIN_and_SIGRTMAX_descr = "Real-time signal for application-defined purposes"
+;;
+
+type default_actions = Term | Core | Stop | Cont | Ign  ;;
+let string_of_default_action = function
+ | Term -> "Term" | Core -> "Core" | Stop -> "Stop" | Cont -> "Cont" | Ign -> "Ign"
+;;
+
+(* Source: http://www.kernel.org/doc/man-pages/online/pages/man7/signal.7.html *)
+let signal_description_list = [
+  ("SIGHUP",      ("POSIX.1-1990", Term, "Hangup detected on controlling terminal or death of controlling process"));
+  ("SIGINT",      ("POSIX.1-1990", Term, "Interrupt from keyboard"));
+  ("SIGQUIT",     ("POSIX.1-1990", Core, "Quit from keyboard"));
+  ("SIGILL",      ("POSIX.1-1990", Core, "Illegal Instruction"));
+  ("SIGABRT",     ("POSIX.1-1990", Core, "Abort signal from abort(3)"));
+  ("SIGFPE",      ("POSIX.1-1990", Core, "Floating point exception"));
+  ("SIGKILL",     ("POSIX.1-1990", Term, "Kill signal"));
+  ("SIGSEGV",     ("POSIX.1-1990", Core, "Invalid memory reference"));
+  ("SIGPIPE",     ("POSIX.1-1990", Term, "Broken pipe: write to pipe with no readers"));
+  ("SIGALRM",     ("POSIX.1-1990", Term, "Timer signal from alarm(2)"));
+  ("SIGTERM",     ("POSIX.1-1990", Term, "Termination signal"));
+  ("SIGUSR1",     ("POSIX.1-1990", Term, "User-defined signal 1"));
+  ("SIGUSR2",     ("POSIX.1-1990", Term, "User-defined signal 2"));
+  ("SIGCHLD",     ("POSIX.1-1990", Ign,  "Child stopped or terminated"));
+  ("SIGCONT",     ("POSIX.1-1990", Cont, "Continue if stopped"));
+  ("SIGSTOP",     ("POSIX.1-1990", Stop, "Stop process"));
+  ("SIGTSTP",     ("POSIX.1-1990", Stop, "Stop typed at tty"));
+  ("SIGTTIN",     ("POSIX.1-1990", Stop, "tty input for background process"));
+  ("SIGTTOU",     ("POSIX.1-1990", Stop, "tty output for background process"));
+  ("SIGBUS",      ("POSIX.1-2001", Core, "Bus error (bad memory access)"));
+  ("SIGPOLL",     ("POSIX.1-2001", Term, "Pollable event (Sys V). Synonym for SIGIO"));
+  ("SIGPROF",     ("POSIX.1-2001", Term, "Profiling timer expired"));
+  ("SIGSYS",      ("POSIX.1-2001", Core, "Bad argument to routine (SVr4)"));
+  ("SIGTRAP",     ("POSIX.1-2001", Core, "Trace/breakpoint trap"));
+  ("SIGURG",      ("POSIX.1-2001", Ign,  "Urgent condition on socket (4.2BSD)"));
+  ("SIGVTALRM",   ("POSIX.1-2001", Term, "Virtual alarm clock (4.2BSD)"));
+  ("SIGXCPU",     ("POSIX.1-2001", Core, "CPU time limit exceeded (4.2BSD)"));
+  ("SIGXFSZ",     ("POSIX.1-2001", Core, "File size limit exceeded (4.2BSD)"));
+  ("SIGIOT",      ("NOT-IN-POSIX", Core, "IOT trap. A synonym for SIGABRT"));
+  ("SIGEMT",      ("NOT-IN-POSIX", Term, ""));
+  ("SIGSTKFLT",   ("NOT-IN-POSIX", Term, "Stack fault on coprocessor (unused)"));
+  ("SIGIO",       ("NOT-IN-POSIX", Term, "I/O now possible (4.2BSD)"));
+  ("SIGCLD",      ("NOT-IN-POSIX", Ign,  "A synonym for SIGCHLD"));
+  ("SIGPWR",      ("NOT-IN-POSIX", Term, "Power failure (System V)"));
+  ("SIGINFO",     ("NOT-IN-POSIX", Term, "A synonym for SIGPWR"));
+  ("SIGLOST",     ("NOT-IN-POSIX", Term, "File lock lost"));
+  ("SIGWINCH",    ("NOT-IN-POSIX", Ign,  "Window resize signal (4.3BSD, Sun)"));
+  ("SIGUNUSED",   ("NOT-IN-POSIX", Core, "Synonymous with SIGSYS"));
+  ("SIGRTMIN",    ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+1",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+2",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+3",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+4",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+5",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+6",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+7",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+8",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+9",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+10", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+11", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+12", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+13", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+14", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMIN+15", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-14", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-13", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-12", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-11", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-10", ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-9",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-8",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-7",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-6",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-5",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-4",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-3",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-2",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX-1",  ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+  ("SIGRTMAX",    ("POSIX.1-2001", Term, the_SIGRTMIN_and_SIGRTMAX_descr));
+];;
+
+(* A global structures for rapid access to signal informations: *)
+let name_of_signal =
+  let module Map = MapExtra.Destructive.Int_map in
+  let m = Map.create () in
+  let () = List.iter (fun (i,n) -> Map.add i n m) signal_list in
+  fun i -> Map.find i m
+  
+let description_of_signal =
+  let module Map = MapExtra.Destructive.String_map in
+  let m = Map.create () in
+  let () = List.iter (fun (i,n) -> Map.add i n m) signal_description_list in
+  fun i -> Map.find i m
+
+(** Convert the signal in an integer as indicated by [kill -l] on a GNU/Linux. *)
 let int_of_signal = function
  | x when x=Sys.sigabrt   -> 6
  | x when x=Sys.sigalrm   -> 14
@@ -81,8 +196,8 @@ let int_of_signal = function
  | x -> x
 
 
-(** Convert the signal in a string as indicated by the unix command [kill -l]. *)
-let string_of_signal = function
+(** Convert the signal in a string as indicated by [kill -l] on a GNU/Linux. *)
+let name_of_signal = function
  | x when x=Sys.sigabrt -> "SIGABRT"
  | x when x=Sys.sigalrm -> "SIGALRM"
  | x when x=Sys.sigfpe  -> "SIGFPE"
@@ -104,4 +219,108 @@ let string_of_signal = function
  | x when x=Sys.sigttou -> "SIGTTOU"
  | x when x=Sys.sigvtalrm -> "SIGVTALRM"
  | x when x=Sys.sigprof -> "SIGPROF"
- | x -> (string_of_int (int_of_signal x))
+ | x ->
+    (try
+       name_of_signal x
+     with Not_found -> (string_of_int (int_of_signal x)))
+
+let signal_behavior i =
+  let result = Sys.signal i Sys.Signal_default in
+  let () = Sys.set_signal i result in
+  result
+
+module Log = Ocamlbricks_log
+
+let fold_on_signals ?(except=[]) ?(caller="fold_on_signals") f s =
+  let rec loop s i =
+    if i > 64 then s else
+    if i = 32 then loop s (i+2) else (* 32 and 33 are meaningless *)
+    if List.mem i except then loop s (i+1) else
+    let s' = try
+      let b = signal_behavior i in
+      f s i b 
+      with Sys_error _ ->    	    
+        let n = name_of_signal i in
+        Log.printf "%s: skipping to apply the function to signal %2d (%s)\n" caller i n;
+        s 
+    in
+    loop s' (i+1)
+  in loop s 1 
+
+let iter_on_signals ?except f =
+  fold_on_signals ?except ~caller:"iter_on_signals" (fun () i b -> f i b) ()
+
+let wrap_signal_receptions ?except ?also_ignored ?also_core_dumped wrapper =
+  let simulated_handler_of_default_action = function
+  | Ign  when also_ignored<>None ->
+      Some ignore
+  | Term ->
+      Some (fun i -> exit (128+(int_of_signal i)))
+  | Core when also_core_dumped<>None ->
+      Some (fun i -> Sys.set_signal i Sys.Signal_default; Unix.kill (Unix.getpid ()) i)
+  | _ -> None
+  in
+  iter_on_signals ?except begin
+    fun i behavior ->
+       let signo = int_of_signal i in
+       let name  = name_of_signal signo in
+       let (_, action, descr) = description_of_signal name in
+       match behavior with
+       | Sys.Signal_handle current_handler -> Sys.set_signal i (wrapper ~signo ~name ~descr ~current_handler)
+       | Sys.Signal_ignore                 -> Sys.set_signal i (wrapper ~signo ~name ~descr ~current_handler:ignore)
+       | Sys.Signal_default ->
+           (match simulated_handler_of_default_action action with
+           | None -> ()
+           | Some current_handler -> Sys.set_signal i (wrapper ~signo ~name ~descr ~current_handler)
+           )
+    end
+
+let log_signal_reception ?except () =
+  let wrapper ~signo ~name ~descr ~current_handler =
+    Sys.Signal_handle
+      (fun i ->
+	 Log.printf "Received signal %d (%s): %s\n" signo name descr;
+         current_handler i)
+  in
+  wrap_signal_receptions ?except ~also_core_dumped:() ~also_ignored:() wrapper
+ 
+
+let description_of_name name =
+  let (posix, action, descr) = description_of_signal name in
+  (posix, (string_of_default_action action), descr)
+
+(* Redefined in order to have an integer as input and only strings in the result: *)
+let description_of_signal i =
+  let signo = int_of_signal i in
+  let name  = name_of_signal signo in
+  let (posix, action, descr) = description_of_signal name in
+  (name, posix, (string_of_default_action action), descr)
+
+(* Redefined in order to remove the ?caller parameter: *)
+let fold_on_signals ?except f s = fold_on_signals ?except f s
+
+IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+(* May be tested from the shell:
+$ make test \<\<\<"SysExtra.test_log_signal_reception () ;;" 2>/tmp/test.log
+$ grep Received /tmp/test.log
+*)
+let test_log_signal_reception () =
+  iter_on_signals begin fun i b ->
+    let _ =
+      ThreadExtra.fork
+	~behaviour:(fun ~pid ->
+	  Log.printf "Trying to send the signal No. %d to %d\n" i pid;
+          Thread.delay 0.5;
+	  Unix.kill pid i)
+	(fun () ->
+           log_signal_reception ();
+	   Log.printf "In pause...\n";
+	   Thread.delay 1.)
+	()
+    in
+    Thread.delay 1.;
+    Log.printf "=======================================\n";
+    ()
+    end
+;;
+ENDIF

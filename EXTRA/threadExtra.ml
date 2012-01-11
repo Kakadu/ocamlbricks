@@ -358,10 +358,10 @@ let rec waitpid_non_intr pid =
 let tutor ?killable ?behaviour () =
   let tutor_behaviour =
     let tutor_preamble pid =
-      Log.printf "Process Tutor: activated for pid %d\n" pid;
+      Log.printf "Thread created for tutoring process %d\n" pid;
       Exit_function.at_exit
 	(fun () ->
-	  Log.printf "Process Tutor: killing tutored pid %d...\n" pid;
+	  Log.printf "Killing tutored process %d...\n" pid;
 	  Unix.kill pid 15);
       ()
     in
@@ -390,7 +390,7 @@ let fork ?killable ?behaviour f x =
     | 0 ->
 	(* The child here: *)
 	begin
-	  Log.printf "Process Fork: activated by %d.%d\n" pid id;
+	  Log.printf "Process (fork) created by %d.%d\n" pid id;
 	  let _ =
 	    try f x
             with e ->

@@ -89,11 +89,12 @@ echo ocamlmktop -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
 ocamlmktop -g -o toplevel -thread -custom dynlink.cma $STUFF ocamlbricks.cma
 
 if which rlwrap >/dev/null; then
- rlwrap ./toplevel $STUFF -init $PREAMBLE || true
+ rlwrap ./toplevel $STUFF -init $PREAMBLE || CODE=$?
 else
  echo "Suggestion: install rlwrap for testing with readline (on debian/ubuntu: apt-get install rlwrap)"
- ./toplevel $STUFF -init $PREAMBLE || true
+ ./toplevel $STUFF -init $PREAMBLE || CODE=$?
 fi
 
 sleep 0.5
 rm -f $PREAMBLE
+exit $CODE
