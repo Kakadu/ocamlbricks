@@ -47,6 +47,31 @@ val verbose_config_of_strings   : ?strict:bool -> string -> string -> verbose_co
 val netmask_with_cidr_of_string : string -> netmask * cidr
 val netmask_of_string           : string -> netmask
 
+type ipcalc_result =
+< ip : ipv4;
+  cidr      : cidr;
+  netmask   : ipv4;
+  network   : ipv4;
+  broadcast : ipv4;
+  hostmin   : ipv4;
+  hostmax   : ipv4;
+  hosts     : int;
+  print     : unit;
+
+  string_of : <
+      ip        : string;
+      netmask   : string;
+      network   : string;
+      broadcast : string;
+      hostmax   : string;
+      hostmin   : string;
+      >;
+
+  contain : ipv4 -> bool;
+  >
+
+val ipcalc : ipv4 -> cidr -> ipcalc_result
+
 (** {2 String checking} *)
 
 module String : sig
@@ -55,4 +80,8 @@ module String : sig
  val is_valid_netmask        : string -> bool
  val is_valid_config         : ?strict:bool -> string -> bool
  val is_valid_verbose_config : ?strict:bool -> string -> string -> bool
+ val ipcalc                  : string -> ipcalc_result
 end
+
+
+  

@@ -17,14 +17,9 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
-type byte    = int
-type ipv4    = byte * byte * byte * byte
-type cidr    = byte
-type netmask = byte * byte * byte * byte
-
-type config          = ipv4 * cidr
-type verbose_config  = ipv4 * netmask
-
+#load "include_type_definitions_p4.cmo";;
+INCLUDE DEFINITIONS "../STRUCTURES/ipv4.mli"
+;;
 
 let prettify_scanf_exception caller = function
  | Scanf.Scan_failure msg -> failwith (caller^": "^msg)
@@ -233,6 +228,69 @@ let verbose_config_of_strings ?(strict=false) str_ip str_netmask =
  (check_config ~caller:"verbose_config_of_strings" ~strict ip cidr);
  (ip,netmask)
 
+
+(* ********************************************
+                 ipcalc
+   ******************************************** *)
+
+let ipcalc ((i1,i2,i3,i4) as ip) cidr =
+  let (n1,n2,n3,n4) as netmask   = netmask_of_cidr cidr in
+  let (a1,a2,a3,a4) as network   = (i1  land n1, i2  land n2, i3  land n3, i4  land n4) in (* network address *)
+  let (d1,d2,d3,d4)              = (255 lxor n1, 255 lxor n2, 255 lxor n3, 255 lxor n4) in (* capacity delta *)
+  let (b1,b2,b3,b4) as broadcast = (a1+d1, a2+d2, a3+d3, a4+d4) in
+  let hostmin = (a1,a2,a3,a4+1) in
+  let hostmax = (b1,b2,b3,b4-1) in
+  let hostmin = max (min hostmin hostmax) network 
+  and hostmax = min (max hostmin hostmax) broadcast in
+  let contain x = (x >= hostmin && x <= hostmax) in
+  let hosts = match cidr with
+   | 32 -> 1
+   | 31 -> 2
+   | _ -> (int_of_float (2. ** (float_of_int (32-cidr)))) - 2
+  in
+  let s = string_of_ipv4 in
+  let s_ip        = lazy (s ip) in
+  let s_netmask   = lazy (s netmask) in
+  let s_network   = lazy (s network) in
+  let s_hostmin   = lazy (s hostmin) in
+  let s_hostmax   = lazy (s hostmax) in
+  let s_broadcast = lazy (s broadcast)
+  in
+  object
+    method ip = ip
+    method cidr = cidr
+    method netmask = netmask
+    method network = network
+    method broadcast = broadcast
+    method hostmax = hostmax
+    method hostmin = hostmin
+    method hosts = hosts
+    method contain = contain
+    method print = Printf.kfprintf flush stdout
+"Address:   %s
+Netmask:   %s = %d
+=>
+Network:   %s/%d
+HostMin:   %s
+HostMax:   %s
+Broadcast: %s
+Hosts:     %d
+" (Lazy.force s_ip) (Lazy.force s_netmask) cidr (Lazy.force s_network) cidr (Lazy.force s_hostmin) (Lazy.force s_hostmax) (Lazy.force s_broadcast) hosts
+
+    method string_of =
+      object
+	method ip = (Lazy.force s_ip)
+	method netmask = (Lazy.force s_netmask)
+	method network = (Lazy.force s_network)
+	method broadcast = (Lazy.force s_broadcast)
+	method hostmax = (Lazy.force s_hostmax)
+	method hostmin = (Lazy.force s_hostmin)
+      end
+
+  end
+;;
+
+
 (* ********************************************
           String parsing then checking
    ******************************************** *)
@@ -262,5 +320,8 @@ module String = struct
       let netmask = netmask_of_string str_netmask in
       is_valid_verbose_config ~strict (ip,netmask))
 
-end
+ let ipcalc x =
+   let (ip,cidr) = config_of_string x in
+   ipcalc ip cidr
 
+end
