@@ -182,7 +182,7 @@ val seqpacket_unix_client :
   ?max_input_size:int ->
   socketfile:string ->
   protocol:(seqpacket_channel -> 'a) ->
-  unit -> 'a
+  unit -> 'a option
 
 (** {2 Stream Unix Domain } *)
 
@@ -199,7 +199,7 @@ val stream_unix_client :
   ?max_input_size:int ->
   socketfile:string ->
   protocol:(stream_channel -> 'a) ->
-  unit -> 'a
+  unit -> 'a option
 
 (** {2 Stream Internet Domain } *)
 
@@ -239,7 +239,7 @@ val stream_inet_client :
   ipv4_or_v6:string ->
   port:int ->
   protocol:(stream_channel -> 'a) ->
-  unit -> 'a
+  unit -> 'a option
 
 (* datagram - unix *)
 
@@ -258,7 +258,7 @@ val dgram_unix_client :
   socketfile:string ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> 'a) ->
-  unit -> 'a
+  unit -> 'a option
 
 (* datagram - inet & inet6 *)
 
@@ -302,7 +302,7 @@ val dgram_inet_client :
   port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> 'a) ->
-  unit -> 'a
+  unit -> 'a option
 
 
 module Socat : sig
@@ -441,19 +441,19 @@ module Examples : sig
   val simple_echo_client_protocol : < receive : unit -> string; send : string -> unit; .. > -> unit
 
   val stream_unix_echo_server : ?no_fork:unit -> ?socketfile:string -> unit -> Thread.t * string
-  val stream_unix_echo_client : socketfile:string -> unit -> unit
+  val stream_unix_echo_client : socketfile:string -> unit -> unit option
 
   val seqpacket_unix_echo_server : ?no_fork:unit -> ?socketfile:string -> unit -> Thread.t * string
-  val seqpacket_unix_echo_client : socketfile:string -> unit -> unit
+  val seqpacket_unix_echo_client : socketfile:string -> unit -> unit option
 
   val dgram_unix_echo_server : ?no_fork:unit -> ?stream_socketfile:string -> unit -> Thread.t * string
-  val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit
+  val dgram_unix_echo_client : stream_socketfile:string -> unit -> unit option
 
   val stream_inet_echo_server : ?no_fork:unit -> ?inet6:unit -> ?port:int -> unit -> Thread.t * string * int
-  val stream_inet_echo_client : ipv4_or_v6:string -> port:int -> unit -> unit
+  val stream_inet_echo_client : ipv4_or_v6:string -> port:int -> unit -> unit option
 
   val dgram_inet_echo_server : ?no_fork:unit -> ?inet6:unit -> ?port:int -> unit -> Thread.t * string * int
-  val dgram_inet_echo_client : ipv4_or_v6:string -> port:int -> unit -> unit
+  val dgram_inet_echo_client : ipv4_or_v6:string -> port:int -> unit -> unit option
 
 end
 ENDIF

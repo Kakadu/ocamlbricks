@@ -23,7 +23,7 @@ exception Receiving of exn
 exception Sending   of exn
 exception Closing   of exn
 exception Binding   of exn
-
+  
 let string_of_sockaddr = function
   | Unix.ADDR_UNIX x -> x
   | Unix.ADDR_INET (inet_addr, port) ->
@@ -99,24 +99,44 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server
         let () = Unix.chmod socketfile 0o777 in
         None
   in
+  let listen_socket_as_string =
+    string_of_sockaddr (Unix.getsockname listen_socket)
+  in
+  let notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket =
+    incr connexion_no;
+    let sockaddr0 = string_of_sockaddr (Unix.getsockname service_socket) in
+    let sockaddr1 = string_of_sockaddr (Unix.getpeername service_socket) in
+    Log.printf "Accepted connection #%d on %s from %s\n" !connexion_no sockaddr0 sockaddr1;
+    sockaddr0
+  in
+  let exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result =
+    match result with
+    | Some () ->
+	let () = Log.printf "Protocol completed (connection #%d on %s). Exiting.\n" !connexion_no sockaddr0
+	in 0
+    | None ->
+	let () = Log.printf "Protocol interrupted (connection #%d on %s). Exiting\n" !connexion_no sockaddr0
+	in 1
+  in
   let process_forking_loop () =
     let connexion_no = ref 0 in
     let tutor = ThreadExtra.tutor ?behaviour:tutor_behaviour () in
     while true do
+      Log.printf "Waiting for connection on %s\n" listen_socket_as_string;
       let (service_socket, _) = accept_non_intr listen_socket in
       incr connexion_no;
-      let sockaddr0 = string_of_sockaddr (Unix.getsockname service_socket) in
-      let sockaddr1 = string_of_sockaddr (Unix.getpeername service_socket) in
-      Log.printf "Accepted connection #%d on %s from %s\n" !connexion_no sockaddr0 sockaddr1;
+      let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
       match Unix.fork () with
       |	0 ->
           (* The child here: *)
           begin
-            Log.printf "Process Fork: activated for connection #%d on %s\n" !connexion_no sockaddr0;
+            Log.printf "Process (fork) created for connection #%d on %s\n" !connexion_no sockaddr0;
+            (* SysExtra.log_signal_reception ~except:[26] (); *)
 	    Unix.close listen_socket;
 	    (try Unix.set_close_on_exec service_socket with Invalid_argument _ -> ());
-	    let () = server_fun service_socket in
-	    exit 0
+	    let result = server_fun service_socket in
+	    let exit_code = exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result in
+	    exit exit_code
 	  end
       | child_pid ->
           (* The father here creates a process-tutor thread per child: *)
@@ -127,8 +147,16 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server
     done
   in
   let thread_forking_loop () =
+    let connexion_no = ref 0 in
     while true do
       let (service_socket, _) = accept_non_intr listen_socket in
+      let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
+      let server_fun s =
+        Log.printf "Thread created for connection #%d on %s\n" !connexion_no sockaddr0;
+        let result = server_fun s in
+        let _unused_exit_code = exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result in
+	Thread.exit ()
+      in
       ignore (ThreadExtra.create server_fun service_socket);
     done
   in
@@ -615,17 +643,24 @@ type stream_protocol    = stream_channel -> unit
 type seqpacket_protocol = seqpacket_channel -> unit
 type dgram_protocol  = (stream_channel -> dgram_channel) * (dgram_channel -> unit)
 
+let call_logging_exception ?prefix protocol channel =
+  try Some (protocol channel) with e -> ((Log.print_exn ?prefix e); None)
+
 let server_fun_of_stream_protocol ?max_input_size protocol =
   function fd ->
     let channel = new stream_channel ?max_input_size fd in
-    let result = protocol channel in
+    let result =
+      call_logging_exception ~prefix:"stream server exception: " protocol channel
+    in
     (try channel#shutdown ~receive:() () with _ -> ());
     result
 
 let server_fun_of_seqpacket_protocol ?max_input_size protocol =
   function fd ->
     let channel = new seqpacket_channel ?max_input_size fd in
-    let result = protocol channel in
+    let result =
+      call_logging_exception ~prefix:"seqpacket server exception: " protocol channel
+    in
     (try channel#shutdown ~receive:() () with _ -> ());
     result
 
@@ -824,10 +859,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_unix_client ?max_input_size ~socketfile
+	  ignore (stream_unix_client ?max_input_size ~socketfile
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
   let inet6_of_unix_stream_server
@@ -839,10 +874,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_unix_client ?max_input_size ~socketfile
+	  ignore (stream_unix_client ?max_input_size ~socketfile
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
   let inet_of_unix_stream_server
@@ -854,10 +889,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_unix_client ?max_input_size ~socketfile
+	  ignore (stream_unix_client ?max_input_size ~socketfile
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
 
@@ -870,10 +905,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_unix_client ?max_input_size ~socketfile:dsocketfile
+	  ignore (stream_unix_client ?max_input_size ~socketfile:dsocketfile
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
 
@@ -890,10 +925,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port
+	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
   let inet4_of_inet_stream_server
@@ -905,10 +940,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
+	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
   let inet6_of_inet_stream_server
@@ -920,10 +955,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
+	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
   let inet_of_inet_stream_server
@@ -935,10 +970,10 @@ xterm Xt error: Can't open display: 127.0.0.1:42
     stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
-	  stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
+	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
 	    ~protocol:begin fun (chB:stream_channel) ->
 	        MACRO_CROSSOVER_LINK (chA,chB)
-	     end (* client protocol *) ()
+	     end (* client protocol *) ())
        end (* server protocol *) ()
 
 end (* module Socat *)
