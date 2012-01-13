@@ -35,6 +35,7 @@ val searchi : ('a -> bool) -> 'a array -> (int * 'a) option
 val find    : ('a -> bool) -> 'a array -> 'a
 val findi   : ('a -> bool) -> 'a array -> (int * 'a)
 
+val search_longest_sequence : ?leftmost:unit -> ('a -> bool) -> 'a array -> (int * int) option
 val shared_property : ('a -> 'b) -> 'a array -> bool
 
 (* The call {[dichotomic_search a x]} returns a pair (b,i) that

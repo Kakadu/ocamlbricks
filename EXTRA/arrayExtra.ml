@@ -368,4 +368,35 @@ let max ?(gt=(>)) xs =
 
 let min ?(gt=(>)) xs = 
  fold_lefti (fun i (j,x) y -> if gt y x then (j,x) else (i,y)) (0, xs.(0)) xs
-   
+
+(** Example (from the module [Ipv6]):
+{[let search_longest_sequence_of_zeros ?leftmost =
+  ArrayExtra.search_longest_sequence ?leftmost ((=)0);; ]}*)
+let search_longest_sequence ?leftmost p x =
+  let (last,_, acc) =
+    fold_lefti
+       (fun i ((n,j), inseq, acc) v ->
+           if p v then
+             (* if we are in a sequence, increment the counter: *)
+             (if inseq then ((n+1,j), true, acc)
+                       (* else reset the counter registering the current result in the list: *)
+                       else ((1,i), true, ((n,j)::acc)))
+           else
+             (* register that the sequence is finished inseq=false: *)
+             ((n,j), false, acc))
+       ((0,0), false, []) x
+  in
+  let njs = last::acc in
+  let (best_n, best_j) =
+    let candidates = match leftmost with
+    | None -> njs
+    | Some () -> List.rev njs
+    in
+    List.fold_left
+      (fun ((best_n, best_j) as a) ((n,j) as b) -> if n>best_n then b else a)
+      (List.hd candidates)
+      (List.tl candidates)
+  in
+  if best_n > 0 then Some (best_j, best_n) else None
+;;
+
