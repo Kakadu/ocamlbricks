@@ -229,7 +229,11 @@ let signal_behavior i =
   let () = Sys.set_signal i result in
   result
 
-module Log = Ocamlbricks_log
+(* We don't synchronize with other threads in order to prevent possible (even if quite improbable) deadlocks.
+   Actually there is a possible perverse situation: a thread may be interrupted by a signal exactly when it
+   was printing using the module Log, and exactly during the short critical section of the ordinary mutex used
+   to implement the recursive mutex used in Log... *)
+module Log = Ocamlbricks_log.Unprotected
 
 let fold_on_signals ?(except=[]) ?(caller="fold_on_signals") f s =
   let rec loop s i =
@@ -300,17 +304,18 @@ let description_of_signal i =
 let fold_on_signals ?except f s = fold_on_signals ?except f s
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+module Test = struct
 (* May be tested from the shell:
-$ make test \<\<\<"SysExtra.test_log_signal_reception () ;;" 2>/tmp/test.log
+$ make test \<\<\<"SysExtra.Test.log_signal_reception () ;;" 2>/tmp/test.log
 $ grep Received /tmp/test.log
 *)
-let test_log_signal_reception () =
+let log_signal_reception () =
   iter_on_signals begin fun i b ->
     let _ =
       ThreadExtra.fork
 	~behaviour:(fun ~pid ->
 	  Log.printf "Trying to send the signal No. %d to %d\n" i pid;
-          Thread.delay 0.5;
+          ThreadExtra.delay 0.5; (* cannot be interrupted by a signal *)
 	  Unix.kill pid i)
 	(fun () ->
            log_signal_reception ();
@@ -318,9 +323,10 @@ let test_log_signal_reception () =
 	   Thread.delay 1.)
 	()
     in
-    Thread.delay 1.;
+    ThreadExtra.delay 1.;
     Log.printf "=======================================\n";
     ()
     end
-;;
+
+end (* module Test *)
 ENDIF

@@ -43,5 +43,7 @@ val fold_on_signals : ?except:(int list) -> ('a -> int -> Sys.signal_behavior ->
 val log_signal_reception : ?except:(int list) -> unit -> unit
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
-val test_log_signal_reception : unit -> unit
+module Test : sig
+  val log_signal_reception : unit -> unit
+end
 ENDIF

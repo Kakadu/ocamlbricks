@@ -53,8 +53,10 @@ Log2.printf "%s\n" value;   (* really printed when debug level >= 2 *)
 ]}
 *)
 
+(** Data type representing the output channel where the messages will be written. *)
 type log_channel = [ `stdout | `stderr | `file of string ]
 
+(** The signature of the module resulting from functors' applications. *)
 module type Result = sig
   (**  The banner is a complement prepended to your message. It contains
        informations about the program and the thread which are executed. {b Example:}
@@ -75,6 +77,11 @@ The result is 42
   val print_float   : ?v:int -> ?force:bool -> float -> unit
   val print_newline : ?v:int -> ?force:bool -> unit -> unit
   val print_endline : ?v:int -> ?force:bool -> string -> unit
+
+  module Unprotected:sig
+  val printf        : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+  val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> ?prefix:string -> ?suffix:string -> exn -> unit
+  end
 
   module Tuning:sig
      val verbosity      : unit -> int

@@ -23,34 +23,9 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
-(** Data type representing the output channel where the messages will be written. *)
-type log_channel = [ `stdout | `stderr | `file of string ]
-
-(** The signature of the module resulting from functors' applications. *)
-module type Result = sig
-  val printf        : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
-  val print_exn     : ?v:int -> ?force:bool -> ?banner:bool ->
-    ?prefix:string -> ?suffix:string -> exn -> unit
-  val print_string  : ?v:int -> ?force:bool -> string -> unit
-  val print_int     : ?v:int -> ?force:bool -> int -> unit
-  val print_float   : ?v:int -> ?force:bool -> float -> unit
-  val print_newline : ?v:int -> ?force:bool -> unit -> unit
-  val print_endline : ?v:int -> ?force:bool -> string -> unit
-
-  module Tuning:sig
-  
-     val verbosity             : unit -> int
-     val debug_level           : unit -> int
-     val is_log_enabled        : ?v:int -> unit -> bool
-     val log_channel           : log_channel
-     val synchronized          : bool
-     module Set : sig
-       val verbosity   : int -> unit
-       val debug_level : (unit -> int) -> unit
-     end
-   end
-
-end
+#load "include_type_definitions_p4.cmo";;
+INCLUDE DEFINITIONS "../BASE/log_builder.mli"
+;;
 
 (* We will use an extended version of Mutex: *)
 module Mutex = MutexExtra.Extend (Mutex)
@@ -175,7 +150,18 @@ module Make
   let print_endline ?v ?(force=false) x  = (Obj.magic (printf_nobanner ?v ~force (format_of_string "%s\n"))) x
   let print_newline ?v ?(force=false) () = (Obj.magic (printf_nobanner ?v ~force (format_of_string "\n")))
 
-end
+  module Unprotected = struct
+
+  let printf ?v ?(force=false) ?(banner=true) frmt =
+    printf_unsynchronized ?v ~force ~banner frmt
+
+  let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
+   match suffix with
+   | None        -> printf ?v ?force ?banner "%s%s\n"   prefix (Printexc.to_string e)
+   | Some suffix -> printf ?v ?force ?banner "%s%s%s\n" prefix (Printexc.to_string e) suffix
+
+  end (* Unprotected *)
+end (* Make *)
 
 module Make_simple (Tuning:sig val is_log_enabled : unit -> bool end) =
  Make

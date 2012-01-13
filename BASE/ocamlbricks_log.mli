@@ -25,6 +25,12 @@ val print_float   : ?v:int -> ?force:bool -> float -> unit
 val print_newline : ?v:int -> ?force:bool -> unit -> unit
 val print_endline : ?v:int -> ?force:bool -> string -> unit
 
+module Unprotected:
+  sig
+    val printf        : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+    val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> ?prefix:string -> ?suffix:string -> exn -> unit
+  end
+
 module Tuning :
   sig
     val verbosity      : unit -> int
