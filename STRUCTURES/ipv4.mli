@@ -67,7 +67,7 @@ type ipcalc_result =
       hostmin   : string;
       >;
 
-  contain : ipv4 -> bool;
+  contains : ipv4 -> bool;
   >
 
 val ipcalc : ipv4 -> cidr -> ipcalc_result

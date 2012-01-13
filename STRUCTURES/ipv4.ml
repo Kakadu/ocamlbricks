@@ -242,7 +242,7 @@ let ipcalc ((i1,i2,i3,i4) as ip) cidr =
   let hostmax = (b1,b2,b3,b4-1) in
   let hostmin = max (min hostmin hostmax) network 
   and hostmax = min (max hostmin hostmax) broadcast in
-  let contain x = (x >= hostmin && x <= hostmax) in
+  let contains x = (x >= hostmin && x <= hostmax) in
   let hosts = match cidr with
    | 32 -> 1
    | 31 -> 2
@@ -265,7 +265,7 @@ let ipcalc ((i1,i2,i3,i4) as ip) cidr =
     method hostmax = hostmax
     method hostmin = hostmin
     method hosts = hosts
-    method contain = contain
+    method contains = contains
     method print = Printf.kfprintf flush stdout
 "Address:   %s
 Netmask:   %s = %d

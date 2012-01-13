@@ -1,0 +1,55 @@
+(* This file is part of ocamlbricks
+   Copyright (C) 2012 Jean-Vincent Loddo
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
+
+type t = int array
+type cidr = int
+
+val of_string : string -> int array option
+
+val string_of : ?uncompress:unit -> int array -> string
+
+val ipcalc : t -> cidr ->
+  < ip       : t;
+    cidr     : int;
+    netmask  : t;
+    network  : t;
+    hostmin  : t;
+    hostmax  : t;
+    contains : t -> bool;
+    print    : unit;
+
+    string_of : <
+	ip      : string;
+	netmask : string;
+	network : string;
+	hostmax : string;
+	hostmin : string;
+	>
+    >
+
+module String : sig
+
+ val ipcalc : string -> cidr ->
+  < ip       : string;
+    cidr     : string;
+    netmask  : string;
+    network  : string;
+    hostmin  : string;
+    hostmax  : string;
+    contains : string -> bool option;
+    print    : unit;
+    > option
+end
