@@ -36,4 +36,4 @@ val delayed_kill    : float -> Thread.t -> unit
 val delayed_killall : float -> unit
 val delayed_id_kill : float -> int -> unit
 
-
+val delay : float -> unit

@@ -196,3 +196,19 @@ let log_signal_receptions () =
            )
        )
 
+
+let delay time =
+  let t =
+    Thread.create
+      (fun () ->
+         let _ = Thread.sigmask Unix.SIG_BLOCK [17,23,26,28] in
+         Unix.select [] [] [] time)
+      ()
+      in
+  let rec loop () =
+    try
+      Thread.join t
+    with
+    | Unix.Unix_error (Unix.EINTR, _, _) -> loop ()
+  in loop ()
+

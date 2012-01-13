@@ -408,6 +408,20 @@ let fork ?killable ?behaviour f x =
   thread
 ;;
 
+(** The standard Thread.delay may be interrupted by signals 17, 23 26 and 28 on a GNU/Linux.
+    This version is not interrupted because the [select] with the timeout is called in a
+    distinct thread. *)
+let delay time =
+  let t =
+    Thread.create
+      (fun () ->
+         let xs = Thread.sigmask Unix.SIG_BLOCK [17;23;26;28] in
+         Unix.select [] [] [] time)
+      ()
+      in
+  (* join is not interrupted: *)
+  Thread.join t
+
 (* In order to render killall and kill directly accessible at this level: *)
 include Available_signals
 include Exit_function
