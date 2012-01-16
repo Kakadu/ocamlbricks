@@ -212,3 +212,18 @@ let delay time =
     | Unix.Unix_error (Unix.EINTR, _, _) -> loop ()
   in loop ()
 
+
+
+let of_string ~(a:string -> 'a) ~(b:string -> 'b) x =
+  let ic = Scanf.Scanning.from_string x in
+  let a' scanbuf = Scanf.bscanf scanbuf "%s" a in
+  let b' scanbuf = Scanf.bscanf scanbuf "%s" b in
+  let rec self ic =
+    try Scanf.bscanf ic "Left %r"       a' (fun v -> Left v) with _ ->
+    try Scanf.bscanf ic "Right %r"      b' (fun v -> Right v) with _ ->
+    Scanf.bscanf ic "( %r )" self (fun v -> v)
+  in self ic
+
+let of_Genlex_token_stream  ~(a:Genlex.token Stream.t -> 'a) ~(b:Genlex.token Stream.t -> 'b) x =
+  
+

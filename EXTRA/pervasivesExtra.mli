@@ -39,16 +39,15 @@ module Printers0 :
   functor (M : sig type t val string_of : t -> string end) ->
     sig
       type t = M.t
-      val string_of : t -> string
-      val print         : M.t -> unit
-      val prerr         : M.t -> unit
-      val print_endline : M.t -> unit
-      val prerr_endline : M.t -> unit
-      val fprintf :
-        out_channel -> (string -> 'a, out_channel, unit) format -> M.t -> 'a
-      val eprintf :    (string -> 'a, out_channel, unit) format -> M.t -> 'a
-      val printf  :    (string -> 'a, out_channel, unit) format -> M.t -> 'a
-      val sprintf :    (string -> 'a, unit, string) format      -> M.t -> 'a
+      val string_of     : t -> string
+      val print         : t -> unit
+      val prerr         : t -> unit
+      val print_endline : t -> unit
+      val prerr_endline : t -> unit
+      val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> t -> 'a
+      val eprintf : (string -> 'a, out_channel, unit) format -> t -> 'a
+      val printf  : (string -> 'a, out_channel, unit) format -> t -> 'a
+      val sprintf : (string -> 'a, unit, string) format      -> t -> 'a
     end
 
 module Printers1 :
@@ -57,12 +56,51 @@ module Printers1 :
     sig
       type 'a t = 'a M.t
       val string_of     : ('a -> string) -> 'a t -> string
-      val print         : ('a -> string) -> 'a M.t -> unit
-      val prerr         : ('a -> string) -> 'a M.t -> unit
-      val print_endline : ('a -> string) -> 'a M.t -> unit
-      val prerr_endline : ('a -> string) -> 'a M.t -> unit
-      val fprintf :       ('a -> string) -> out_channel -> (string -> 'b, out_channel, unit) format -> 'a M.t -> 'b
-      val eprintf :       ('a -> string) ->                (string -> 'b, out_channel, unit) format -> 'a M.t -> 'b
-      val printf :        ('a -> string) ->                (string -> 'b, out_channel, unit) format -> 'a M.t -> 'b
-      val sprintf :       ('a -> string) ->                (string -> 'b, unit, string) format      -> 'a M.t -> 'b
+      val print         : ('a -> string) -> 'a t -> unit
+      val prerr         : ('a -> string) -> 'a t -> unit
+      val print_endline : ('a -> string) -> 'a t -> unit
+      val prerr_endline : ('a -> string) -> 'a t -> unit
+      val fprintf :       ('a -> string) -> out_channel -> (string -> 'b, out_channel, unit) format -> 'a t -> 'b
+      val eprintf :       ('a -> string) -> (string -> 'b, out_channel, unit) format -> 'a t -> 'b
+      val printf :        ('a -> string) -> (string -> 'b, out_channel, unit) format -> 'a t -> 'b
+      val sprintf :       ('a -> string) -> (string -> 'b, unit, string) format      -> 'a t -> 'b
     end
+
+module Make_printers_for_alpha_type :
+  functor (Alpha_type : sig type 'a t val string_of : ('a -> string) -> 'a t -> string end) ->
+  functor (Alpha : sig type a val string_of : a -> string end) ->
+    sig
+      type t = Alpha.a Alpha_type.t
+      val string_of     : t -> string
+      val print         : t -> unit
+      val prerr         : t -> unit
+      val print_endline : t -> unit
+      val prerr_endline : t -> unit
+      val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> t -> 'a
+      val eprintf : (string -> 'a, out_channel, unit) format -> t -> 'a
+      val printf  : (string -> 'a, out_channel, unit) format -> t -> 'a
+      val sprintf : (string -> 'a, unit, string) format      -> t -> 'a
+    end
+
+module Make_printers_for_alpha_beta_type :
+  functor (Alpha_beta_type : sig
+      type ('a,'b) t
+      val string_of : ('a -> string) -> ('b -> string) -> ('a,'b) t -> string
+    end) ->
+  functor (Alpha : sig type a val string_of : a -> string end) ->
+  functor (Beta  : sig type b val string_of : b -> string end) ->
+    sig
+      type t = (Alpha.a, Beta.b) Alpha_beta_type.t
+      val string_of     : t -> string
+      val print         : t -> unit
+      val prerr         : t -> unit
+      val print_endline : t -> unit
+      val prerr_endline : t -> unit
+      val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> t -> 'a
+      val eprintf : (string -> 'a, out_channel, unit) format -> t -> 'a
+      val printf  : (string -> 'a, out_channel, unit) format -> t -> 'a
+      val sprintf : (string -> 'a, unit, string) format      -> t -> 'a
+    end
+
+
+

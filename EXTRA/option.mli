@@ -36,6 +36,8 @@ val of_bool : bool -> unit option
 val to_bool : 'a option -> bool
 
 val to_list : 'a option -> 'a list
+val to_string : ?a:('a -> string) -> 'a option -> string
+(* val of_string : ?a:(string->'a) -> string -> 'a option *)
 
 (* Similar to List.exists but the predicate provides also a result, which is returned. Useful for implementing
    a choice among several fallible procedures. *)
@@ -68,3 +70,18 @@ val fprintf           : ('a -> string) -> out_channel -> (string -> 'b, out_chan
 val eprintf           : ('a -> string) -> (string -> 'b, out_channel, unit) format -> 'a option -> 'b
 val printf            : ('a -> string) -> (string -> 'b, out_channel, unit) format -> 'a option -> 'b
 val sprintf           : ('a -> string) -> (string -> 'b, unit, string) format -> 'a option -> 'b
+
+module Make_printers_for : functor
+ (Alpha:sig type a val string_of : a -> string end) ->
+  sig
+    type t = Alpha.a option
+    val string_of     : t -> string
+    val print         : t -> unit
+    val prerr         : t -> unit
+    val print_endline : t -> unit
+    val prerr_endline : t -> unit
+    val eprintf       : (string -> 'b, out_channel, unit) format -> t -> 'b
+    val printf        : (string -> 'b, out_channel, unit) format -> t -> 'b
+    val sprintf       : (string -> 'b, unit, string) format -> t -> 'b
+    val fprintf : out_channel -> (string -> 'b, out_channel, unit) format -> t -> 'b
+  end

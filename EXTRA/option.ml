@@ -37,13 +37,6 @@ let of_fallible_application ?(fallback=fun _ _ -> ()) f x =
 
 let catch = of_fallible_application
 
-include PervasivesExtra.Printers1 (struct
-  type 'a t = 'a option
-  let string_of string_of_alpha = function
-  | None   -> "None"
-  | Some x -> "Some "^(string_of_alpha x)
- end)
-
 let extract_from_list ?(acc=[]) xs =
  let rec loop = function
  | [] -> acc
@@ -61,6 +54,10 @@ let to_bool = function
  | Some _ -> true
 
 let to_list = function None -> [] | Some x -> [x]
+let to_string ?(a=fun _ -> "_") =
+ function
+ | None -> "None"
+ | Some x -> "Some "^(a x)
 
 let rec exists p = function
 | []    -> None
@@ -69,3 +66,15 @@ let rec exists p = function
    | None -> exists p xs
    | y -> y
    )
+
+module Alpha_type =
+  struct
+    type 'a t = 'a option
+    let string_of string_of_alpha = function
+    | None   -> "None"
+    | Some x -> "Some "^(string_of_alpha x)
+  end
+
+include PervasivesExtra.Printers1 (Alpha_type)
+module Make_printers_for = PervasivesExtra.Make_printers_for_alpha_type (Alpha_type)
+

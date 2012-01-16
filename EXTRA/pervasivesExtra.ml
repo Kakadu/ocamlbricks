@@ -130,3 +130,25 @@ module Printers1 (M:sig type 'a t val string_of : ('a->string) -> 'a t -> string
    let printf        string_of_alpha       frmt x = (Printf.printf         frmt (M.string_of string_of_alpha x))
    let sprintf       string_of_alpha       frmt x = (Printf.sprintf        frmt (M.string_of string_of_alpha x))
   end
+
+module Make_printers_for_alpha_type
+  (Alpha_type : sig type 'a t val string_of : ('a -> string) -> 'a t -> string end)
+  (Alpha : sig type a val string_of : a -> string end)
+  = Printers0 (
+      struct
+        type t = Alpha.a Alpha_type.t
+        let string_of t = Alpha_type.string_of (Alpha.string_of) t
+      end)
+
+module Make_printers_for_alpha_beta_type
+  (Alpha_beta_type : sig
+       type ('a,'b) t
+       val string_of : ('a -> string) -> ('b -> string) -> ('a,'b) t -> string
+     end)
+  (Alpha : sig type a val string_of : a -> string end)
+  (Beta  : sig type b val string_of : b -> string end)
+  = Printers0 (
+      struct
+        type t = (Alpha.a, Beta.b) Alpha_beta_type.t
+        let string_of t = Alpha_beta_type.string_of (Alpha.string_of) (Beta.string_of) t
+      end)
