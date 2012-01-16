@@ -440,22 +440,11 @@ end;; (* Passwdlib *)
 (** Prompt for a password. The terminal is set for hiding the characters read from keyboard. *)
 let read_passwd prompt = Passwdlib.read_passwd prompt;;
 
-
-(** Process status printers; {b examples}:
-{[# Process_status.printf "The result is '%s'\n" (snd (run "unexisting-program"));;
-The result is 'Unix.WEXITED 127'
-  : unit = ()
-
-# Process_status.printf "The result is '%s'\n" (snd (run "ls"));;
-The result is 'Unix.WEXITED 0'
- : unit = () ]} *)
-module Process_status = PervasivesExtra.Printers0 (struct
-    type t = Unix.process_status
-    let string_of = function
-    | Unix.WEXITED   code   -> (Printf.sprintf "Unix.WEXITED %d" code)
-    | Unix.WSIGNALED signal -> (Printf.sprintf "Unix.WSIGNALED %d" signal)
-    | Unix.WSTOPPED  signal -> (Printf.sprintf "Unix.WSTOPPED %d" signal)
-    end);;
+let string_of_process_status = function
+ | Unix.WEXITED   code   -> (Printf.sprintf "Unix.WEXITED %d" code)
+ | Unix.WSIGNALED signal -> (Printf.sprintf "Unix.WSIGNALED %d" signal)
+ | Unix.WSTOPPED  signal -> (Printf.sprintf "Unix.WSTOPPED %d" signal)
+;;
 
 (** A {e command} is something understandable by the shell. *)
 type command = string;;
@@ -722,7 +711,7 @@ let is_process_alive = does_process_exist
 
 module Process = struct
 
- type process_status =
+ type status =
  | WUNCHANGED        (* Used when non-blocking calls with WNOHANG return immediately without value *)
  | WEXITED of int    (* The process terminated normally by exit; the argument is the return code. *)
  | WSIGNALED of int  (* The process was killed by a signal; the argument is the signal number.    *)
@@ -734,17 +723,14 @@ module Process = struct
  | WUNTRACED         (*	report also the children that receive stop signals. *)
  | WCONTINUE         (*  report also if the children resume *)
 
- external waitpid : wait_flag list -> int -> int * process_status = "waitpid_c"
+ external waitpid : wait_flag list -> int -> int * status = "waitpid_c"
 
- include PervasivesExtra.Printers0 (struct
-    type t = process_status
-    let string_of = function
-    | WUNCHANGED       -> (Printf.sprintf "Process.WUNCHANGED")
-    | WEXITED   code   -> (Printf.sprintf "Process.WEXITED %d" code)
-    | WSIGNALED signal -> (Printf.sprintf "Process.WSIGNALED %d" signal)
-    | WSTOPPED  signal -> (Printf.sprintf "Process.WSTOPPED %d" signal)
-    | WCONTINUED       -> (Printf.sprintf "Process.WCONTINUED")
-    end)
+ let string_of_status = function
+   | WUNCHANGED       -> (Printf.sprintf "Process.WUNCHANGED")
+   | WEXITED   code   -> (Printf.sprintf "Process.WEXITED %d" code)
+   | WSIGNALED signal -> (Printf.sprintf "Process.WSIGNALED %d" signal)
+   | WSTOPPED  signal -> (Printf.sprintf "Process.WSTOPPED %d" signal)
+   | WCONTINUED       -> (Printf.sprintf "Process.WCONTINUED")
 
 end
 

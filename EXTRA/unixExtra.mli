@@ -96,21 +96,9 @@ val find : ?follow:bool -> ?maxdepth:int -> ?kind:char -> ?name:string -> string
 
 val read_passwd : string -> string
 
-(** {2 Process status printers} *)
+(** {2 Process status} *)
 
-module Process_status :
-  sig
-    type t = Unix.process_status
-    val string_of     : t -> string
-    val print         : Unix.process_status -> unit
-    val prerr         : Unix.process_status -> unit
-    val print_endline : Unix.process_status -> unit
-    val prerr_endline : Unix.process_status -> unit
-    val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> Unix.process_status -> 'a
-    val eprintf :                (string -> 'a, out_channel, unit) format -> Unix.process_status -> 'a
-    val printf  :                (string -> 'a, out_channel, unit) format -> Unix.process_status -> 'a
-    val sprintf :                (string -> 'a, unit, string) format      -> Unix.process_status -> 'a
-  end
+val string_of_process_status : Unix.process_status -> string
 
 (** {2 Managing external programs} *)
 
@@ -183,7 +171,7 @@ val is_process_alive : int -> bool
 
 module Process : sig
 
- type process_status =
+ type status =
  | WUNCHANGED
  | WEXITED of int
  | WSIGNALED of int
@@ -195,18 +183,9 @@ module Process : sig
  | WUNTRACED
  | WCONTINUE
 
- val waitpid : wait_flag list -> int -> int * process_status
+ val waitpid : wait_flag list -> int -> int * status
 
- type t = process_status
- val string_of     : t -> string
- val print         : t -> unit
- val prerr         : t -> unit
- val print_endline : t -> unit
- val prerr_endline : t -> unit
- val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> t -> 'a
- val eprintf :                (string -> 'a, out_channel, unit) format -> t -> 'a
- val printf  :                (string -> 'a, out_channel, unit) format -> t -> 'a
- val sprintf :                (string -> 'a, unit, string) format      -> t -> 'a
+ val string_of_status : status -> string
 
 end
 

@@ -29,59 +29,10 @@ val return : 'a -> 'a option
 
 val iter : ('a -> unit) -> 'a option -> unit
 
-val of_fallible_application : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
-val catch : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
+val apply_or_catch : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
 
 val of_bool : bool -> unit option
 val to_bool : 'a option -> bool
 
 val to_list : 'a option -> 'a list
 val to_string : ?a:('a -> string) -> 'a option -> string
-(* val of_string : ?a:(string->'a) -> string -> 'a option *)
-
-(* Similar to List.exists but the predicate provides also a result, which is returned. Useful for implementing
-   a choice among several fallible procedures. *)
-val exists : ('a -> 'b option) -> 'a list -> 'b option
-
-(** {2 Printers}
-
-The following functions act on a ['a option] value if the user is able to provide a function converting
-the encapsulated value ['a] into a string.
-
-{b Examples}:
-{[
-# printf string_of_float "Value is: %s\n" (Some 3.14) ;;
-Value is: Some 3.14
-  : unit = ()
-
-# printf string_of_float "Value is: %s\n" None ;;
-Value is: None
-  : unit = ()
-]} *)
-
-val string_of         : ('a->string) -> 'a option -> string
-val print             : ('a->string) -> 'a option -> unit
-val prerr             : ('a->string) -> 'a option -> unit
-
-val print_endline     : ('a->string) -> 'a option -> unit
-val prerr_endline     : ('a->string) -> 'a option -> unit
-
-val fprintf           : ('a -> string) -> out_channel -> (string -> 'b, out_channel, unit) format -> 'a option -> 'b
-val eprintf           : ('a -> string) -> (string -> 'b, out_channel, unit) format -> 'a option -> 'b
-val printf            : ('a -> string) -> (string -> 'b, out_channel, unit) format -> 'a option -> 'b
-val sprintf           : ('a -> string) -> (string -> 'b, unit, string) format -> 'a option -> 'b
-
-module Make_printers_for : functor
- (Alpha:sig type a val string_of : a -> string end) ->
-  sig
-    type t = Alpha.a option
-    val string_of     : t -> string
-    val print         : t -> unit
-    val prerr         : t -> unit
-    val print_endline : t -> unit
-    val prerr_endline : t -> unit
-    val eprintf       : (string -> 'b, out_channel, unit) format -> t -> 'b
-    val printf        : (string -> 'b, out_channel, unit) format -> t -> 'b
-    val sprintf       : (string -> 'b, unit, string) format -> t -> 'b
-    val fprintf : out_channel -> (string -> 'b, out_channel, unit) format -> t -> 'b
-  end

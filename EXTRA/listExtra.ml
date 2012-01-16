@@ -124,6 +124,16 @@ let findi p xs =
  | None -> raise Not_found
  | Some pair -> pair
 
+(* Like [List.exists] but the predicate provides also a result, which is returned.
+   Useful to implement a choice among several fallible procedures. *)
+let rec first_success p = function
+| []    -> None
+| x::xs ->
+  (match (p x) with
+   | None -> first_success p xs
+   | y -> y
+   )
+
 let iteri f =
  let rec loop i = function
  | []    -> ()

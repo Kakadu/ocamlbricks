@@ -74,6 +74,8 @@ val search  : ('a -> bool) -> 'a list -> 'a option
 val searchi : ('a -> bool) -> 'a list -> (int * 'a) option
 val findi   : ('a -> bool) -> 'a list -> (int * 'a)
 
+val first_success : ('a -> 'b option) -> 'a list -> 'b option
+
 (** {2 Set operations} *)
 
 val substract    : 'a list -> 'a list -> 'a list

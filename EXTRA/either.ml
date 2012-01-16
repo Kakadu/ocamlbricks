@@ -69,14 +69,3 @@ let to_string ?(a=fun _ -> "_") ?(b=fun _ -> "_") =
  function
  | Left  x -> "Left "^(a x)
  | Right x -> "Right "^(b x)
-
-module Alpha_beta_type =
-  struct
-    type ('a,'b) t = ('a,'b) either
-    let string_of string_of_alpha string_of_beta = function
-    | Left  a -> "Left "^(string_of_alpha a)
-    | Right b -> "Right "^(string_of_beta b)
-  end
-
-module Make_printers_for = PervasivesExtra.Make_printers_for_alpha_beta_type (Alpha_beta_type)
-

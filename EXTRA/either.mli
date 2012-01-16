@@ -40,19 +40,3 @@ val list_of : ('a,'b) t -> 'b list
 
 val to_string : ?a:('a -> string) -> ?b:('b -> string) -> ('a, 'b) t -> string
 
-module Make_printers_for :
-  functor (Alpha : sig type a val string_of : a -> string end) ->
-  functor (Beta  : sig type b val string_of : b -> string end) ->
-    sig
-      type t = (Alpha.a, Beta.b) either
-      val string_of     : t -> string
-      val print         : t -> unit
-      val prerr         : t -> unit
-      val print_endline : t -> unit
-      val prerr_endline : t -> unit
-      val fprintf : out_channel -> (string -> 'a, out_channel, unit) format -> t -> 'a
-      val eprintf : (string -> 'a, out_channel, unit) format -> t -> 'a
-      val printf  : (string -> 'a, out_channel, unit) format -> t -> 'a
-      val sprintf : (string -> 'a, unit, string) format      -> t -> 'a
-    end
-
