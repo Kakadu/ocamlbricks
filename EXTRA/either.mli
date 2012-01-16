@@ -28,7 +28,7 @@ val extract_from_list : ?acc:'b list -> ('a,'b) t list -> 'b list
 
 val iter : ('b -> unit) -> ('a,'b) t -> unit
 val map  : ('b -> 'c) -> ('a,'b) t -> ('a,'c) t
-val bind : ('a,'b) t -> ('b -> ('a,'b) t) -> ('a,'b) t
+val bind : ('a,'b) t -> ('b -> ('a,'c) t) -> ('a,'c) t
 val return : 'b -> ('a,'b) t
 
 val apply_or_catch : ('a -> 'b) -> 'a -> (exn, 'b) t

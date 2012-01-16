@@ -111,10 +111,10 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server
   in
   let exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result =
     match result with
-    | Some () ->
+    | Either.Right () ->
 	let () = Log.printf "Protocol completed (connection #%d on %s). Exiting.\n" !connexion_no sockaddr0
 	in 0
-    | None ->
+    | Either.Left _ ->
 	let () = Log.printf "Protocol interrupted (connection #%d on %s). Exiting\n" !connexion_no sockaddr0
 	in 1
   in
@@ -639,14 +639,14 @@ let dgram_input_port_of ?dgram_output_port ~my_stream_inet_addr () =
 ;;
 
 type socketfile = string
-type stream_protocol    = stream_channel -> unit
-type seqpacket_protocol = seqpacket_channel -> unit
-type dgram_protocol  = (stream_channel -> dgram_channel) * (dgram_channel -> unit)
+type 'a stream_protocol    = stream_channel -> 'a
+type 'a seqpacket_protocol = seqpacket_channel -> 'a
+type 'a dgram_protocol  = (stream_channel -> dgram_channel) * (dgram_channel -> 'a)
 
 let call_logging_exception ?prefix protocol channel =
-  try Some (protocol channel) with e -> ((Log.print_exn ?prefix e); None)
+  try Either.Right (protocol channel) with e -> ((Log.print_exn ?prefix e); Either.Left e)
 
-let server_fun_of_stream_protocol ?max_input_size protocol =
+let server_fun_of_stream_protocol ?max_input_size (protocol:'a stream_protocol) =
   function fd ->
     let channel = new stream_channel ?max_input_size fd in
     let result =
@@ -655,7 +655,7 @@ let server_fun_of_stream_protocol ?max_input_size protocol =
     (try channel#shutdown ~receive:() () with _ -> ());
     result
 
-let server_fun_of_seqpacket_protocol ?max_input_size protocol =
+let server_fun_of_seqpacket_protocol ?max_input_size (protocol:'a seqpacket_protocol) =
   function fd ->
     let channel = new seqpacket_channel ?max_input_size fd in
     let result =
@@ -745,35 +745,40 @@ let client ?seqpacket client_fun sockaddr =
     | None    -> Unix.SOCK_STREAM
     | Some () -> Unix.SOCK_SEQPACKET (* implies domain = Unix.ADDR_UNIX *)
   in
-  let socket = Unix.socket (Unix.domain_of_sockaddr sockaddr) socket_type 0 in
-  try
-    Unix.connect socket sockaddr;
-    (try Unix.set_close_on_exec socket with Invalid_argument _ -> ());
-    client_fun socket
-  with e ->
-    begin
-      Unix.close socket;
-      raise (Connecting e)
-    end
+  let socket = Either.apply_or_catch (Unix.socket (Unix.domain_of_sockaddr sockaddr) socket_type) 0 in
+  Either.bind
+    socket
+    (fun socket ->
+      try
+	Unix.connect socket sockaddr;
+	(try Unix.set_close_on_exec socket with Invalid_argument _ -> ());
+	client_fun socket
+      with e ->
+	begin
+	  Unix.close socket;
+	  Either.Left (Connecting e)
+	end)
 
 let unix_client ?seqpacket ~socketfile client_fun =
   let sockaddr = Unix.ADDR_UNIX socketfile in
   client ?seqpacket client_fun sockaddr
 
 let inet_client ~ipv4_or_v6 ~port client_fun =
-  let ipv4_or_v6 = Unix.inet_addr_of_string ipv4_or_v6 in
-  let sockaddr = Unix.ADDR_INET (ipv4_or_v6, port) in
-  client client_fun sockaddr
-
-(* seqpacket - unix *)
-let seqpacket_unix_client ?max_input_size ~socketfile ~(protocol:seqpacket_channel -> 'a) () =
-  let client_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
-  unix_client ~seqpacket:() ~socketfile client_fun
+  try
+    let ipv4_or_v6 = Unix.inet_addr_of_string ipv4_or_v6 in
+    let sockaddr = Unix.ADDR_INET (ipv4_or_v6, port) in
+    client client_fun sockaddr
+  with e -> Either.Left e
 
 (* stream - unix *)
 let stream_unix_client ?max_input_size ~socketfile ~(protocol:stream_channel -> 'a) () =
   let client_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   unix_client ~socketfile client_fun
+
+(* seqpacket - unix *)
+let seqpacket_unix_client ?max_input_size ~socketfile ~(protocol:'a seqpacket_protocol) () =
+  let client_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
+  unix_client ~seqpacket:() ~socketfile client_fun
 
 (* stream - inet (v4 or v6) *)
 let stream_inet_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:stream_channel -> 'a) () =
