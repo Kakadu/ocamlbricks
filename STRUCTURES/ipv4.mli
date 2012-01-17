@@ -58,7 +58,7 @@ type ipcalc_result =
   hosts     : int;
   print     : unit;
 
-  string_of : <
+  to_string : <
       ip        : string;
       netmask   : string;
       network   : string;
@@ -80,7 +80,17 @@ module String : sig
  val is_valid_netmask        : string -> bool
  val is_valid_config         : ?strict:bool -> string -> bool
  val is_valid_verbose_config : ?strict:bool -> string -> string -> bool
- val ipcalc                  : string -> ipcalc_result
+ val ipcalc : config:string ->
+  < ip        : string;
+    cidr      : string;
+    netmask   : string;
+    network   : string;
+    broadcast : string;
+    hostmax   : string;
+    hostmin   : string;
+    contains  : string -> bool;
+    print     : unit;
+    >
 end
 
 

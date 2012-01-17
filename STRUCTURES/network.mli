@@ -208,6 +208,7 @@ val stream_inet4_server :
   ?max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
+  ?range4:string ->
   ?ipv4:string ->
   ?port:int ->
   protocol:(stream_channel -> unit) ->
@@ -218,6 +219,7 @@ val stream_inet6_server :
   ?max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
+  ?range6:string ->
   ?ipv6:string ->
   ?port:int ->
   protocol:(stream_channel -> unit) ->
@@ -228,6 +230,8 @@ val stream_inet_server :
   ?max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
+  ?range4:string ->
+  ?range6:string ->
   ?ipv4:string ->
   ?ipv6:string ->
   ?port:int ->
@@ -267,6 +271,7 @@ val dgram_inet4_server :
   ?max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
+  ?range4:string ->
   ?ipv4:string ->
   ?port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
@@ -278,6 +283,7 @@ val dgram_inet6_server :
   ?max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
+  ?range6:string ->
   ?ipv6:string ->
   ?port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
@@ -289,6 +295,8 @@ val dgram_inet_server :
   ?max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
+  ?range4:string ->
+  ?range6:string ->
   ?ipv4:string ->
   ?ipv6:string ->
   ?port:int ->
@@ -317,6 +325,7 @@ module Socat : sig
     ?max_input_size:int ->
     ?tutor_behaviour:(pid:int -> unit) ->
     ?no_fork:unit ->
+    ?range4:string ->
     ?ipv4:string ->
     ?port:int ->
     (* unix client parameters: *)
@@ -331,6 +340,7 @@ module Socat : sig
     ?max_input_size:int ->
     ?tutor_behaviour:(pid:int -> unit) ->
     ?no_fork:unit ->
+    ?range6:string ->
     ?ipv6:string ->
     ?port:int ->
     (* unix client parameters: *)
@@ -345,6 +355,8 @@ module Socat : sig
     ?max_input_size:int ->
     ?tutor_behaviour:(pid:int -> unit) ->
     ?no_fork:unit ->
+    ?range4:string ->
+    ?range6:string ->
     ?ipv4:string ->
     ?ipv6:string ->
     ?port:int ->
@@ -392,6 +404,7 @@ module Socat : sig
     ?max_input_size:int ->
     ?tutor_behaviour:(pid:int -> unit) ->
     ?no_fork:unit ->
+    ?range4:string ->
     ?ipv4:string ->
     ?port:int ->
     (* inet client parameters: *)
@@ -407,6 +420,7 @@ module Socat : sig
     ?max_input_size:int ->
     ?tutor_behaviour:(pid:int -> unit) ->
     ?no_fork:unit ->
+    ?range6:string ->
     ?ipv6:string ->
     ?port:int ->
     (* inet client parameters: *)
@@ -422,6 +436,8 @@ module Socat : sig
     ?max_input_size:int ->
     ?tutor_behaviour:(pid:int -> unit) ->
     ?no_fork:unit ->
+    ?range4:string ->
+    ?range6:string ->
     ?ipv4:string ->
     ?ipv6:string ->
     ?port:int ->

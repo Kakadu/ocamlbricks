@@ -228,6 +228,19 @@ let verbose_config_of_strings ?(strict=false) str_ip str_netmask =
  (check_config ~caller:"verbose_config_of_strings" ~strict ip cidr);
  (ip,netmask)
 
+(** Convert a string in the form ["x.y.z.t/<cidr>"] into its internal representation. *)
+let config_of_string_new_version (config:string) =
+  match Option.apply_or_catch (Scanf.sscanf config "%s@/%i") (fun s i -> s,i) with
+  | None -> invalid_arg ("Ipv4.config_of_string: invalid address/cidr: "^config)
+  | Some (s, cidr) ->
+      if cidr < 0 || cidr > 32
+        then invalid_arg ("Ipv4.config_of_string: invalid cidr: "^(string_of_int cidr))
+        else begin
+          match Option.apply_or_catch ipv4_of_string s with
+          | None -> invalid_arg ("Ipv6.config_of_string: invalid address: "^s)
+          | Some t -> (t, cidr)
+        end
+
 
 (* ********************************************
                  ipcalc
@@ -277,7 +290,7 @@ Broadcast: %s
 Hosts:     %d
 " (Lazy.force s_ip) (Lazy.force s_netmask) cidr (Lazy.force s_network) cidr (Lazy.force s_hostmin) (Lazy.force s_hostmax) (Lazy.force s_broadcast) hosts
 
-    method string_of =
+    method to_string =
       object
 	method ip = (Lazy.force s_ip)
 	method netmask = (Lazy.force s_netmask)
@@ -320,8 +333,23 @@ module String = struct
       let netmask = netmask_of_string str_netmask in
       is_valid_verbose_config ~strict (ip,netmask))
 
- let ipcalc x =
-   let (ip,cidr) = config_of_string x in
-   ipcalc ip cidr
+ let ipcalc ~config:config =
+    match Option.apply_or_catch config_of_string_new_version config with
+    | None -> invalid_arg ("Ipv4.String.ipcalc: invalid address/cidr: "^config)
+    | Some (t, cidr) ->
+        begin
+	  let x = ipcalc t cidr in
+	  object
+	      method ip = x#to_string#ip
+	      method cidr = string_of_int (x#cidr)
+	      method netmask = x#to_string#netmask
+	      method network = x#to_string#network
+	      method broadcast = x#to_string#broadcast
+	      method hostmax = x#to_string#hostmax
+	      method hostmin = x#to_string#hostmin
+	      method contains s = x#contains (ipv4_of_string s)
+	      method print = x#print
+	  end (* object *)
+	end
 
 end

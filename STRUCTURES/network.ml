@@ -56,6 +56,43 @@ let rec accept_non_intr s =
   | Unix.Unix_error (Unix.EINTR, _, _) -> accept_non_intr s
   | e -> raise (Accepting e)
 
+let accept_in_range_non_intr ~range_predicate ~range_string s =
+  let rec loop () =
+    try
+      let (service_socket, _) as result = Unix.accept s in
+      let sockaddr0 = string_of_sockaddr (Unix.getsockname service_socket) in
+      if range_predicate sockaddr0 then result else begin
+	Log.printf "Rejecting a connexion from %s (not in the range %s)\n" sockaddr0 range_string;
+	Unix.close service_socket;
+	loop ()
+      end
+    with
+    | Unix.Unix_error (Unix.EINTR, _, _) -> loop ()
+    | e -> raise (Accepting e)
+  in loop ()
+
+
+module Ipv4_or_ipv6 = struct
+
+  let range_predicate_of (config:string) =
+    match Option.apply_or_catch (fun config -> Ipv4.String.ipcalc ~config) config with
+    | Some result ->
+        result#contains
+    | None ->
+        begin
+	  match Option.apply_or_catch (fun config -> Ipv6.String.ipcalc ~config) config with
+	  | Some result -> result#contains
+	  | None -> invalid_arg ("invalid range: "^config)
+	end
+  
+end
+
+let switch_between_accepting_functions = function
+| None -> accept_non_intr
+| Some config ->
+    let range_predicate = Ipv4_or_ipv6.range_predicate_of config in
+    accept_in_range_non_intr ~range_predicate ~range_string:config
+
 (* Unix.bind wrapper: raises the exception Binding if something goes wrong: *)
 let bind socket sockaddr =
   try
@@ -76,7 +113,8 @@ let fix_IPV6_ONLY_if_needed ~domain fd =
   ()
 
 (* Generic function able to establish a server on a sockaddr. *)
-let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server_fun sockaddr =
+let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range server_fun sockaddr =
+  let accepting_function = switch_between_accepting_functions range in
   let socket_type =
     match seqpacket with
     | None    -> Unix.SOCK_STREAM
@@ -123,7 +161,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server
     let tutor = ThreadExtra.tutor ?behaviour:tutor_behaviour () in
     while true do
       Log.printf "Waiting for connection on %s\n" listen_socket_as_string;
-      let (service_socket, _) = accept_non_intr listen_socket in
+      let (service_socket, _) = accepting_function listen_socket in
       incr connexion_no;
       let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
       match Unix.fork () with
@@ -149,7 +187,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork server
   let thread_forking_loop () =
     let connexion_no = ref 0 in
     while true do
-      let (service_socket, _) = accept_non_intr listen_socket in
+      let (service_socket, _) = accepting_function listen_socket in
       let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
       let server_fun s =
         Log.printf "Thread created for connection #%d on %s\n" !connexion_no sockaddr0;
@@ -217,14 +255,14 @@ let unix_server ?max_pending_requests ?seqpacket ?tutor_behaviour ?no_fork ?sock
   let (server_thread, _) = server ?max_pending_requests ?seqpacket ?tutor_behaviour ?no_fork server_fun sockaddr in
   (server_thread, socketfile)
 
-let inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?(port=0) server_fun =
+let inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?(port=0) server_fun =
   let ipv4 = match ipv4 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv4, port) in
   let (server_thread, assigned_port) = 
-    server ?max_pending_requests ?tutor_behaviour ?no_fork server_fun sockaddr
+    server ?max_pending_requests ?tutor_behaviour ?no_fork ?range:range4 server_fun sockaddr
   in
   let assigned_port = match assigned_port with
   | Some x -> x 
@@ -232,14 +270,14 @@ let inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?(port=0)
   in
   (server_thread, (Unix.string_of_inet_addr ipv4), assigned_port)
 
-let inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?(port=0) server_fun =
+let inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?(port=0) server_fun =
   let ipv6 = match ipv6 with
     | Some x -> Unix.inet_addr_of_string x
     | None   -> Unix.inet6_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv6, port) in
   let (server_thread, assigned_port) = 
-    server ?max_pending_requests ?tutor_behaviour ?no_fork server_fun sockaddr
+    server ?max_pending_requests ?tutor_behaviour ?no_fork ?range:range6 server_fun sockaddr
   in
   let assigned_port = match assigned_port with
   | Some x -> x 
@@ -248,8 +286,12 @@ let inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?(port=0)
   (server_thread, (Unix.string_of_inet_addr ipv6), assigned_port)
 
 (* Dual stack inet4 and inet6: *)
-let inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port server_fun =
-  let (thrd4, addr4, port4) as r4 = inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun in
+let inet_server ?max_pending_requests ?tutor_behaviour ?no_fork
+  ?range4 ?range6 ?ipv4 ?ipv6 ?port server_fun
+  =
+  let (thrd4, addr4, port4) as r4 =
+    inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port server_fun
+  in
   Log.printf "dual stack server: inet4 thread started (%d)\n" (Thread.id thrd4);
   let return_raising e =
     Log.print_exn ~prefix:"dual stack server: I cannot start both servers because of: " e;
@@ -260,11 +302,11 @@ let inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?por
   in
   let (thrd6, addr6, port6) as r6 =
     try
-      inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ~port:port4 server_fun
+      inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ~port:port4 server_fun
     with
     | Binding e when port=None ->
 	(try
-	   inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+	   inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port server_fun
 	 with e -> return_raising e)
     | e -> return_raising e
   in
@@ -665,30 +707,40 @@ let server_fun_of_seqpacket_protocol ?max_input_size (protocol:'a seqpacket_prot
     result
 
 (* seqpacket - unix *)
-let seqpacket_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile ~(protocol:seqpacket_channel -> unit) () =
+let seqpacket_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+  ?socketfile ~(protocol:seqpacket_channel -> unit) ()
+  =
   let server_fun = server_fun_of_seqpacket_protocol ?max_input_size protocol in
   unix_server ?max_pending_requests ~seqpacket:() ?tutor_behaviour ?no_fork ?socketfile server_fun
 
 (* stream - unix *)
-let stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile ~(protocol:stream_channel -> unit) () =
+let stream_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+  ?socketfile ~(protocol:stream_channel -> unit) ()
+  =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
   unix_server ?max_pending_requests ?tutor_behaviour ?no_fork ?socketfile server_fun
 
 (* stream - inet4 *)
-let stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port ~(protocol:stream_channel -> unit) () =
+let stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+  ?range4 ?ipv4 ?port ~(protocol:stream_channel -> unit) ()
+  =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun
+  inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port server_fun
 
 (* stream - inet6 *)
-let stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port ~(protocol:stream_channel -> unit) () =
+let stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+  ?range6 ?ipv6 ?port ~(protocol:stream_channel -> unit) ()
+  =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+  inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port server_fun
 
 
 (* stream - inet (both 4 and 6) trying to reserve for ipv6 the same port reserved for ipv4: *)
-let stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port ~(protocol:stream_channel -> unit) () =
+let stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+  ?range4 ?range6 ?ipv4 ?ipv6 ?port ~(protocol:stream_channel -> unit) ()
+  =
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol in
-  inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port server_fun
+  inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port server_fun
 
 let stream_dgram_protocol_composition
   ~(bootstrap : stream_channel -> dgram_channel)
@@ -712,31 +764,31 @@ let dgram_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no
   unix_server ?max_pending_requests ?tutor_behaviour ?no_fork ?socketfile server_fun
 
 (* datagram - inet4 *)
-let dgram_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+let dgram_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?port server_fun
+  inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port server_fun
 
 (* datagram - inet6 *)
-let dgram_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+let dgram_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv6 ?port server_fun
+  inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port server_fun
 
 (* datagram - inet *)
-let dgram_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+let dgram_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
   let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
-  inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port server_fun
+  inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port server_fun
 
 
 let client ?seqpacket client_fun sockaddr =
@@ -857,11 +909,12 @@ xterm Xt error: Can't open display: 127.0.0.1:42
   : int = 0 ]} *)
   let inet4_of_unix_stream_server 
     (* inet4 server parameters: *)
-    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
     (* unix client parameters and inet4 server result: *)
     ~socketfile () : Thread.t * string * int
     =
-    stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+    stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+      ?range4 ?ipv4 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  ignore (stream_unix_client ?max_input_size ~socketfile
@@ -872,11 +925,12 @@ xterm Xt error: Can't open display: 127.0.0.1:42
 
   let inet6_of_unix_stream_server
     (* inet6 server parameters: *)
-    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port
     (* unix client parameters and inet6 server result: *)
     ~socketfile () : Thread.t * string * int
     =
-    stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+    stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+      ?range6 ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  ignore (stream_unix_client ?max_input_size ~socketfile
@@ -887,11 +941,12 @@ xterm Xt error: Can't open display: 127.0.0.1:42
 
   let inet_of_unix_stream_server
     (* inet6 server parameters: *)
-    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port
     (* unix client parameters and inet6 server result: *)
     ~socketfile () : (Thread.t * string * int) * (Thread.t * string * int)
     =
-    stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+    stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+      ?range4 ?range6 ?ipv4 ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  ignore (stream_unix_client ?max_input_size ~socketfile
@@ -938,11 +993,11 @@ xterm Xt error: Can't open display: 127.0.0.1:42
 
   let inet4_of_inet_stream_server
     (* inet4 server parameters: *)
-    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
     (* inet client parameters and inet4 server result: *)
     ~ipv4_or_v6 ~dport () : Thread.t * string * int
     =
-    stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?port
+    stream_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
@@ -953,11 +1008,12 @@ xterm Xt error: Can't open display: 127.0.0.1:42
 
   let inet6_of_inet_stream_server
     (* inet4 server parameters: *)
-    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port
     (* inet client parameters and inet4 server result: *)
     ~ipv4_or_v6 ~dport () : Thread.t * string * int
     =
-    stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv6 ?port
+    stream_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+      ?range6 ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
@@ -968,11 +1024,12 @@ xterm Xt error: Can't open display: 127.0.0.1:42
 
   let inet_of_inet_stream_server
     (* inet4 server parameters: *)
-    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+    ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port
     (* inet client parameters and inet4 server result: *)
     ~ipv4_or_v6 ~dport () : (Thread.t * string * int) * (Thread.t * string * int)
     =
-    stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?ipv4 ?ipv6 ?port
+    stream_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork
+      ?range4 ?range6 ?ipv4 ?ipv6 ?port
       ~protocol:begin fun (chA:stream_channel) ->
 	  (* When a connection is accepted the server became a client of the remote unix server: *)
 	  ignore (stream_inet_client ?max_input_size ~ipv4_or_v6 ~port:dport
