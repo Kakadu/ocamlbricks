@@ -14,11 +14,17 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-type t = int array
-type cidr = int
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
 
+#load "include_type_definitions_p4.cmo";;
+INCLUDE DEFINITIONS "../STRUCTURES/ipv6.mli"
+;;
+
+(** Convert a string into the ipv6 addresses internal representation.
+    Raise [Invalid_argument] if the string is not in the valid standard format. *)
 let of_string s =
-  if s = ":::" then Some (Array.create 8 0) else
+  if s = ":::" then (Array.create 8 0) else
   let scan_group group =
     let (i,rest) = Scanf.sscanf group "%4x%s" (fun i rest -> (i,rest)) in
     (assert (rest=""));
@@ -41,11 +47,12 @@ let of_string s =
     (assert (n1+n2 <= 8));
     let zeros = Array.create (8-n1-n2) 0 in
     let result = Array.concat [ys; zeros; zs] in
-    Some result
-  with _ -> None  
+    result
+  with _ -> invalid_arg ("Ipv6.of_string: "^s)
 
 
-let string_of ?uncompress t =
+(** Convert the internal representation of an ipv6 addresses into a string. *)
+let to_string ?uncompress t =
   (assert (Array.length t = 8));
   if (ArrayExtra.for_all (fun _ -> (=) 0) t) then ":::" else
   let search_longest_sequence_of_zeros ?leftmost =
@@ -73,8 +80,29 @@ let string_of ?uncompress t =
   String.concat ":" xs
 
 
-(** Example:
-{[# (Ipv6.ipcalc (Option.extract (Ipv6.of_string "abcd::7:8:9")) 120)#print ;;
+(** Convert a string in the form ["xxxx:xxxx:..:xxxx/<cidr>"] into its internal representation. *)
+let config_of_string (config:string) =
+  match Option.apply_or_catch (Scanf.sscanf config "%s@/%i") (fun s i -> s,i) with
+  | None -> invalid_arg ("Ipv6.config_of_string: invalid address/cidr: "^config)
+  | Some (s, cidr) ->
+      if cidr < 0 || cidr > 128
+        then invalid_arg ("Ipv6.config_of_string: invalid cidr: "^(string_of_int cidr))
+        else begin
+          match Option.apply_or_catch of_string s with
+          | None -> invalid_arg ("Ipv6.config_of_string: invalid address: "^s)
+          | Some t -> (t, cidr)
+        end
+
+(** Convert the internal representation [(t,cidr)] into a string. *)
+let string_of_config ?uncompress (t,cidr) =
+  let s = to_string ?uncompress t in
+  Printf.sprintf "%s/%d" s cidr
+
+
+(** Determine all derived informations from the ipv6 address and cidr.
+
+{b Example}:
+{[# (Ipv6.ipcalc (Ipv6.of_string "abcd::7:8:9") 120)#print ;;
 Address:   abcd::7:8:9
 Netmask:   ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff00 = 120
 =>
@@ -122,13 +150,14 @@ let ipcalc (t as ip) cidr =
     Array.mapi
       (fun i group ->
          if i<g1 then group else
-         if i>g2 then 65535 else
+         if i>g2 then 65535 else(** IPv6 parsing and printing. *)
+
          if i=g1 then group_of_semi_ipv4 i1 i2 else
          group_of_semi_ipv4 i3 i4)
       t
   in
   let contains x = (x >= hostmin && x <= hostmax) in
-  let s = string_of in
+  let s = to_string in
   let s_ip        = lazy (s ip) in
   let s_netmask   = lazy (s netmask) in
   let s_network   = lazy (s network) in
@@ -137,7 +166,7 @@ let ipcalc (t as ip) cidr =
   in
   object
     method ip = ip
-    method cidr = cidr
+    method cidr = cidr (** the provided cidr *)
     method netmask = netmask
     method network = network
     method hostmax = hostmax
@@ -152,7 +181,7 @@ HostMin:   %s
 HostMax:   %s
 " (Lazy.force s_ip) (Lazy.force s_netmask) cidr (Lazy.force s_network) cidr (Lazy.force s_hostmin) (Lazy.force s_hostmax)
 
-    method string_of =
+    method to_string =
       object
 	method ip = (Lazy.force s_ip)
 	method netmask = (Lazy.force s_netmask)
@@ -165,10 +194,13 @@ HostMax:   %s
 ;;
 
 
+(** Similar tools working on strings and producing strings. *)
 module String = struct
 
-(** Example:
- {[ # (Option.extract (Ipv6.String.ipcalc "abcd::7:8:9" 120))#print ;;
+(** Determine all derived informations from the ipv6 address and cidr provided in a unique
+    string in the form ["xxxx:xxxx:..:xxxx/<cidr>"].
+{b Example}:
+ {[ # (Ipv6.String.ipcalc "abcd::7:8:9/120")#print ;;
 Address:   abcd::7:8:9
 Netmask:   ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff00 = 120
 =>
@@ -176,20 +208,23 @@ Network:   abcd::7:8:0/120
 HostMin:   abcd::7:8:0
 HostMax:   abcd::7:8:ff
   : unit = () ]} *)
-  let ipcalc s cidr =
-    let ot = of_string s in
-    Option.map (fun t ->
-      let x = ipcalc t cidr in
-      object
-	  method ip = x#string_of#ip
-	  method cidr = string_of_int (x#cidr)
-	  method netmask = x#string_of#netmask
-	  method network = x#string_of#network
-	  method hostmax = x#string_of#hostmax
-	  method hostmin = x#string_of#hostmin
-	  method contains s = Option.map x#contains (of_string s)
-	  method print = x#print
-      end)
-    ot (* end of Option.map *)
-end
+  let ipcalc ~config:config =
+    match Option.apply_or_catch config_of_string config with
+    | None -> invalid_arg ("Ipv6.String.ipcalc: invalid address/cidr: "^config)
+    | Some (t, cidr) ->
+        begin
+	  let x = ipcalc t cidr in
+	  object
+	      method ip = x#to_string#ip
+	      method cidr = string_of_int (x#cidr)
+	      method netmask = x#to_string#netmask
+	      method network = x#to_string#network
+	      method hostmax = x#to_string#hostmax
+	      method hostmin = x#to_string#hostmin
+	      method contains s = x#contains (of_string s)
+	      method print = x#print
+	  end (* object *)
+	end
+
+end (* module String *)
 

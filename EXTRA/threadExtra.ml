@@ -415,7 +415,7 @@ let delay time =
   let t =
     Thread.create
       (fun () ->
-         let xs = Thread.sigmask Unix.SIG_BLOCK [17;23;26;28] in
+         let _ = Thread.sigmask Unix.SIG_BLOCK [17;23;26;28] in
          Unix.select [] [] [] time)
       ()
       in

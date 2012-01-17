@@ -14,24 +14,35 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** IPv6 parsing and printing. *)
+
+(** The internal representation of an ipv6 address. *)
 type t = int array
+
+(** The integer implicitely representing the netmask. Admissible values are in the range [0..128]. *)
 type cidr = int
 
-val of_string : string -> int array option
+(** The internal representation of an ipv6 configuration, i.e. a pair [<address>/<cidr>]. *)
+type config = t * cidr
 
-val string_of : ?uncompress:unit -> int array -> string
+val of_string : string -> t
+val to_string : ?uncompress:unit -> t -> string
 
-val ipcalc : t -> cidr ->
-  < ip       : t;
-    cidr     : int;
-    netmask  : t;
-    network  : t;
-    hostmin  : t;
-    hostmax  : t;
-    contains : t -> bool;
-    print    : unit;
+val config_of_string : string -> config
+val string_of_config : ?uncompress:unit -> config -> string
 
-    string_of : <
+type ipcalc_result =
+  < ip       : t;           (** The given address *)
+    cidr     : int;         (** The given cidr *)
+    netmask  : t;           (** The derived netmask *)
+    network  : t;           (** The derived network address *)
+    hostmin  : t;           (** Host minimal address in this network *)
+    hostmax  : t;           (** Host maximal address in this network *)
+    contains : t -> bool;   (** Does the network contain this address? *)
+    print    : unit;        (** Print all given and derived informations *)
+
+    (** String conversions: *)
+    to_string : <
 	ip      : string;
 	netmask : string;
 	network : string;
@@ -40,16 +51,19 @@ val ipcalc : t -> cidr ->
 	>
     >
 
+
+val ipcalc : t -> cidr -> ipcalc_result
+
 module String : sig
 
- val ipcalc : string -> cidr ->
+ val ipcalc : config:string ->
   < ip       : string;
     cidr     : string;
     netmask  : string;
     network  : string;
     hostmin  : string;
     hostmax  : string;
-    contains : string -> bool option;
+    contains : string -> bool;
     print    : unit;
-    > option
+    >
 end

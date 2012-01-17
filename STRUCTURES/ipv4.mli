@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** IPv4 parsing and checking. *)
+(** IPv4 parsing and printing. *)
 
 type byte    = int
 type ipv4    = byte * byte * byte * byte

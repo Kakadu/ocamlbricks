@@ -127,6 +127,7 @@ type html_like = [ `text of text | `TABLE of table | `FONT of font ]
 
 type label = [ `escaped of escaped_string | `html of html_like ]
 
+(** Graph constructor. *)
 val graph:
 
  ?strict:unit -> (* If  the  graph is strict then multiple edges are not allowed between the same pairs of nodes. *)
