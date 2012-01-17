@@ -75,9 +75,14 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
              | Ast.SgClt (a,b)                      -> Ast.StClt (a,b)
              | _ -> assert false
            in
-
-           Ast.stSem_of_list (List.map mill l)
-
+           let result =  
+             Ast.stSem_of_list (List.map mill l)
+           in
+           (* Set _loc as location of the whole result: *)
+           match result with
+           | Ast.StNil _          -> Ast.StNil _loc
+           | Ast.StSem (_, x, xs) -> Ast.StSem (_loc, x, xs)
+           | _ -> assert false
       ] ]
     ;
 
