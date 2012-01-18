@@ -48,7 +48,7 @@ let of_string s =
     let zeros = Array.create (8-n1-n2) 0 in
     let result = Array.concat [ys; zeros; zs] in
     result
-  with _ -> invalid_arg ("Ipv6.of_string: "^s)
+  with _ -> invalid_arg ("Ipv6.of_string: ill-formed ipv6 address "^s)
 
 
 (** Convert the internal representation of an ipv6 addresses into a string. *)
@@ -83,13 +83,13 @@ let to_string ?uncompress t =
 (** Convert a string in the form ["xxxx:xxxx:..:xxxx/<cidr>"] into its internal representation. *)
 let config_of_string (config:string) =
   match Option.apply_or_catch (Scanf.sscanf config "%s@/%i") (fun s i -> s,i) with
-  | None -> invalid_arg ("Ipv6.config_of_string: invalid address/cidr: "^config)
+  | None -> invalid_arg ("Ipv6.config_of_string: ill-formed address/cidr: "^config)
   | Some (s, cidr) ->
       if cidr < 0 || cidr > 128
         then invalid_arg ("Ipv6.config_of_string: invalid cidr: "^(string_of_int cidr))
         else begin
           match Option.apply_or_catch of_string s with
-          | None -> invalid_arg ("Ipv6.config_of_string: invalid address: "^s)
+          | None -> invalid_arg ("Ipv6.config_of_string: ill-formed address: "^s)
           | Some t -> (t, cidr)
         end
 
@@ -159,6 +159,8 @@ let ipcalc (t as ip) cidr =
   let contains x = (x >= hostmin && x <= hostmax) in
   let s = to_string in
   let s_ip        = lazy (s ip) in
+  let s_cidr      = lazy (string_of_int cidr) in
+  let s_config    = lazy (string_of_config (ip,cidr)) in
   let s_netmask   = lazy (s netmask) in
   let s_network   = lazy (s network) in
   let s_hostmin   = lazy (s hostmin) in
@@ -167,6 +169,7 @@ let ipcalc (t as ip) cidr =
   object
     method ip = ip
     method cidr = cidr (** the provided cidr *)
+    method config = (ip, cidr)
     method netmask = netmask
     method network = network
     method hostmax = hostmax
@@ -183,7 +186,9 @@ HostMax:   %s
 
     method to_string =
       object
-	method ip = (Lazy.force s_ip)
+	method ip      = (Lazy.force s_ip)
+	method cidr    = (Lazy.force s_cidr)
+	method config  = (Lazy.force s_config)
 	method netmask = (Lazy.force s_netmask)
 	method network = (Lazy.force s_network)
 	method hostmax = (Lazy.force s_hostmax)
@@ -196,6 +201,12 @@ HostMax:   %s
 
 (** Similar tools working on strings and producing strings. *)
 module String = struct
+
+ let is_valid_ipv6 x =
+   try let _ = of_string x in true with _ -> false
+
+ let is_valid_config x =
+   try let _ = config_of_string x in true with _ -> false
 
 (** Determine all derived informations from the ipv6 address and cidr provided in a unique
     string in the form ["xxxx:xxxx:..:xxxx/<cidr>"].
@@ -210,18 +221,18 @@ HostMax:   abcd::7:8:ff
   : unit = () ]} *)
   let ipcalc ~config:config =
     match Option.apply_or_catch config_of_string config with
-    | None -> invalid_arg ("Ipv6.String.ipcalc: invalid address/cidr: "^config)
+    | None -> invalid_arg ("Ipv6.String.ipcalc: ill-formed address/cidr: "^config)
     | Some (t, cidr) ->
         begin
 	  let x = ipcalc t cidr in
 	  object
 	      method ip = x#to_string#ip
-	      method cidr = string_of_int (x#cidr)
+	      method cidr = x#to_string#cidr
 	      method netmask = x#to_string#netmask
 	      method network = x#to_string#network
 	      method hostmax = x#to_string#hostmax
 	      method hostmin = x#to_string#hostmin
-	      method contains s = x#contains (of_string s)
+	      method contains = fun ~ip -> x#contains (of_string ip)
 	      method print = x#print
 	  end (* object *)
 	end

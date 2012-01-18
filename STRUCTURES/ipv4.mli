@@ -16,50 +16,49 @@
 
 (** IPv4 parsing and printing. *)
 
-type byte    = int
-type ipv4    = byte * byte * byte * byte
-type cidr    = byte
-type netmask = byte * byte * byte * byte
+(** The internal representation of an ipv4 address. *)
+type t = int * int * int * int
 
-type config          = ipv4 * cidr
-type verbose_config  = ipv4 * netmask
+(** The integer implicitely representing the netmask.
+    Admissible values are in the range [0..32]. *)
+type cidr = int
+type netmask = t
+
+(** The internal representation of an ipv4 configuration,
+    i.e. a pair [<address>/<cidr>]. *)
+type config          = t * cidr
+type verbose_config  = t * netmask
 
 (** {2 Netmask <-> CIDR} *)
 
-val netmask_of_cidr  : cidr -> netmask
-val cidr_of_netmask  : netmask -> cidr
-
-(** {2 Checking} *)
-
-val is_valid_ipv4           : ipv4           -> bool
-val is_valid_cidr           : cidr           -> bool
-val is_valid_netmask        : netmask        -> bool
-val is_valid_config         : ?strict:bool -> config -> bool
-val is_valid_verbose_config : ?strict:bool -> verbose_config -> bool
+val netmask_of_cidr   : cidr -> netmask
+val cidr_of_netmask   : netmask -> cidr
+val netmask_of_string : string -> netmask
 
 (** {2 Parsing} *)
 
-val ipv4_of_string : string -> ipv4
-val string_of_ipv4 : ?cidr:cidr -> ipv4 -> string
+val of_string : string -> t
+val to_string : t -> string
 
-val config_of_string            : ?strict:bool -> string -> config
-val verbose_config_of_strings   : ?strict:bool -> string -> string -> verbose_config
-val netmask_with_cidr_of_string : string -> netmask * cidr
-val netmask_of_string           : string -> netmask
+val config_of_string  : string -> config
+val string_of_config  : config -> string
 
 type ipcalc_result =
-< ip : ipv4;
-  cidr      : cidr;
-  netmask   : ipv4;
-  network   : ipv4;
-  broadcast : ipv4;
-  hostmin   : ipv4;
-  hostmax   : ipv4;
+< ip        : t;
+  cidr      : int;
+  config    : t * int;
+  netmask   : t;
+  network   : t;
+  broadcast : t;
+  hostmin   : t;
+  hostmax   : t;
   hosts     : int;
   print     : unit;
 
   to_string : <
       ip        : string;
+      cidr      : string;
+      config    : string;
       netmask   : string;
       network   : string;
       broadcast : string;
@@ -67,19 +66,19 @@ type ipcalc_result =
       hostmin   : string;
       >;
 
-  contains : ipv4 -> bool;
+  contains : t -> bool;
   >
 
-val ipcalc : ipv4 -> cidr -> ipcalc_result
+val ipcalc : t -> cidr -> ipcalc_result
 
 (** {2 String checking} *)
 
 module String : sig
- val is_valid_ipv4           : string -> bool
- val is_valid_cidr           : string -> bool
- val is_valid_netmask        : string -> bool
- val is_valid_config         : ?strict:bool -> string -> bool
- val is_valid_verbose_config : ?strict:bool -> string -> string -> bool
+
+ val is_valid_ipv4    : string -> bool
+ val is_valid_netmask : string -> bool
+ val is_valid_config  : string -> bool
+ 
  val ipcalc : config:string ->
   < ip        : string;
     cidr      : string;
@@ -88,9 +87,10 @@ module String : sig
     broadcast : string;
     hostmax   : string;
     hostmin   : string;
-    contains  : string -> bool;
+    contains  : ip:string -> bool;
     print     : unit;
     >
+
 end
 
 

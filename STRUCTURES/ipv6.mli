@@ -34,6 +34,7 @@ val string_of_config : ?uncompress:unit -> config -> string
 type ipcalc_result =
   < ip       : t;           (** The given address *)
     cidr     : int;         (** The given cidr *)
+    config   : t * int;     (** The given address,cidr *)
     netmask  : t;           (** The derived netmask *)
     network  : t;           (** The derived network address *)
     hostmin  : t;           (** Host minimal address in this network *)
@@ -44,6 +45,8 @@ type ipcalc_result =
     (** String conversions: *)
     to_string : <
 	ip      : string;
+	cidr    : string;
+	config  : string;
 	netmask : string;
 	network : string;
 	hostmax : string;
@@ -56,6 +59,9 @@ val ipcalc : t -> cidr -> ipcalc_result
 
 module String : sig
 
+ val is_valid_ipv6   : string -> bool
+ val is_valid_config : string -> bool
+
  val ipcalc : config:string ->
   < ip       : string;
     cidr     : string;
@@ -63,7 +69,7 @@ module String : sig
     network  : string;
     hostmin  : string;
     hostmax  : string;
-    contains : string -> bool;
+    contains : ip:string -> bool;
     print    : unit;
     >
 end

@@ -77,11 +77,11 @@ module Ipv4_or_ipv6 = struct
   let range_predicate_of (config:string) =
     match Option.apply_or_catch (fun config -> Ipv4.String.ipcalc ~config) config with
     | Some result ->
-        result#contains
+        (fun ip -> result#contains ~ip)
     | None ->
         begin
 	  match Option.apply_or_catch (fun config -> Ipv6.String.ipcalc ~config) config with
-	  | Some result -> result#contains
+	  | Some result -> (fun ip -> result#contains ~ip)
 	  | None -> invalid_arg ("invalid range: "^config)
 	end
   
