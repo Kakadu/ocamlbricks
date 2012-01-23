@@ -227,3 +227,49 @@ let of_string ~(a:string -> 'a) ~(b:string -> 'b) x =
 let of_Genlex_token_stream  ~(a:Genlex.token Stream.t -> 'a) ~(b:Genlex.token Stream.t -> 'b) x =
   
 
+val interactive_stream_unix_client :
+  ?max_input_size:int ->
+  socketfile:string ->
+  unit -> (exn,'a) Either.t
+
+let interactive_stream_unix_client ?max_input_size ~socketfile () =
+  let rec protocol (ch:stream_channel) =
+    try
+      let cmd = read_line () in
+      if cmd = "quit" then () else
+      ch#output_line cmd;
+      Thread.delay 0.5;
+      let answer = ch#receive () in
+      Printf.printf "%s" answer;
+      protocol ch
+    with _ -> ()
+  in
+  stream_unix_client ?max_input_size ~socketfile ~protocol ()
+
+let ask_vde_switch_for_current_numports ~socketfile () =
+  let protocol (ch:stream_channel) =
+    ch#output_line "port/showinfo";
+    let rec loop () =
+      let answer = ch#input_line () in
+      match Option.apply_or_catch (Scanf.sscanf answer "Numports=%d") (fun i -> i) with
+      | None -> loop ()
+      | Some i -> i
+    in
+    loop ()
+  in
+  stream_unix_client ~socketfile ~protocol ()
+
+let wait_vde_switch_until_numports_are_allocated ~numports ~socketfile () =
+  let rec protocol (ch:stream_channel) =
+    ch#output_line "port/showinfo";
+    let rec loop () =
+      let answer = ch#input_line () in
+      match Option.apply_or_catch (Scanf.sscanf answer "Numports=%d") (fun i -> i) with
+      | None -> loop ()
+      | Some i -> if i>=numports then i else (Thread.delay 0.2; (protocol ch))
+    in
+    loop ()
+  in
+  stream_unix_client ~socketfile ~protocol ()
+
+

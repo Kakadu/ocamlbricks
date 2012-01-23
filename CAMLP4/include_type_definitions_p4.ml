@@ -30,6 +30,17 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
   open Sig
   include Syntax
 
+  let change_str_item_outermost_location_to loc = function
+    | Ast.StNil _ -> Ast.StNil loc
+    | Ast.StSem (_, str_item1, str_item2) -> Ast.StSem (loc, str_item1, str_item2)
+    | Ast.StCls (_, class_expr) -> Ast.StCls (loc, class_expr)
+    | Ast.StClt (_, class_type) -> Ast.StClt (loc, class_type)
+    | Ast.StTyp (_, ctyp) -> Ast.StTyp (loc, ctyp)
+    | Ast.StExc (_, ctyp, ident) -> Ast.StExc (loc, ctyp, ident)
+    | Ast.StMty (_, str, module_type) -> Ast.StMty (loc, str, module_type)
+    (* Other cases are not possible here: *)
+    | _ -> assert false
+
   EXTEND Gram
     GLOBAL: str_item;
 
@@ -78,11 +89,7 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
            let result =  
              Ast.stSem_of_list (List.map mill l)
            in
-           (* Set _loc as location of the whole result: *)
-           match result with
-           | Ast.StNil _          -> Ast.StNil _loc
-           | Ast.StSem (_, x, xs) -> Ast.StSem (_loc, x, xs)
-           | _ -> assert false
+           change_str_item_outermost_location_to _loc result
       ] ]
     ;
 
@@ -91,4 +98,3 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
 end
 
 let module M = Register.OCamlSyntaxExtension (Id) (Make) in ()
- 
