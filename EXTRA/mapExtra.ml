@@ -17,6 +17,11 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+#load "include_type_definitions_p4.cmo";;
+INCLUDE DEFINITIONS "../EXTRA/mapExtra.mli"
+;;
+
+
 module Extend = functor (M:Map.S) -> struct
   include M
 
@@ -56,6 +61,35 @@ module Int_map    = Make (struct type t = int    let compare = Pervasives.compar
     is simply implemented as a reference to a persistent map.
     This reference is update by some functions ([add], [remove], [map],...). *)
 module Destructive = struct
+
+ module type S =
+   sig
+      type key
+      type 'a t
+      val create    : unit -> 'a t
+      val is_empty  : 'a t -> bool
+      val add       : key -> 'a -> 'a t -> unit
+      val find      : key -> 'a t -> 'a
+      val remove    : key -> 'a t -> unit
+      val mem       : key -> 'a t -> bool
+      val iter      : (key -> 'a -> unit) -> 'a t -> unit
+      val map       : ('a -> 'a) -> 'a t -> unit
+      val mapi      : (key -> 'a -> 'a) -> 'a t -> unit
+      val fold      : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+      val compare   : ('a -> 'a -> int) -> 'a t -> 'a t -> int
+      val equal     : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+      (* Extra functions: *)
+
+      val copy      : 'a t -> 'a t
+      val filter    : (key -> 'a -> bool) -> 'a t -> unit
+      val of_list   : ?acc:'a t -> (key * 'a) list -> 'a t
+      val to_list   : ?acc:(key * 'a) list -> ?reverse:bool -> 'a t -> (key * 'a) list
+      val domain    : ?reverse:bool -> 'a t -> key list
+      val codomain  : ?reverse:bool -> 'a t -> 'a list
+      val restrict  : 'a t -> key list -> unit
+      val substract : 'a t -> key list -> unit
+   end
 
  module Make (Ord : Map.OrderedType) = struct
   module Persistent = Make (Ord)
