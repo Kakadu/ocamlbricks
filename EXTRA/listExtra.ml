@@ -31,6 +31,17 @@ let filter_map ?acc f =
      )
  in loop acc
 
+(** Filter according to the element and its index in the list (starting from 0). *)
+let filteri ?acc p =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop i = function
+ | []    -> acc
+ | x::xs ->
+     if p i x
+       then (x::(loop (i+1) xs))
+       else (loop (i+1) xs)
+ in loop 0
+
 (** Find and map in the same loop using an {e heuristic} function (i.e. a function ['a -> 'b option]). *)
 let rec find_map f =
   function

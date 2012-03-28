@@ -17,6 +17,7 @@
 (** Additional features for the standard module [List]. *)
 
 val filter_map : ?acc:('b list) -> ('a -> 'b option) -> 'a list -> 'b list
+val filteri    : ?acc:'a list -> (int -> 'a -> bool) -> 'a list -> 'a list
 val find_map   : ('a -> 'b option) -> 'a list -> 'b
 
 val map      : ?acc:'b list -> ('a -> 'b) -> 'a list -> 'b list
