@@ -45,8 +45,9 @@ module type S =
     val choose : t -> elt
     val split : elt -> t -> t * bool * t
     val copy : t -> t
-    val of_list : ?acc:t -> elt list -> t
-    val to_list : ?acc:elt list -> ?reverse:bool -> t -> elt list
+    val of_list  : ?acc:t -> elt list -> t
+    val of_lists : elt list list -> t
+    val to_list  : ?acc:elt list -> ?reverse:bool -> t -> elt list
     val uniq : elt list -> elt list
   end
 

@@ -30,6 +30,13 @@ module Extend = functor (S:Set.S) -> struct
   let of_list ?(acc=empty) (xs : elt list) : t =
     List.fold_left (fun m e -> add e m) acc xs
 
+  let of_lists (xss : elt list list) : t =
+    match xss with
+    | [] -> empty
+    | xs::xss ->
+        let t0 = of_list xs in
+        List.fold_left (fun acc xs -> of_list ~acc xs) t0 xss
+
   let to_list ?(acc=[]) ?(reverse=false) (m : t) =
     let acc = if reverse then (List.rev acc) else acc in
     let l = fold (fun e xs -> e::xs) m acc in

@@ -129,9 +129,9 @@ let union = M.union t t'
 
 let list_of_t  = M.to_list ~sort:() t
 let list_of_t' = M.to_list ~sort:() t' 
-let list_of_diff = M.to_list ~sort:() d 
-let list_of_inter = M.to_list ~sort:() i 
-let list_of_union = M.to_list ~sort:() u 
+let list_of_diff = M.to_list ~sort:() diff 
+let list_of_inter = M.to_list ~sort:() inter 
+let list_of_union = M.to_list ~sort:() union 
 
 end (* module Examples *)
 ENDIF
