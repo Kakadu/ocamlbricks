@@ -70,4 +70,5 @@ class c :
     method open_parenthesis : unit
     method reset : unit
     method set_next_fresh_value_to : int -> unit
+    method get_next_fresh_value : int
   end

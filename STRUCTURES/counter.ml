@@ -76,6 +76,7 @@ class c ?(initial_value=default_initial_value) () =
    (* New methods: *)
 
    method set_next_fresh_value_to x = t.counter <- x
+   method get_next_fresh_value = t.counter
 
    method reset =
      t.counter <- initial_value;
