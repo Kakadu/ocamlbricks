@@ -17,8 +17,8 @@
 (** Generate unique identifiers. The defined structure includes a stack allowing
     to recycle identifiers (using functions [open_parenthesis] and [close_parenthesis]). *)
 
-type t 
-val create : unit -> t
+type t
+val create : ?initial_value:int -> unit -> t
 
 val fresh             : t -> unit -> int
 
@@ -58,3 +58,16 @@ val c : Counter.t = <abstr>
 type 'a generator = unit -> 'a
 val make_int_generator    : unit   -> int generator
 val make_string_generator : ?prefix:string -> ?suffix:string -> unit -> string generator
+
+(** {2 More sophisticated Object-oriented interface} *)
+
+class c :
+  ?initial_value:int ->
+  unit ->
+  object
+    method close_parenthesis : unit
+    method fresh : unit -> int
+    method open_parenthesis : unit
+    method reset : unit
+    method set_next_fresh_value_to : int -> unit
+  end

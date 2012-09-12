@@ -22,24 +22,31 @@ type t = {
  mutable stack   : (int list)
 }
 
+(* In this way there's a chance that the current value correspond
+   to the number of already generated identifiers. *)
+let default_initial_value = 1 ;;
+
 (** Create a counter. *)
-let create () = 
- { counter = 0;
+let create ?(initial_value=default_initial_value) () =
+ { counter = initial_value;
    stack   = [];
  }
 
 (** Increment the counter in order to return a fresh integer. *)
-let fresh (c:t) = 
- function () -> (c.counter <- c.counter + 1) ; (c.counter)
+let fresh (c:t) =
+ function () ->
+   let result = c.counter in
+   (c.counter <- c.counter + 1);
+   result
 
 (** Open a parenthesis. All integers used after this action
     will be able to be recycled once the parenthesis will be closed. *)
 let open_parenthesis (c:t) = c.stack <- (c.counter)::(c.stack)
 
-(** Close the parenthesis. The counter is restored to the value which was assigned 
+(** Close the parenthesis. The counter is restored to the value which was assigned
     at the moment of last call to [open_parenthesis]. Raise a [Failure] if any parenthesis
     has been opened. *)
-let close_parenthesis (c:t) =  
+let close_parenthesis (c:t) =
  match (c.stack) with
   | x::xs -> c.counter <- x ; c.stack <- xs
   | []    -> failwith "Counter.close_parenthesis: unbalanced usage of parenthesis."
@@ -54,3 +61,24 @@ let make_int_generator () =
 let make_string_generator ?(prefix="") ?(suffix="") () =
  let g = make_int_generator () in
  function () -> Printf.sprintf "%s%i%s" prefix (g ()) suffix
+
+
+(** More sophisticated interface using objects: *)
+class c ?(initial_value=default_initial_value) () =
+ let t = create ~initial_value () in
+ object(self)
+
+
+   method fresh = fresh t
+   method open_parenthesis = open_parenthesis t
+   method close_parenthesis = close_parenthesis t
+
+   (* New methods: *)
+
+   method set_next_fresh_value_to x = t.counter <- x
+
+   method reset =
+     t.counter <- initial_value;
+     t.stack   <- [];
+
+ end
