@@ -28,6 +28,7 @@ val bind : 'a option -> ('a -> 'b option) -> 'b option
 val return : 'a -> 'a option
 
 val iter : ('a -> unit) -> 'a option -> unit
+val filter : ('a -> bool) -> 'a option -> 'a option
 
 val apply_or_catch : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
 

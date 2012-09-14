@@ -32,6 +32,8 @@ let bind x f = match x with None -> None | Some x -> (f x)
 let return x = Some x
 let iter f = function None -> () | Some x -> (f x)
 
+let filter p x = bind x (fun x -> if p x then Some x else None)
+
 let of_fallible_application ?(fallback=fun _ _ -> ()) f x =
  try Some (f x) with e -> ((fallback e x); None)
 

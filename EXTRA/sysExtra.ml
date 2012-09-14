@@ -17,6 +17,43 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+(** More sophisticated version of [Sys.getenv].
+The result is None if and only if something goes wrong in retrieving
+and converting the value from the environment
+(key not present, or associated to the empty string, or associated
+to a value which hasn't the expected type or doesn't verify the condition
+implicitely denoted by the method name).
+
+{b Examples}:
+{[# (meaningful_getenv "HOME")#existing_directory ;;
+  : string option = Some "/home/foo"
+
+# (meaningful_getenv "TMPDIR")#existing_directory ;;
+  : string option = None
+
+# (meaningful_getenv "TMPDIR")#non_empty_string ;;
+  : string option = None
+]}
+**)
+let meaningful_getenv x =
+  let ov =
+    try
+      (match Sys.getenv x with
+      | "" -> None
+      | v  -> Some v
+      )
+    with Not_found -> None
+  in
+  object
+    method non_empty_string = ov
+    method int   = try Option.map int_of_string ov with _ -> None
+    method float = try Option.map float_of_string ov with _ -> None
+    method bool  = try Option.map (fun v -> bool_of_string (String.lowercase v)) ov with _ -> None
+    method existing_file = Option.filter (Sys.file_exists) ov
+    method existing_directory = try Option.filter (Sys.is_directory) ov with _ -> None
+  end
+
+
 (** Reads a given directory, thus select and convert names. Returns the list of formatted names. *)
 let readdir_as_list
   ?only_directories
@@ -163,7 +200,7 @@ let name_of_signal =
   let m = Map.create () in
   let () = List.iter (fun (i,n) -> Map.add i n m) signal_list in
   fun i -> Map.find i m
-  
+
 let description_of_signal =
   let module Map = MapExtra.Destructive.String_map in
   let m = Map.create () in
@@ -242,14 +279,14 @@ let fold_on_signals ?(except=[]) ?(caller="fold_on_signals") f s =
     if List.mem i except then loop s (i+1) else
     let s' = try
       let b = signal_behavior i in
-      f s i b 
-      with Sys_error _ ->    	    
+      f s i b
+      with Sys_error _ ->
         let n = name_of_signal i in
         Log.printf "%s: skipping to apply the function to signal %2d (%s)\n" caller i n;
-        s 
+        s
     in
     loop s' (i+1)
-  in loop s 1 
+  in loop s 1
 
 let iter_on_signals ?except f =
   fold_on_signals ?except ~caller:"iter_on_signals" (fun () i b -> f i b) ()
@@ -287,7 +324,7 @@ let log_signal_reception ?except () =
          current_handler i)
   in
   wrap_signal_receptions ?except ~also_core_dumped:() ~also_ignored:() wrapper
- 
+
 
 let description_of_name name =
   let (posix, action, descr) = description_of_signal name in

@@ -16,10 +16,22 @@
 
 (** Additional features for the standard module [Sys]. *)
 
+(** {2 Reading environments } *)
+
+val meaningful_getenv :
+  string ->
+  < non_empty_string   : string option;
+    existing_file      : string option;
+    existing_directory : string option;
+    int                : int    option;
+    float              : float  option;
+    bool               : bool   option;
+    >
+
 (** {2 Reading directories } *)
 
 val readdir_as_list :
-  ?only_directories:unit -> 
+  ?only_directories:unit ->
   ?only_not_directories:unit ->
   ?name_filter:(string -> bool) ->
   ?name_converter:(string -> string) ->
