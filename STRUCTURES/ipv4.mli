@@ -78,7 +78,7 @@ module String : sig
  val is_valid_ipv4    : string -> bool
  val is_valid_netmask : string -> bool
  val is_valid_config  : string -> bool
- 
+
  val ipcalc : config:string ->
   < ip        : string;
     cidr      : string;
@@ -94,4 +94,3 @@ module String : sig
 end
 
 
-  

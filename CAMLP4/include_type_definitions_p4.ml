@@ -86,7 +86,7 @@ module Make (Syntax : Sig.Camlp4Syntax) = struct
              | Ast.SgClt (a,b)                      -> Ast.StClt (a,b)
              | _ -> assert false
            in
-           let result =  
+           let result =
              Ast.stSem_of_list (List.map mill l)
            in
            change_str_item_outermost_location_to _loc result

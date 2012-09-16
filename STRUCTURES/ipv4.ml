@@ -24,7 +24,7 @@ INCLUDE DEFINITIONS "../STRUCTURES/ipv4.mli"
 (** Example: [23 -> (255,255,254,0)] *)
 let netmask_of_cidr x =
   let invalid_arg () =
-    invalid_arg 
+    invalid_arg
       (Printf.sprintf
          "Ipv4.netmask_of_cidr: netmask in CIDR notation %d out of the range 0..32" x)
   in
@@ -68,7 +68,7 @@ let cidr_of_netmask (n1,n2,n3,n4) =
 (** Example: ["255.255.248.0" -> (255, 255, 248, 0)] *)
 let netmask_of_string s =
   let invalid_arg () =
-    invalid_arg 
+    invalid_arg
       (Printf.sprintf "Ipv4.netmask_of_string: ill-formed netmask %s" s)
   in
   try begin
@@ -81,7 +81,7 @@ let netmask_of_string s =
 (** Example: ["192.168.1.42" -> (192,168,1,42)] *)
 let of_string s =
   let invalid_arg () =
-    invalid_arg 
+    invalid_arg
       (Printf.sprintf "Ipv4.of_string: ill-formed ipv4 address %s" s)
   in
   (** A valid ipv4 has each byte in the range [0..255]. *)
@@ -125,7 +125,7 @@ let ipcalc ((i1,i2,i3,i4) as ip) cidr =
   let (b1,b2,b3,b4) as broadcast = (a1+d1, a2+d2, a3+d3, a4+d4) in
   let hostmin = (a1,a2,a3,a4+1) in
   let hostmax = (b1,b2,b3,b4-1) in
-  let hostmin = max (min hostmin hostmax) network 
+  let hostmin = max (min hostmin hostmax) network
   and hostmax = min (max hostmin hostmax) broadcast in
   let contains x = (x >= hostmin && x <= hostmax) in
   let hosts = match cidr with

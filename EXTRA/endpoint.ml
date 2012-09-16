@@ -20,11 +20,11 @@
 module Source = struct
 
 (** The abstract type of a source endpoint *)
-type t = 
+type t =
   | Unix_descr of Unix.file_descr  (** An already opened unix descriptor. *)
   | In_channel of in_channel       (** An already opened pervasives input channel. *)
   | Filename   of string           (** A file name. *)
-  | String     of string           (** A string content. *)  
+  | String     of string           (** A string content. *)
   | Empty                          (** A shorthand for [String ""] *)
 
 (** Source to string conversion. *)
@@ -38,11 +38,11 @@ let to_string = function
  | Empty         -> "Empty"
 
 (** Create a unix file descriptor from a source if necessary.
-    The function returns also a flag indicating if the descriptor must be closed. 
+    The function returns also a flag indicating if the descriptor must be closed.
     If the user has given directly a descriptor (unix or standard), the descriptor
     do not must be closed. If the user has given a filename, the on-the-fly created
     descriptor must be closed. *)
-let to_file_descr = 
+let to_file_descr =
  let in_descr_of_string s =
   let len = (String.length s) in
   let (pread,pwrite) = Unix.pipe () in
@@ -64,7 +64,7 @@ end
 module Sink = struct
 
 (** The abstract type of a sink endpoint. *)
-type t = 
+type t =
   | Unix_descr   of Unix.file_descr            (** An already opened unix descriptor. *)
   | Out_channel  of out_channel                (** An already opened pervasives output channel. *)
   | Filename     of string                     (** A file name, (re)writing. *)
@@ -88,15 +88,15 @@ let to_string = function
  | Trash          -> "Trash"
 
 (** Create a unix file descriptor from a sink if necessary.
-    The function returns also a flag indicating if the descriptor must be closed. 
+    The function returns also a flag indicating if the descriptor must be closed.
     If the user has given directly a descriptor (unix or standard), the descriptor
     do not must be closed. If the user has given a filename, a treatment function or
     a string queue, the on-the-fly created descriptor must be closed. *)
-let to_file_descr = 
+let to_file_descr =
  let out_descr_of_fun_thread f =
   let (pread,pwrite) = Unix.pipe () in
-  let try_close d = try (Unix.close d) with _ -> () in 
-  let wrap f d = 
+  let try_close d = try (Unix.close d) with _ -> () in
+  let wrap f d =
     (let res = try (f d) with e -> ((try_close d); raise e) in (try_close d); res) in
   (ignore (Thread.create (wrap f) pread));
    pwrite

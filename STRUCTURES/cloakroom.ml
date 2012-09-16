@@ -105,14 +105,14 @@ module Hetero = struct
  type 'a the_type_if_it_was_homogeneous = (('a * id) list ref) * (id,'a) Hashtbl.t * (unit->id)
  type invention = int option
  type t = invention the_type_if_it_was_homogeneous
- 
- let create ?(size=251) () = 
+
+ let create ?(size=251) () =
   let id_counter  = ref 0 in
   let fresh = fun () -> (incr id_counter); !id_counter in
   (ref [], Hashtbl.create size, fresh)
 
  let add (ta,ti,fresh) a =
-   try List.assq a !ta 
+   try List.assq a !ta
    with Not_found ->
      let id = fresh () in
      let () = ((ta := (a,id)::(!ta)); (Hashtbl.add ti id a)) in

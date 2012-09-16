@@ -139,13 +139,13 @@ val graph:
  ?name:ident ->
 
  ?size:[ `max of (float*float) | `force of (float*float) ] ->
-   (* size="x,y" sets bounding box of drawing in inches. 
+   (* size="x,y" sets bounding box of drawing in inches.
       Maximum width and height of drawing, in inches. If defined and the drawing is too large, the drawing is uniformly scaled down so
       that it fits within the given size.
       If size ends in an exclamation point (!), then it is taken to be the desired size. In this case, if both dimensions of the
       drawing are less than size, the drawing is scaled up uniformly until at least one dimension equals its dimension in size.
       Note that there is some interaction between the size and ratio attributes. *)
- 
+
  ?page:(float*float) ->
     (* page="x,y" sets the PostScript pagination unit.
        Width and height of output pages, in inches. If this is set and is smaller than the size of the layout, a rectangular array
@@ -160,7 +160,7 @@ val graph:
 
  ?rotate:float -> (* rotate=90  sets  landscape  mode. *)
 
- ?ratio:[ `float of float | `fill | `compress | `auto ] -> 
+ ?ratio:[ `float of float | `fill | `compress | `auto ] ->
     (* ratio=f sets the aspect ratio (drawing height/drawing width) for the drawing.
        Note that this is adjusted before the size attribute constraints are enforced.
        - If ratio is numeric, it is taken as the desired aspect ratio. Then, if the actual aspect ratio is less than
@@ -179,7 +179,7 @@ val graph:
 
  ?margin:(float*float) -> (* For graphs, this sets x and y margins of canvas, in inches. *)
  ?center:unit -> (* If true, the drawing is centered in the output canvas. *)
- 
+
  ?nodesep:float -> (* nodesep=f set the minimum space between two adjacent nodes in the same rank, in inches. Default 0.25, minimum 0.02 *)
 
  ?ordering:[ `inp | `out ] ->
@@ -272,7 +272,7 @@ val graph:
  ?fontsize:int -> (* Font size, in points, used for text. Default is 14.0, minimum is 1.0 *)
 
  ?label: label -> (* Text label attached to objects. *)
- 
+
  ?labeljust: [ `r | `l | `c ] ->
     (* Justification for cluster labels. If "r", the label is right-justified within bounding rectangle; if "l", left-justified;
        else the label is centered. Note that a subgraph inherits attributes from its parent. Thus, if the root graph sets
@@ -284,7 +284,7 @@ val graph:
        subgraph inherits attributes from its parent. Thus, if the root graph sets labelloc to "b", the subgraph inherits this value.
        Default is "b" for root graphs. *)
 
- ?nojustify:unit -> 
+ ?nojustify:unit ->
     (* By default, the justification of multi-line labels is done within the largest context that makes sense. Thus, in the label of a
        polygonal node, a left-justified line will align with the left side of the node (shifted by the prescribed margin).
        In record nodes, left-justified line will line up with the left side of the enclosing column of fields.
@@ -295,7 +295,7 @@ val graph:
 
  ?quantum:float -> (* If quantum > 0.0, node label dimensions will be rounded to integral multiples of the quantum. *)
  ?remincross:unit -> (* If true and there are multiple clusters, run cross minimization a second time. *)
- 
+
  ?samplepoints: int ->
     (* If the input graph defines the ?vertices attribute, and output is dot or xdot, this give the number of points used to represent
        circles and ellipses. It plays the same role in neato, when adjusting the layout to avoid overlapping nodes. Default 8. *)
@@ -324,7 +324,7 @@ val cluster:
  ?name_suffix:cluster_ident ->
  ?rank: [ `same | `min | `max | `source | `sink ] ->
  ?color:color ->
- ?bgcolor:color -> 
+ ?bgcolor:color ->
 
  ?fillcolor: color  ->
     (* Color used to fill the background of a node or cluster. If fillcolor is not defined, color is used.
@@ -332,7 +332,7 @@ val cluster:
        the output format is MIF, which use black by default.
        Note that a cluster inherits the root graph's attributes if defined. Thus, if the root graph has defined a fillcolor, this will override
        a color or bgcolor attribute set for the cluster. Default is black for clusters. *)
-       
+
  ?pencolor:color ->
     (* Color used to draw the bounding box around a cluster. If pencolor is not defined, color is used. If this is not defined, bgcolor is used.
        If this is not defined, the default is used. Note that a cluster inherits the root graph's attributes if defined. Thus, if the root graph
@@ -341,13 +341,13 @@ val cluster:
  ?fontcolor: color  ->
  ?fontname:string   -> (* Default is "Times-Roman" *)
  ?fontsize:int ->
- ?label: label -> 
+ ?label: label ->
  ?labeljust: [ `r | `l | `c ] ->
  ?labelloc: [ `t | `b ] -> (* Default is "t" for clusters. *)
  ?nojustify:unit ->
  ?url:escaped_string ->
 
- ?peripheries: int -> 
+ ?peripheries: int ->
     (* Set number of peripheries used in polygonal shapes and cluster boundaries. Note that user-defined shapes are treated as a form of box shape,
        so the default peripheries value is 1 and the user-defined shape will be drawn in a bounding rectangle. Setting peripheries=0 will turn this off.
        Also, 1 is the maximum peripheries value for clusters. Default is 1 for clusters *)
@@ -361,9 +361,9 @@ val node :
 
  ?url:escaped_string ->
  ?color:color ->
- ?comment: string   -> 
+ ?comment: string   ->
  ?distortion:float ->
-    (* Distortion factor for shape=polygon. Positive values cause top part to be larger than bottom; negative values do the opposite. 
+    (* Distortion factor for shape=polygon. Positive values cause top part to be larger than bottom; negative values do the opposite.
        Default is 0.0, maximum is 100.0 *)
 
  ?fillcolor: color  -> (* Default is lightgrey for nodes *)
@@ -372,10 +372,10 @@ val node :
  ?fontname:string   ->
  ?fontsize:int ->
 
- ?fixedsize:unit -> 
+ ?fixedsize:unit ->
     (* If true, the node size is specified by the values of the width and height attributes only and is not expanded to contain the text label. *)
 
- ?group:string -> 
+ ?group:string ->
     (* If the end points of an edge belong to the same group, i.e., have the same group attribute, parameters are set to avoid
        crossings and keep the edges straight. *)
 
@@ -424,7 +424,7 @@ val node :
       If the z attribute is declared, the final rendering will be in 3D. *)
 
  ?outlabel:[ `north of label | `south of label | `east of label | `west of label ] ->
- 
+
  node_ident -> statement
 
 
@@ -433,7 +433,7 @@ val edge :
  ?url:escaped_string ->
  ?color:color ->
  ?comment: string   ->
-  
+
  ?arrowhead: [ `normal | `inv | `dot | `invdot | `odot | `invodot | `none | `tee | `empty | `invempty
              | `diamond | `odiamond | `ediamond | `crow | `box | `obox | `Open | `halfopen | `vee ] ->
    (* Style of arrowhead on the head node of an edge. Default is normal. See: http://www.graphviz.org/pub/scm/graphviz2/doc/info/attrs.html#k:arrowType *)
@@ -496,20 +496,20 @@ val edge :
 
  ?labelfontcolor: color ->
    (* Color used for headlabel and taillabel. If not set, defaults to edge's fontcolor. Default is black. *)
-                    
- ?labelfontname:string -> 
+
+ ?labelfontname:string ->
    (* Font used for headlabel and taillabel. If not set, defaults to edge's fontname. *)
-                  
+
  ?labelfontsize:int ->
    (* Font size, in points, used for headlabel and taillabel. If not set, defaults to edge's fontsize. *)
 
  ?layer: layer_ident list -> (* Specifies layers in which the node or edge is present. *)
 
- ?lhead:cluster_ident -> 
+ ?lhead:cluster_ident ->
    (* Logical head of an edge. When the graph option "compound" is true, if lhead is defined and is the name of a cluster containing the real head,
       the edge is clipped to the boundary of the cluster. *)
-                       
- ?ltail:cluster_ident -> 
+
+ ?ltail:cluster_ident ->
    (* Logical tail of an edge. When compound is true, if ltail is defined and is the name of a cluster containing the real tail, the edge is clipped
       to the boundary of the cluster. *)
 
@@ -535,38 +535,38 @@ val graph_default :
  ?size:[ `max of (float*float) | `force of (float*float) ] ->
  ?page:(float*float) ->
  ?pagedir: [ `BL | `BR | `TL | `TR | `RB | `RT | `LB | `LT ] ->
- ?rotate:float -> 
+ ?rotate:float ->
  ?ratio:[ `float of float | `fill | `compress | `auto ] ->
- ?margin:(float*float) -> 
- ?center:unit -> 
- ?nodesep:float -> 
+ ?margin:(float*float) ->
+ ?center:unit ->
+ ?nodesep:float ->
  ?ordering:[ `inp | `out ] ->
  ?outputorder: [ `breadthfirst | `nodesfirst | `edgesfirst ] ->
  ?rank: [ `same | `min | `max | `source | `sink ] ->
- ?rankdir: [`TB|`LR|`RL|`BT] -> 
- ?ranksep:float -> 
+ ?rankdir: [`TB|`LR|`RL|`BT] ->
+ ?ranksep:float ->
  ?clusterrank:[ `local | `global | `none ] ->
- ?nslimit:float -> 
- ?layers:layer_ident list -> 
+ ?nslimit:float ->
+ ?layers:layer_ident list ->
  ?color:color ->
  ?bgcolor:color ->
  ?href:string ->
  ?url:escaped_string ->
  ?stylesheet:string ->
  ?charset:string ->
- ?comment: string -> 
- ?compound: unit  -> 
- ?concentrate: unit -> 
- ?fontcolor: color  -> 
+ ?comment: string ->
+ ?compound: unit  ->
+ ?concentrate: unit ->
+ ?fontcolor: color  ->
  ?fontname:string   ->
  ?fontpath:string list ->
  ?fontsize:int ->
- ?label: label -> 
+ ?label: label ->
  ?labeljust: [ `r | `l | `c ] ->
  ?labelloc: [ `t | `b ] ->
  ?nojustify:unit ->
- ?quantum:float -> 
- ?remincross:unit -> 
+ ?quantum:float ->
+ ?remincross:unit ->
  ?samplepoints: int ->
  unit -> statement
 
@@ -584,11 +584,11 @@ val node_default :
  ?group:string ->
  ?height:float ->
  ?layer: layer_ident list ->
- ?margin:(float*float) -> 
+ ?margin:(float*float) ->
  ?nojustify:unit ->
- ?orientation:float -> 
- ?peripheries: int -> 
- ?pos:float*float -> 
+ ?orientation:float ->
+ ?peripheries: int ->
+ ?pos:float*float ->
  ?regular:unit ->
  ?shape: [ `box | `ellipse | `circle | `point | `egg | `triangle | `plaintext | `diamond | `trapezium | `parallelogram | `house
          | `pentagon | `hexagon | `septagon | `octagon | `doublecircle | `doubleoctagon | `tripleoctagon | `invtriangle | `invtrapezium
@@ -611,7 +611,7 @@ val edge_default :
              | `diamond | `odiamond | `ediamond | `crow | `box | `obox | `Open | `halfopen | `vee ] ->
  ?arrowtail: [ `normal | `inv | `dot | `invdot | `odot | `invodot | `none | `tee | `empty | `invempty
              | `diamond | `odiamond | `ediamond | `crow | `box | `obox | `Open | `halfopen | `vee ] ->
- ?dir: [ `forward | `back | `both | `none ] -> 
+ ?dir: [ `forward | `back | `both | `none ] ->
  ?arrowsize:float ->
  ?constraint_off:unit ->
  ?decorate:unit ->
@@ -637,7 +637,7 @@ val edge_default :
  ?minlen:int ->
  ?nojustify:unit ->
  ?pos:float*float ->
- ?samehead:point_ident -> 
+ ?samehead:point_ident ->
  ?sametail:point_ident ->
  ?style: [ `dashed | `dotted | `solid | `invis | `bold ] list ->
  ?weight:float ->
@@ -687,7 +687,7 @@ val table :
  ?target:string ->
  ?title:string ->
  ?tooltip:string ->
- ?width:float 
+ ?width:float
  -> row list -> table
 
 val cell_of_text :

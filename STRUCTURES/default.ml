@@ -29,7 +29,7 @@ type t = Value.t
 
 let default = ref None
 
-module Unprotected = struct 
+module Unprotected = struct
 
  (** Set the current default. *)
  let set s = (default := Some s)

@@ -131,7 +131,7 @@ class dgram_channel :
   sockaddr1:Unix.sockaddr ->
   unit ->
   object
- 
+
     method send    : string -> unit
     method receive : unit -> string
     method peek    : unit -> string option
@@ -158,11 +158,11 @@ val dgram_input_socketfile_of :
   stream_socketfile:string ->
   unit ->  Unix.file_descr * Unix.sockaddr * string
 
-val dgram_input_port_of : 
-  ?dgram_output_port:int -> 
+val dgram_input_port_of :
+  ?dgram_output_port:int ->
   my_stream_inet_addr:Unix.inet_addr ->
   unit -> Unix.file_descr * Unix.sockaddr * int
- 
+
 type 'a stream_protocol    = stream_channel    -> 'a
 type 'a seqpacket_protocol = seqpacket_channel -> 'a
 type 'a dgram_protocol     = (stream_channel -> dgram_channel) * (dgram_channel -> 'a)
@@ -318,7 +318,7 @@ module Socat : sig
  (* -------------------------------- *
          of_unix_stream_server
   * -------------------------------- *)
- 
+
   val inet4_of_unix_stream_server :
     (* inet4 server parameters: *)
     ?max_pending_requests:int ->

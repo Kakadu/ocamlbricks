@@ -62,22 +62,22 @@ val combine4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) l
 val combine5 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> ('a * 'b * 'c * 'd * 'e) list
 val combine6 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> ('a * 'b * 'c * 'd * 'e * 'f) list
 
-val combine7 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list 
+val combine7 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list
   -> ('a * 'b * 'c * 'd * 'e * 'f * 'g) list
 
-val combine8 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list -> 'h list 
+val combine8 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list -> 'h list
   -> ('a * 'b * 'c * 'd * 'e * 'f * 'g * 'h) list
-    
+
 val split2 : ('a * 'b) list -> 'a list * 'b list
 val split3 : ('a * 'b * 'c) list -> 'a list * 'b list * 'c list
 val split4 : ('a * 'b * 'c * 'd) list -> 'a list * 'b list * 'c list * 'd list
 val split5 : ('a * 'b * 'c * 'd * 'e) list -> 'a list * 'b list * 'c list * 'd list * 'e list
 val split6 : ('a * 'b * 'c * 'd * 'e * 'f) list -> 'a list * 'b list * 'c list * 'd list * 'e list * 'f list
 
-val split7 : ('a * 'b * 'c * 'd * 'e * 'f * 'g) list 
+val split7 : ('a * 'b * 'c * 'd * 'e * 'f * 'g) list
   -> 'a list * 'b list * 'c list * 'd list * 'e list * 'f list * 'g list
 
-val split8 : ('a * 'b * 'c * 'd * 'e * 'f * 'g * 'h) list 
+val split8 : ('a * 'b * 'c * 'd * 'e * 'f * 'g * 'h) list
   -> 'a list * 'b list * 'c list * 'd list * 'e list * 'f list * 'g list * 'h list
 
 val iteri : (int -> 'a -> unit) -> 'a list -> unit

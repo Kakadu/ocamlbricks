@@ -20,14 +20,14 @@
 
 (** Mnemonic (unix-reminiscent) and funny aliases for function composition. *)
 
-(** Make a pipeline of functions. It's simply the function composition, of course, 
+(** Make a pipeline of functions. It's simply the function composition, of course,
     not a real pipeline (stream composition), so keep an eye on memory allocation. *)
 let (||) f g = fun x -> g (f x);;
 
 (** Put a value into a pipelines of functions *)
 let (=>) x f = (f x);;
-(** {b Example}   
-    
+(** {b Example}
+
   {[  "ls" => ( SSys.run || fst || SString.toList ) ;; ]}
 
 {b Working with tuples} *)
@@ -40,23 +40,23 @@ let (@@) f g = fun (x,y) -> ((f x),(g y));;
 let curry   f = fun x y   -> f (x,y) ;;
 let uncurry f = fun (x,y) -> f x y   ;;
 
-(** {b Example}. Definition of the pattern matching function :   
+(** {b Example}. Definition of the pattern matching function :
 
-{[ let match_pattern pat str : bool = 
+{[ let match_pattern pat str : bool =
     let string_match (p,s) = (Str.string_match p s 0) in
 
-    (pat,str) => ( (Str.regexp\@\@identity) || string_match ) ;; 
+    (pat,str) => ( (Str.regexp\@\@identity) || string_match ) ;;
 ]}
 In this example, pat is given to Str.regexp and str is given to identity.
 
- {b Example}. Remove the element with the given index:   
-{[ let rmindex l i = 
+ {b Example}. Remove the element with the given index:
+{[ let rmindex l i =
     (l,l) => ((identity\@\@indexes) || (uncurry List.combine) || (List.filter (fun (x,j) ->j<>i)) || List.split || fst) ;;]}*)
 
 (** {2 Default for ['a option]} *)
 
-(** Short cut for quickly open an optional value. 
-    
+(** Short cut for quickly open an optional value.
+
 {b Example}
 {[# let x = Some 4 ;;
 val x : int option = Some 4
@@ -84,8 +84,8 @@ let  skip    = () ;;
 type identifier = int;;
 
 
-(** A {e filter} is function that transform elements in the same domain 
+(** A {e filter} is function that transform elements in the same domain
    (endo-function). *)
-type 'a filter = 'a -> 'a 
+type 'a filter = 'a -> 'a
 ;;
 

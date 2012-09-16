@@ -17,6 +17,7 @@
 
 # This is simply a list of the OCaml modules (*not* filenames) for which
 # documentation should be generated:
+Argv
 ArrayExtra
 Configuration_files
 Counter

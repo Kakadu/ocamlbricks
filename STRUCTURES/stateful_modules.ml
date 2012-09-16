@@ -23,7 +23,7 @@ module Variable (Type:Type) = struct
   let failmsg = match Type.name with
   | None   -> Printf.sprintf "Stateful_modules: undefined content"
   | Some x -> Printf.sprintf "Stateful_modules: %s is undefined" x
-  
+
   type t = Type.t
   let content = ref None
   let set (x:t) = (content := Some (lazy x))

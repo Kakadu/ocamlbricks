@@ -51,7 +51,7 @@ module Make (Ord_key : Map.OrderedType) (Ord_elt : Map.OrderedType) = struct
 
   let remove_key = Map.remove
 
-  let remove x y t = 
+  let remove x y t =
     let s = find x t in
     let s' = Set.remove y s in
     if Set.is_empty s' then Map.remove x t else Map.add x s' t
@@ -60,12 +60,12 @@ module Make (Ord_key : Map.OrderedType) (Ord_elt : Map.OrderedType) = struct
   let mem_key x t =
     try not (Set.is_empty (Map.find x t)) with Not_found -> false
 
-  let mem x y t = 
+  let mem x y t =
     try Set.mem y (Map.find x t) with Not_found -> false
 
   let fold_key = Map.fold
   let fold f =
-    Map.fold (fun x s v -> Set.fold (f x) s v) 
+    Map.fold (fun x s v -> Set.fold (f x) s v)
 
   let iter_key = Map.iter
   let iter f =
@@ -81,7 +81,7 @@ module Make (Ord_key : Map.OrderedType) (Ord_elt : Map.OrderedType) = struct
 
   let compare = Map.compare (Set.compare)
   let equal = Map.equal (Set.equal)
-  
+
   let of_list ?(acc=Map.empty) xys =
     List.fold_left (fun t (x,y) -> add x y t) acc xys
 
@@ -90,11 +90,11 @@ module Make (Ord_key : Map.OrderedType) (Ord_elt : Map.OrderedType) = struct
     if (sort<>None) then List.rev l else l
 
   let domain ?sort = Map.domain ~reverse:(sort<>None)
-  
+
   let codomain ?sorted_by_key t =
     let l = fold (fun x y ys -> y::ys) t [] in
     if (sorted_by_key<>None) then List.rev l else l
-  
+
   let restrict = Map.restrict
 
   let inter t1 t2 = filter (fun x y -> mem x y t2) t1
@@ -118,20 +118,20 @@ module String2int : S with
       type elt_set = SetExtra.Make(Ord_elt).t
       =  Make(Ord_key)(Ord_elt)
 
-module M = String2int 
+module M = String2int
 
-let t  = M.of_list [("x",2); ("x",1); ("y",3) ] 
-let t' = M.of_list [("x",7); ("x",1); ("y",3); ("z",4) ] 
+let t  = M.of_list [("x",2); ("x",1); ("y",3) ]
+let t' = M.of_list [("x",7); ("x",1); ("y",3); ("z",4) ]
 
 let diff  = M.diff t t'
 let inter = M.inter t t'
 let union = M.union t t'
 
 let list_of_t  = M.to_list ~sort:() t
-let list_of_t' = M.to_list ~sort:() t' 
-let list_of_diff = M.to_list ~sort:() diff 
-let list_of_inter = M.to_list ~sort:() inter 
-let list_of_union = M.to_list ~sort:() union 
+let list_of_t' = M.to_list ~sort:() t'
+let list_of_diff = M.to_list ~sort:() diff
+let list_of_inter = M.to_list ~sort:() inter
+let list_of_union = M.to_list ~sort:() union
 
 end (* module Examples *)
 ENDIF

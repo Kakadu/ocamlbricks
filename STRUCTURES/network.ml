@@ -23,7 +23,7 @@ exception Receiving of exn
 exception Sending   of exn
 exception Closing   of exn
 exception Binding   of exn
-  
+
 let string_of_sockaddr = function
   | Unix.ADDR_UNIX x -> x
   | Unix.ADDR_INET (inet_addr, port) ->
@@ -84,7 +84,7 @@ module Ipv4_or_ipv6 = struct
 	  | Some result -> (fun ip -> result#contains ~ip)
 	  | None -> invalid_arg ("invalid range: "^config)
 	end
-  
+
 end
 
 let switch_between_accepting_functions = function
@@ -128,7 +128,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
     fix_IPV6_ONLY_if_needed ~domain listen_socket;
     bind listen_socket sockaddr;
     Unix.listen listen_socket max_pending_requests;
-    (* The assigned port will be interesting for the caller only if the port number 
+    (* The assigned port will be interesting for the caller only if the port number
        provided with ~sockaddr has been set to 0 (in order to ask the kernel to choose
        itself): *)
     match Unix.getsockname listen_socket with
@@ -218,7 +218,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
   in
   let server_thread = ThreadExtra.create forking_loop () in
   (server_thread, assigned_port)
-  
+
 
 let socketname_in_a_fresh_made_directory ?temp_dir ?prefix ?suffix ?(perm=0o777) basename =
   let prefix = match prefix with
@@ -261,11 +261,11 @@ let inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?
     | None   -> Unix.inet_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv4, port) in
-  let (server_thread, assigned_port) = 
+  let (server_thread, assigned_port) =
     server ?max_pending_requests ?tutor_behaviour ?no_fork ?range:range4 server_fun sockaddr
   in
   let assigned_port = match assigned_port with
-  | Some x -> x 
+  | Some x -> x
   | None -> assert false
   in
   (server_thread, (Unix.string_of_inet_addr ipv4), assigned_port)
@@ -276,11 +276,11 @@ let inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?
     | None   -> Unix.inet6_addr_any
   in
   let sockaddr = Unix.ADDR_INET (ipv6, port) in
-  let (server_thread, assigned_port) = 
+  let (server_thread, assigned_port) =
     server ?max_pending_requests ?tutor_behaviour ?no_fork ?range:range6 server_fun sockaddr
   in
   let assigned_port = match assigned_port with
-  | Some x -> x 
+  | Some x -> x
   | None -> assert false
   in
   (server_thread, (Unix.string_of_inet_addr ipv6), assigned_port)
@@ -529,7 +529,7 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
       raise (Receiving e)
 
   method peek () : string option =
-    try  
+    try
       Unix.set_nonblock fd0;
       let (n, sockaddr) = Unix.recvfrom fd0 input_buffer 0 max_input_size [Unix.MSG_PEEK] in
       Unix.clear_nonblock fd0;
@@ -550,7 +550,7 @@ class dgram_channel ?(max_input_size=1514) ~fd0 ~sockaddr1 () =
     with e ->
       Log.print_exn ~prefix:"dgram_channel#send: " e;
       raise (Sending e)
-    
+
   method shutdown ?receive ?send () =
     try
       let shutdown_command =
@@ -654,13 +654,13 @@ let dgram_input_socketfile_of ?dgram_output_socketfile ~stream_socketfile () =
   let sockaddr0 = Unix.ADDR_UNIX socketfile0 in
   let fd0 = make_socket ~bind_to:socketfile0 in
   (fd0, sockaddr0, socketfile0)
-;;  
+;;
 
 let dgram_input_port_of ?dgram_output_port ~my_stream_inet_addr () =
   let domain = domain_of_inet_addr my_stream_inet_addr in
   let fd0 = Unix.socket domain Unix.SOCK_DGRAM 0 in
   let (sockaddr0, dgram_input_port) =
-    let () = 
+    let () =
       match dgram_output_port with
       | None   -> bind fd0 (Unix.ADDR_INET (my_stream_inet_addr, 0))
       | Some p ->
@@ -907,7 +907,7 @@ xterm Xt error: Can't open display: 127.0.0.1:42
 
 # Sys.command "DISPLAY=127.0.0.1:42 xterm" ;;
   : int = 0 ]} *)
-  let inet4_of_unix_stream_server 
+  let inet4_of_unix_stream_server
     (* inet4 server parameters: *)
     ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
     (* unix client parameters and inet4 server result: *)

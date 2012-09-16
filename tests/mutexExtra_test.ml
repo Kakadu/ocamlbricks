@@ -50,11 +50,11 @@ let rec loop ~action = function
  | 0 -> ()
  | 1 -> R.with_mutex mutex action
  | n -> R.apply_with_mutex mutex (loop ~action) (n-1)
- 
+
 let thread_life ~max_iterations_per_thread ~max_depth () =
   let iterations = Random.int (max_iterations_per_thread+1) in
   let depth = Random.int (max_depth+1) in
-  for i = 1 to iterations do 
+  for i = 1 to iterations do
     loop ~action:(fun () -> incr counter) depth;
     (* Here may be interrupted *)
     Thread.delay 0.01;
@@ -88,5 +88,5 @@ let go ?(thread_no=1500) ?(max_iterations_per_thread=200) ?(max_depth=5) () =
 
 end;; (* module Test *)
 
-let module T = Test (MutexExtra.Recursive) 
+let module T = Test (MutexExtra.Recursive)
 in T.go ()

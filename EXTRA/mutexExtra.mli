@@ -22,7 +22,7 @@
 module Mutex = MutexExtra.Extend (Mutex);;
 
 (* Use the function with_mutex: *)
-Mutex.with_mutex mutex (fun () -> ...);; 
+Mutex.with_mutex mutex (fun () -> ...);;
 
 (* Idem for recursive mutexes: *)
 module Recursive_mutex = MutexExtra.Extend (MutexExtra.Recursive_mutex) ;;
@@ -49,7 +49,7 @@ module Extend : functor
     val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
   end
 
-module type Extended_signature = 
+module type Extended_signature =
  sig
    type t
 
@@ -68,7 +68,7 @@ module EMutex : Extended_signature   (* Extended mutexes *)
 module RMutex : Extended_signature   (* Recursive mutexes *)
 
 (* Just a more explicit alias for RMutex: *)
-module Recursive : Extended_signature 
+module Recursive : Extended_signature
 
 module Just_give_me_an_apply_with_mutex : functor (M:sig end) ->
   sig

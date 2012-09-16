@@ -22,7 +22,7 @@ type 'a thread_status =
 | Exception of exn
 
 (** The abstract type of a future. *)
-type 'a future = (('a thread_status) Egg.t) * Thread.t 
+type 'a future = (('a thread_status) Egg.t) * Thread.t
 
 (** Alias. *)
 type 'a t = 'a future

@@ -40,4 +40,3 @@ module Make (H : Hashtbl.HashedType) = struct
   List.iter (fun _ -> remove t x) ys
 
 end
- 

@@ -51,11 +51,11 @@ end;;
 module Make (TheTextDomainAndDirectory : TextDomainAndDirectory) : Gettext = struct
   (* Let's bind this text domain to the directory at functor application time: *)
   initialize_gettext TheTextDomainAndDirectory.text_domain TheTextDomainAndDirectory.directory;;
-  
+
   (* Public versions for strings, with the type we like: *)
   let s_ english_string =
     dgettext TheTextDomainAndDirectory.text_domain english_string;;
-  
+
   (* Public versions for format strings, with the type we like: *)
   let f_ english_format_string =
     (Obj.magic dgettext TheTextDomainAndDirectory.text_domain ((Obj.magic english_format_string) : string));;

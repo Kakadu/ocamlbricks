@@ -351,7 +351,7 @@ let of_charlist = Charlist.assemble
 let expand (f:char -> string option) s =
  let n = String.length s in
  let xs = to_charlist s in
- let (ys,n) = 
+ let (ys,n) =
    List.fold_left
      (fun (ys,n) c -> match f c with
      | None   -> ((c::ys),n)
@@ -379,7 +379,7 @@ let init n f  =
    (String.unsafe_set s i (f i))
  done;
  s
-  
+
 (** Similar to [Array.map]. {b Example}:
 {[# map (fun x -> if x='a' then 'A' else x) "aaabbbac" ;;
   : string = "AAAbbbAc"
@@ -700,7 +700,7 @@ let to_string ?(d=" ") m =
   in
   let line_list_mill = List.rev_map (line_mill []) in
   let ws = List.rev (List.concat (line_list_mill m)) in
-  String.concat "" ws 
+  String.concat "" ws
 
 let from_file ?do_not_squeeze ?d s = of_string ?do_not_squeeze ?d (from_file s)
 
@@ -743,7 +743,7 @@ let fmt ?tab ?prefix ?count_all ?(width=75) s =
  in
  let ys = loop 0 xs in
  String.concat "" ys
- 
+
 let tab ?tab ?prefix s =
  let tab_prefix = match tab with
  | None -> ""
@@ -768,5 +768,4 @@ let make_wide str n =
   match String.length str with
   | l when l = n -> str
   | l when l < n ->  str^(String.make (n-l) ' ')
-  | l (* l > n*) ->  String.sub str 0 n 
-  
+  | l (* l > n*) ->  String.sub str 0 n

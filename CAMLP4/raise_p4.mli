@@ -26,7 +26,7 @@ With this directive all calls of the form [raise <exception>] will be replaced b
 - a call [Log.printf ~v:1 "Raising exception <exception> at <location>\n"]
 - followed by the real [Pervasives.raise <exception>] call.
 
-You can set another verbosity level by the directive: 
+You can set another verbosity level by the directive:
 {[
 %str_item set_raise_filter_verbosity 2;;
 ]}

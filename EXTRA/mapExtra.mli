@@ -18,7 +18,7 @@
 
 module type S =
     sig
-      include Map.S    
+      include Map.S
 
       (* Extra functions: *)
 

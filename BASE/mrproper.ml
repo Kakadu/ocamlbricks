@@ -37,7 +37,7 @@ let mrproper = Stack.create ()
 
 (** Force Mrproper to perform the list (stack) of registered actions. *)
 let work ?(ignore_errors=false) () =
-  let action = 
+  let action =
     (match ignore_errors with
     | true  -> (fun x -> try Lazy.force x with _ -> ())
     | false -> Lazy.force
@@ -47,7 +47,7 @@ let work ?(ignore_errors=false) () =
 
 (** Register an action,i.e. push it into the internal stack. *)
 let register ?(ignore_errors=false) deferred =
-  let deferred = 
+  let deferred =
     (match ignore_errors with
     | true  -> lazy (try Lazy.force deferred with _ -> ())
     | false -> deferred
@@ -84,7 +84,7 @@ module Make
   end) = struct
 
  let global_register = register
- 
+
  let mrproper = Stack.create ()
 
  let work ?(ignore_errors=Defaults.ignore_errors) () =

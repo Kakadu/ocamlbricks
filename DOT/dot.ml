@@ -19,7 +19,7 @@
 
 #load "include_type_definitions_p4.cmo"
 ;;
- 
+
 INCLUDE DEFINITIONS "../DOT/dot.mli"
 ;;
 
@@ -57,7 +57,7 @@ let rec cotokens_of_statement tab edge_operator = function
 | Edge (n1, n2, edge_option_list)     ->  [Printf.sprintf "%s%s %s %s [%s]" tab n1 edge_operator n2 (commacat edge_option_list)]
 | Statement_list statement_list       ->  List.flatten (List.map (cotokens_of_statement tab edge_operator) statement_list)
 | Subgraph (name, statement_list)     ->
-    let tab' = (tab^"  ") in  
+    let tab' = (tab^"  ") in
     let first = Printf.sprintf "%ssubgraph %s {" tab name in
     let last  = Printf.sprintf "%s}" tab in
     let rest  = ListExtra.flatten ~acc:[last] (List.map (cotokens_of_statement tab' edge_operator) statement_list) in
@@ -84,7 +84,7 @@ let fprint filename g =
   flush ch;
   close_out ch;
  end
- 
+
 let sprint g = newlinecat (cotokens_of_graph g)
 
 let string_of_output_format = function
@@ -292,7 +292,7 @@ module Html_like_constructors = struct
    let append f x = append_to_ref attributes f x in
    append (fun x -> `ALIGN x) align;
    match br with
-   | None    -> [ `string s ] 
+   | None    -> [ `string s ]
    | Some () -> [ `string s; `BR !attributes ]
 
  let text_concat (ts:text list) : text = List.flatten ts
@@ -378,7 +378,7 @@ let cell_of_html =
   in
   cell_map f
 
-let cell_of_label = 
+let cell_of_label =
   let f label =
     let html = match label with
     | (`escaped s) -> (`text [`string s])
@@ -388,7 +388,7 @@ let cell_of_label =
     | fattrs -> `html (`FONT (fattrs, html))
   in
   cell_map f
-   
+
 let cell_of_image
   ?align ?valign ?bgcolor ?border ?cellpadding ?cellspacing
   ?fixedsize ?height ?href ?port ?target ?title ?tooltip ?width
@@ -431,7 +431,7 @@ let cell_of_image
    in
    let table = table ?border ?cellborder [[cell]] in
    `html (html_of_table table)
-  
+
 end (* Html_like_constructors *)
 
 module Html_like_printer = struct
@@ -440,7 +440,7 @@ module Html_like_printer = struct
  let cat ?(sep="\n") ?(tab="") = function
  | [] -> ""
  | y::ys -> List.fold_left (fun s x -> Printf.sprintf "%s%s%s%s" s sep tab x) y ys
- 
+
  let string_of_color = Common.string_of_color
 
  let attribute tab = function
@@ -494,7 +494,7 @@ module Html_like_printer = struct
 
  and text string_or_br_list = cat ~sep:"" (List.map string_or_br string_or_br_list)
 
- and table tab = 
+ and table tab =
   let tab' = tab ^ "  " in
   function
   | (attribute_list, row_list) ->
@@ -505,7 +505,7 @@ module Html_like_printer = struct
 (*       Printf.sprintf "%s<TABLE\n%s%s\n%s>\n%s\n%s</TABLE>" tab tab' attrs tab rows tab *)
       Printf.sprintf "\n%s<TABLE %s >\n%s\n%s</TABLE>" tab attrs rows tab
 
- and row tab = 
+ and row tab =
   let tab' = tab ^ "  " in
   function cell_list ->
       let xs = List.map (cell tab') cell_list in
@@ -516,7 +516,7 @@ module Html_like_printer = struct
   | `html h -> html_like tab h
   (* In the case of an image, dot doesn't accept spaces among <TD> and <IMG>!!!*)
   | `IMG img -> image img
-  
+
  and cell tab =
   let tab' = tab ^ "  " in
   function
@@ -628,7 +628,7 @@ module String_of = struct
  let fillcolor x = Printf.sprintf "fillcolor=\"%s\"" (string_of_color x)
  let pencolor  x = Printf.sprintf "pencolor=\"%s\""  (string_of_color x)
  let labelfontcolor x = Printf.sprintf "labelfontcolor=\"%s\""  (string_of_color x)
- 
+
  let fontname = Printf.sprintf "fontname=\"%s\""
  let labelfontname = Printf.sprintf "labelfontname=\"%s\""
 
@@ -663,7 +663,7 @@ module String_of = struct
  let constraint_off () = "constraint=\"false\""
  let decorate () = "decorate=\"true\""
  let labelfloat () = "labelfloat=\"true\""
- 
+
  let peripheries = Printf.sprintf "peripheries=\"%d\""
 
  let quantum = Printf.sprintf "quantum=\"%f\""
@@ -795,9 +795,9 @@ module String_of = struct
  let sametail = Printf.sprintf "sametail=\"%s\""
  let weight = Printf.sprintf "weight=\"%f\""
  let z = Printf.sprintf "z=\"%f\""
- 
+
 end
- 
+
 
 let append options injection conv opt =
  match opt with
@@ -876,7 +876,7 @@ let graph =
  in map_graph_options f
 
 let graph_default =
- let map_graph_options_call = 
+ let map_graph_options_call =
    let f strict digraph name statement_list graph_options =
      Graph_defaults (List.map (function Graph_default x -> x | _ -> assert false) !graph_options)
     in map_graph_options f
@@ -890,10 +890,10 @@ let subgraph ?name ?rank statement_list =
   let append f x = append statements (fun e-> Graph_default e) f x in
   append (String_of.rank) rank;
   Subgraph (name, !statements)
- 
+
 
 let cluster
-  ?name_suffix ?rank ?color ?bgcolor ?fillcolor ?pencolor ?fontcolor ?fontname ?fontsize 
+  ?name_suffix ?rank ?color ?bgcolor ?fillcolor ?pencolor ?fontcolor ?fontname ?fontsize
   ?label ?labeljust ?labelloc ?nojustify ?url ?peripheries ?style
   statement_list =
   let name    = "cluster_"^(Extract.ident name_suffix) in
@@ -976,7 +976,7 @@ let map_node_options f
   ?url ?color ?comment ?distortion ?fillcolor ?fontcolor ?fontname ?fontsize ?fixedsize ?group ?height
   ?layer ?margin ?nojustify ?orientation ?peripheries ?pos ?regular ?shape ?image ?label ?style ?width ?z
   node_ident =
-  
+
   let node_options = ref [] in
   let append f x = append node_options (fun e->e) f x in
   append (String_of.url) url;
@@ -1003,7 +1003,7 @@ let map_node_options f
   append (String_of.style) style;
   append (String_of.width) width;
   append (String_of.z) z;
-  
+
   f node_ident node_options
 
 let node =
@@ -1041,19 +1041,19 @@ let node
       in
       let label =
         let table_content = match outlabel with
-        | `north label -> 
+        | `north label ->
             let l = Html.cell_of_label ~valign:`BOTTOM label in
             let n = Html.cell_of_label ~valign:`TOP    wrapped_label in
             [[l];[n]]
-        | `south label -> 
+        | `south label ->
             let l = Html.cell_of_label ~valign:`TOP    label in
             let n = Html.cell_of_label ~valign:`BOTTOM wrapped_label in
             [[n];[l]]
-        | `east label  -> 
+        | `east label  ->
             let l = Html.cell_of_label ~align:`LEFT  label in
             let n = Html.cell_of_label ~align:`RIGHT wrapped_label in
             [[n;l]]
-        | `west label  -> 
+        | `west label  ->
             let l = Html.cell_of_label ~align:`RIGHT label in
             let n = Html.cell_of_label ~align:`LEFT  wrapped_label in
             [[l;n]]
@@ -1114,7 +1114,7 @@ let working_output_formats =
    in
    match no_file_inspection with
    | None    -> run_with_cache cache1
-   | Some () -> run_with_cache cache2   
+   | Some () -> run_with_cache cache2
 
 let working_output_formats_as_objects ?no_file_inspection () =
  List.map
@@ -1126,4 +1126,3 @@ let working_output_formats_as_objects ?no_file_inspection () =
         method file_command_output = t
       end)
    (working_output_formats ?no_file_inspection ())
-   

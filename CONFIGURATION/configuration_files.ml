@@ -90,7 +90,7 @@ let variables_of_matrix matrix =
     | _ -> assert false) (* no line should be empty *)
     matrix;;
 
-(** Turn a matrix into an alist mapping each variable name into a value; each 
+(** Turn a matrix into an alist mapping each variable name into a value; each
     variable value (as a list of strings) is passed to the given function to
     obtain the value which is bound in the returned environment. Variables for
     which the given function fails are simply ignored: *)
@@ -106,7 +106,7 @@ let alist_of_matrix row_to_element matrix =
     matrix;
   !result;;
 
-(** Turn a matrix into an alist mapping each variable name into a value; each 
+(** Turn a matrix into an alist mapping each variable name into a value; each
     variable value (as a single string, with token separated by a single space)
     is passed to the given function to obtain the value which is bound in the
     returned environment. Variables for which the given function fails are simply
@@ -158,7 +158,7 @@ let alists_of_output output variables =
   let list_alist : (string * (string list)) list =
     list_alist_of_matrix matrix in
   string_alist, int_alist, float_alist, bool_alist, list_alist;;
-                        
+
 (** Turn a *file* into a tuple of alists: *)
 let alists_of_file file_name variables =
   let output = output_of_file_name file_name variables in

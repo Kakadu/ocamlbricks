@@ -25,29 +25,29 @@ let of_known_length_list ?(reversing=false) len = function
      if reversing then
       (let rec fill i = function
        | [] -> (if i=(-1) then a else invalid_arg "unexpected list length (overstated size)")
-       | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i-1) xs 
+       | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i-1) xs
        in fill (len-2) xs)
      else
       (let rec fill i = function
       | [] -> (if i=len then a else invalid_arg "unexpected list length (overstated size)")
-      | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i+1) xs 
-      in fill 1 xs) 
+      | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i+1) xs
+      in fill 1 xs)
 
-let sorted_copy ?(compare=Pervasives.compare) xs = 
+let sorted_copy ?(compare=Pervasives.compare) xs =
   let ys = (Array.copy xs) in
-  (Array.sort compare ys); 
+  (Array.sort compare ys);
   ys
 
-let fast_sorted_copy ?(compare=Pervasives.compare) xs = 
+let fast_sorted_copy ?(compare=Pervasives.compare) xs =
   let ys = (Array.copy xs) in
-  (Array.fast_sort compare ys); 
+  (Array.fast_sort compare ys);
   ys
 
-(** {b Example}: 
-{[# int_seq 3 10 2 ;;                                                                                                                                                      
-  : int array = [|3; 5; 7; 9|] 
+(** {b Example}:
+{[# int_seq 3 10 2 ;;
+  : int array = [|3; 5; 7; 9|]
 ]}*)
-let int_seq ~min ~max ~incr = 
+let int_seq ~min ~max ~incr =
  let rec loop x =
   if x>max then [] else x::(loop (x+incr))
  in
@@ -89,7 +89,7 @@ let for_all p s =
   if i>=l then true else
   (p i s.(i)) && loop (i+1)
  in loop 0
- 
+
 (** Similar to the standard [List.exists], implemented directly, i.e. without conversion. *)
 let exists p s =
  let l = Array.length s in
@@ -118,7 +118,7 @@ let search p s =
  let l = Array.length s in
  let rec loop i =
   if i>=l then None else
-  let x = s.(i) in 
+  let x = s.(i) in
   if (p x) then (Some x) else loop (i+1)
  in loop 0
 
@@ -126,7 +126,7 @@ let searchi p s =
  let l = Array.length s in
  let rec loop i =
   if i>=l then None else
-  let x = s.(i) in 
+  let x = s.(i) in
   if (p x) then (Some (i,x)) else loop (i+1)
  in loop 0
 
@@ -134,7 +134,7 @@ let find p s =
  let l = Array.length s in
  let rec loop i =
   if i>=l then raise Not_found else
-  let x = s.(i) in 
+  let x = s.(i) in
   if (p x) then x else loop (i+1)
  in loop 0
 
@@ -142,7 +142,7 @@ let findi p s =
  let l = Array.length s in
  let rec loop i =
   if i>=l then raise Not_found else
-  let x = s.(i) in 
+  let x = s.(i) in
   if (p x) then (i,x) else loop (i+1)
  in loop 0
 
@@ -179,7 +179,7 @@ let dichotomic_insert v x =
     Array.init
       (l+1)
       (fun i -> match compare i index with (-1) -> v.(i) | 0 -> x | _ -> v.(i-1))
- 
+
 (** {b Example}:
 {[
 # let a = Array.init 10 (fun i->i*10);;
@@ -248,11 +248,11 @@ let dichotomic_index_of_last_element_lt ?a ?b x v =
 let for_all2 f xs ys = for_all (fun i x -> f i x ys.(i)) xs
 let exists2  f xs ys = exists  (fun i x -> f i x ys.(i)) xs
 
-let iter2  f a b = Array.iteri (fun i a -> f a b.(i)) a 
-let iteri2 f a b = Array.iteri (fun i a -> f i a b.(i)) a 
+let iter2  f a b = Array.iteri (fun i a -> f a b.(i)) a
+let iteri2 f a b = Array.iteri (fun i a -> f i a b.(i)) a
 
-let map2  f a b = Array.mapi (fun i a -> f a b.(i)) a 
-let mapi2 f a b = Array.mapi (fun i a -> f i a b.(i)) a 
+let map2  f a b = Array.mapi (fun i a -> f a b.(i)) a
+let mapi2 f a b = Array.mapi (fun i a -> f i a b.(i)) a
 
 (** {b Example}:
 {[ map_fold (fun s i x -> (x+s,s+x)) 0 [|0;1;2;3;4;5|] ;;
@@ -276,7 +276,7 @@ let fold_lefti f y0 s =
  let l = Array.length s in
  let rec loop acc i =
   if i>=l then acc else
-  let acc = f i acc s.(i) in  
+  let acc = f i acc s.(i) in
   loop acc (i+1)
  in loop y0 0
 
@@ -284,7 +284,7 @@ let fold_righti f s y0 =
  let l = Array.length s in
  let rec loop acc i =
   if i<0 then acc else
-  let acc = f i s.(i) acc in  
+  let acc = f i s.(i) acc in
   loop acc (i-1)
  in loop y0 (l-1)
 
@@ -294,17 +294,17 @@ let fold_right2 f xs ys s0 = fold_righti (fun i x s -> f x ys.(i) s) xs s0
 let fold_lefti2  f s0 xs ys = fold_lefti  (fun i s x -> f i s x ys.(i)) s0 xs
 let fold_righti2 f xs ys s0 = fold_righti (fun i x s -> f i x ys.(i) s) xs s0
 
-(** Similar to [List.partition] but for arrays and with many classes. 
+(** Similar to [List.partition] but for arrays and with many classes.
 {b Example}:
 {[
-# partition (fun x -> x mod 3) [|0;1;2;3;4;5;6;7;8;9|] ;; 
+# partition (fun x -> x mod 3) [|0;1;2;3;4;5;6;7;8;9|] ;;
   : int array array = [|[|0; 3; 6; 9|]; [|1; 4; 7|]; [|2; 5; 8|]|]
 ]} *)
 let partition =
   let errmsg = "ArrayExtra.partition: classifier must provide only non-negative integers" in
   fun f a ->
   (* f' is a dynamically type checking version of f: *)
-  let f' x = (let y = f x in (if (y<0) then invalid_arg errmsg); y) in  
+  let f' x = (let y = f x in (if (y<0) then invalid_arg errmsg); y) in
   let max_index = Array.fold_left (fun s x -> max s (f' x)) (-1) a in
   if max_index = -1 then [||] else
   let ls = Array.create (max_index+1) [] in
@@ -363,10 +363,10 @@ let best ?(choice=min) = function
  | [||] -> invalid_arg "ArrayExtra.best: empty array"
  | xs   -> fold_lefti (fun i (j,x) y -> if (choice x y) <> x then (i,y) else (j,x)) (0, xs.(0)) xs
 
-let max ?(gt=(>)) xs = 
+let max ?(gt=(>)) xs =
  fold_lefti (fun i (j,x) y -> if gt y x then (i,y) else (j,x)) (0, xs.(0)) xs
 
-let min ?(gt=(>)) xs = 
+let min ?(gt=(>)) xs =
  fold_lefti (fun i (j,x) y -> if gt y x then (j,x) else (i,y)) (0, xs.(0)) xs
 
 (** Example (from the module [Ipv6]):

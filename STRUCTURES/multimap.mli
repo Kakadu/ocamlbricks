@@ -86,8 +86,8 @@ module Examples : sig
   val list_of_diff  : (string * int) list
   val list_of_inter : (string * int) list
   val list_of_union : (string * int) list
- 
+
 end
 ENDIF
-    
+
 

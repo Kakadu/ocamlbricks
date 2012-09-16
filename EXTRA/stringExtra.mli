@@ -84,7 +84,7 @@ val fold_right   : (char -> 'a -> 'a) -> string -> 'a -> 'a
 val fold_righti  : (int -> char -> 'a -> 'a) -> string -> 'a -> 'a
 val fold_right2  : (char -> 'a -> 'b -> 'b) -> string -> 'a array -> 'b -> 'b
 val fold_righti2 : (int -> char -> 'a -> 'b -> 'b) -> string -> 'a array -> 'b -> 'b
-  
+
 (** {2 Splitting to char list} *)
 
 val to_charlist : string -> char list

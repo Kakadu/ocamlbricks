@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Object-oriented marshalling support. 
+(** Object-oriented marshalling support.
     This module contains two distinct marshalling facilities. *)
 
 open Marshal;;
@@ -24,8 +24,8 @@ let flags = [ (* sharing is on by default *) ];;
 
 (** {2 An intuitive but unsafe marshalling facility} *)
 
-(** The abstract superclass of any marshallable object. Objects can be safely 
-    marshalled via methods, but unmarshalling produces results of unconstrained 
+(** The abstract superclass of any marshallable object. Objects can be safely
+    marshalled via methods, but unmarshalling produces results of unconstrained
     polymorphic types, which must be manually cast by the user. *)
 
 (** The virtual marshallable class, which should be the base class of all
@@ -82,7 +82,7 @@ class ['a] marshaller = object(self)
   method from_channel c = ((Marshal.from_channel c) :> 'a)
 
   (** Make a new 'a object from the given file, and return it. *)
-  method from_file file_name = 
+  method from_file file_name =
     let channel = open_in file_name in
     let result = ((Marshal.from_channel channel) :> 'a) in
     close_in channel;

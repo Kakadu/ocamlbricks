@@ -25,7 +25,7 @@ let default_size = 251;;
 (** The hashmultimap class *)
 class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
 
-  object (self) 
+  object (self)
 
   (** The state of the hashmap. *)
   val current : ('a,'b) Hashtbl.t = (Hashtbl.create size)
@@ -54,11 +54,11 @@ class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
   method replace x y = (self#remove ~all:true x); Hashtbl.add current x y
 
   (** Remove one or all (default) bindings of the given key. *)
-  method remove ?(all=true) x = 
-    if all then 
+  method remove ?(all=true) x =
+    if all then
             let rm1binding = (fun k v -> if k=x then (Hashtbl.remove current k) else ()) in
             Hashtbl.iter rm1binding current
-           else 
+           else
 	    (Hashtbl.remove current x)
 
   (** Remove the given <key, value> binding, if present; otherwise do nothing. *)
@@ -80,7 +80,7 @@ class ['a,'b] hashmultimap = fun ?(size=default_size) () ->
       new_bindings_for_key
 
   (** Remove the given <key, value> binding, if present; otherwise raise an exception. *)
-  method remove_key_value_or_fail key value = 
+  method remove_key_value_or_fail key value =
     let old_values_for_key_no = List.length (self#lookup key) in
     self#remove_key_value key value;
     if not ((List.length (self#lookup key)) = (old_values_for_key_no - 1)) then begin
@@ -100,7 +100,7 @@ end;; (* class hashmultimap *)
 
 (** The abstract type of an hashmmap. *)
 type ('a,'b) t       = ('a,'b) hashmultimap ;;
- 
+
 (** The hashmmap constructor. *)
 let make ?(size=default_size) () : ('a,'b) t = new hashmultimap ~size () ;;
 
@@ -127,14 +127,14 @@ let add_list (h:('a,'b) t) (alist:('a * 'b) list) = h#add_list alist;;
 
 (** [replace h x y] removes all bindings in [h] for the key [x], then add the binding [(x,y)]. *)
 let replace (h:('a,'b) t) (x:'a) (y:'b) = h#replace x y;;
- 
+
 (** Remove one or all (default) bindings of the given key. *)
 let remove (h:('a,'b) t) ?(all=true) (x:'a) = h#remove ~all x;;
 
 (** [update ~replace t1 t2] updates the map [t1] adding (by calling [add]) all the bindings from [t2].
     If the flag [replace] is [true], all existing keys in [t2] are removed from [t1] before
     insertions take place.*)
-let update ?(replace=false) (h1:('a,'b) t) (h2:('a,'b) t) : unit = 
+let update ?(replace=false) (h1:('a,'b) t) (h2:('a,'b) t) : unit =
   (if replace then Hashtbl.iter (fun x y ->h1#remove x) (h2#get)) ;
   Hashtbl.iter (h1#add) (h2#get) ;;
 
@@ -143,7 +143,7 @@ let update ?(replace=false) (h1:('a,'b) t) (h2:('a,'b) t) : unit =
 let to_list (h:('a,'b) t) = h#to_list;;
 
 (** Make a new hashmmap from an alist made of <key, value> pairs. *)
-let of_list ?size:(size=default_size) alist = 
+let of_list ?size:(size=default_size) alist =
   let h : ('a,'b) t = new hashmultimap ~size () in
   ignore (List.map (fun (key, datum) -> h#add key datum) alist);
   h;;

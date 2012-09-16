@@ -94,7 +94,7 @@ module Make
    let debug_level () = Debug_level.extract () ()
    let is_log_enabled ?v () = match v with
     | None   -> (debug_level ()) >= (verbosity ())
-    | Some v -> (debug_level ()) >= v 
+    | Some v -> (debug_level ()) >= v
    let log_channel  = Tuning.log_channel
    let synchronized = Tuning.synchronized
 

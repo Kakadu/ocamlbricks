@@ -69,7 +69,7 @@ let combo_of_working_output_formats
       xs
   in
   let active  = Option.bind active (fun act -> ListExtra.indexSuchThat (fun (frm,_,_,_) -> frm = act) xs) in
-  let cb = 
+  let cb =
     GEdit.combo_box_text
       ~strings
       ~use_markup:true

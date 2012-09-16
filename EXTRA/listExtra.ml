@@ -227,11 +227,11 @@ let remove_duplicates ?(take_first=true) =
   in function xs -> List.rev (loop [] xs)
 ;;
 
-(** {b Example}: 
-{[# int_seq 3 10 2 ;;                                                                                                                                                      
-  : int list = [3; 5; 7; 9] 
+(** {b Example}:
+{[# int_seq 3 10 2 ;;
+  : int list = [3; 5; 7; 9]
 ]}*)
-let int_seq ~min ~max ~incr = 
+let int_seq ~min ~max ~incr =
  let rec loop x =
   if x>max then [] else x::(loop (x+incr))
  in
@@ -423,7 +423,7 @@ let rec combine4 l1 l2 l3 l4 = match (l1,l2,l3,l4) with
  | [] -> ([],[],[],[],[],[],[],[])
  | (x1,x2,x3,x4,x5,x6,x7,x8)::r -> let (s1,s2,s3,s4,s5,s6,s7,s8) = (split8 r) in (x1::s1,x2::s2,x3::s3,x4::s4,x5::s5,x6::s6,x7::s7,x8::s8)
  ;;
- 
+
 module Assoc = struct
 
 let mem  = List.mem_assoc
@@ -545,7 +545,7 @@ let comb_fold ?disorder=
   | Some () ->
       fun ~k f y0 xs ->
         (* Here to preserve the equation: comb ~k xs = List.sort compare (comb ~disorder:() ~k xs) supposing xs sorted *)
-        let xs = List.rev xs in 
+        let xs = List.rev xs in
 	let rec loop acc k y xs =
 	  if k=1 then List.fold_left (fun y x -> f y (x::acc)) y xs else
 	  fold_left_zipper (fun y (_,x,xs') -> loop (x::acc) (k-1) y xs') y xs
@@ -561,7 +561,7 @@ let comb_map ?disorder ~k f =
   match disorder with
   | None    -> fun xs -> List.rev (comb_fold ~k (fun y c -> (f c)::y) [] xs)
   | Some () -> comb_fold ~disorder:() ~k (fun y c -> (f c)::y) []
- 
+
 (** Provide the list of all combinations of [k] elements of the given list.
     {b Example}:
 {[# comb ~k:2 ['a';'b';'c';'d'] ;;

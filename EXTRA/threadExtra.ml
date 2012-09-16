@@ -107,7 +107,7 @@ module Available_signals = struct
 
   (* For managing both the thread -> signal mapping and the thread -> thunk one: *)
   module Map = MapExtra.Destructive.Int_map
-  
+
   let all_usable_signals =
     Array.to_list (Array.init 31 (fun i -> i+34))
 
@@ -123,7 +123,7 @@ module Available_signals = struct
   end)
 
   module EMutex = MutexExtra.EMutex
-  
+
   (* The secondary structure of this module is the container where threads
      may provide themselves a mean to kill them. *)
   module H = Stateful_modules.Process_private_thread_shared_variable (struct
@@ -207,7 +207,7 @@ module Available_signals = struct
     let result = (id_kill_by_signal id) || (id_kill_by_thunk id) in
     Log.printf "Thread %d killed: %b\n" id result;
     result
-    
+
   let kill t = id_kill (Thread.id t)
 
   let killable () =
@@ -216,7 +216,7 @@ module Available_signals = struct
     let mapping = H.extract () in
     let ys = H.apply_with_mutex Map.domain mapping in
     List.append xs ys
-    
+
   let id_killer_by_signal id =
     let (semaphores, mapping) = T.extract () in
     let s = T.apply_with_mutex (fun () -> try Some (Map.find id mapping) with Not_found -> None) () in
@@ -235,7 +235,7 @@ module Available_signals = struct
 
   (* The result of the partial application may be transmitted to another process: *)
   let id_killer id =
-    let result = 
+    let result =
       try id_killer_by_signal id
       with Not_found -> id_killer_by_thunk id
     in
@@ -258,7 +258,7 @@ module Available_signals = struct
 
   (* For the main thread only: register the action of killing all suspending sub-threads.
      This action will provoke the execution of at_exit() for each sub-thread. *)
-  let () = 
+  let () =
     Pervasives.at_exit
       (fun () ->
          Log.printf "Thread Exiting (main): killing all sub-threads...\n";
@@ -302,7 +302,7 @@ let create_killable =
         Available_signals.child_release_signal_slot i;
         Available_signals.child_remove_thunk_for_killing_me_if_any ();
         Exit_function.do_at_exit ()
-      in      
+      in
       try
         let result = f y in
         (final_actions ());

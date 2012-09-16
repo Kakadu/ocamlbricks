@@ -18,7 +18,7 @@
 (** *)
 
 (** [add_extension_if_absent filename ext] append to the string [filename]
-    the extension [ext] but only if the filename has no already an extension. 
+    the extension [ext] but only if the filename has no already an extension.
     This operation just works on strings and doesn't modify anything in the filesystem.
 
 {b Example}:
@@ -29,12 +29,12 @@
   : string = "foo.c"
 ]}*)
 let add_extension_if_absent filename ext =
- try 
-  let _ = (Filename.chop_extension filename) in 
+ try
+  let _ = (Filename.chop_extension filename) in
   filename                      (* because the filename already has an extension *)
  with _ -> (filename^"."^ext)    (* because the filename has no extension *)
 
-(** {b Example}: 
+(** {b Example}:
 {[# get_extension "/tmp/aaa.bbb.ccc" ;;
   : string option = Some "ccc"
 

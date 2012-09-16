@@ -66,7 +66,7 @@ end;; (* class hashmap *)
 
 (** The abstract type of an hashmap. *)
 type ('a,'b) t       = ('a,'b) hashmap ;;
- 
+
 (** The hashmap constructor. *)
 let make ?(size=default_size) () : ('a,'b) t = new hashmap ~size () ;;
 
@@ -91,7 +91,7 @@ let add_list (h:('a,'b) t) (alist:('a * 'b) list) = h#add_list alist;;
 
 (** Replace or add (when not existing) a binding to a map. *)
 let replace (h:('a,'b) t) (x:'a) (y:'b) = h#replace x y;;
- 
+
 (** Remove one or all (default) bindings of the given key. *)
 let remove (h:('a,'b) t) (x:'a) = h#remove x;;
 
@@ -104,7 +104,7 @@ let to_list (h:('a,'b) t) = h#to_list;;
 
 (** Make a new hashmap from an alist made of <key, value> pairs. If more than one
     binding is specified for a single key it's undefined which value prevails. *)
-let of_list ?size:(size=default_size) alist = 
+let of_list ?size:(size=default_size) alist =
   let h : ('a,'b) t = new hashmap ~size () in
   h#add_list alist;
   h;;

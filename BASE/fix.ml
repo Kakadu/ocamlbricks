@@ -26,14 +26,14 @@ val fact : (int -> int) -> int -> int = <fun>
 # let f = fix fact;;
 val f : int -> int = <fun>
 
-# f 5;;    
+# f 5;;
   : int = 120
 ]}*)
-let rec fix f = 
+let rec fix f =
  f (fun x -> (fix f) x)
 
 
-(** Fix point operator for making function requiring a parameter (the "{e environment}"). 
+(** Fix point operator for making function requiring a parameter (the "{e environment}").
 
 {b Example}:
 {[# let fact y self = fun x -> if (x=0) then y else x * (self y (x-1)) ;;
@@ -48,15 +48,15 @@ val f : int -> int -> int = <fun>
 # f 3 5;;
   : int = 360
 ]}*)
-let rec efix f e = 
+let rec efix f e =
 (f e) (fun y x -> (efix f y) x)
 
 
-(** Fix point operator with an environment and a treatment (a "{e cure}") 
-    to perform {b before} each recursive call. The typical example is 
-    the "memoisation" cure useful for making memoised functions defined 
+(** Fix point operator with an environment and a treatment (a "{e cure}")
+    to perform {b before} each recursive call. The typical example is
+    the "memoisation" cure useful for making memoised functions defined
     by a recursive definition (each recursive call must share the same
-    hash table). 
+    hash table).
 
 {b Example}:
 {[# let fact y self = fun x -> if (x=0) then y else x * (self y (x-1)) ;;
@@ -87,6 +87,6 @@ val f : int -> int -> int = <fun>
 0
   : int = 240
 ]}*)
-let rec ecfix c f e = 
+let rec ecfix c f e =
  (fun g -> c ((f e) g)) (fun y x -> (ecfix c f y) x)
 

@@ -137,7 +137,7 @@ module LList = struct
 end ;;
 
 let g x = let _ = Thread.delay (float_of_int x) in ignore (Sys.command ("touch /tmp/pluto."^(string_of_int x))) ;;
-let xs = Array.init 31 (fun i -> 34+i);;  
+let xs = Array.init 31 (fun i -> 34+i);;
 let ts = Array.map (fun x -> ThreadExtra.create ~killable:() g x) xs ;;
 Array.iteri (fun i t -> Thread.delay 0.1; if i mod 3 = 0 then () else ignore (ThreadExtra.kill t)) ts ;;
 let k = ThreadExtra.killer ts.(2) ;;
@@ -225,7 +225,7 @@ let of_string ~(a:string -> 'a) ~(b:string -> 'b) x =
   in self ic
 
 let of_Genlex_token_stream  ~(a:Genlex.token Stream.t -> 'a) ~(b:Genlex.token Stream.t -> 'b) x =
-  
+
 
 val interactive_stream_unix_client :
   ?max_input_size:int ->

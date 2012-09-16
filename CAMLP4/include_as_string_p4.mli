@@ -30,7 +30,7 @@ Printf.fprintf ch "%s" content;
 close_out ch;
 ;;
 
-let put (filename,content) =   
+let put (filename,content) =
  begin
   Printf.eprintf "The length in word of %s is %d\n" filename (String.length content);
   let ch = open_out ("/tmp/"^Filename.basename filename) in

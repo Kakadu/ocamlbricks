@@ -24,7 +24,7 @@ type 'a t
 type id = int
 
 val create : ?size:int -> unit -> 'a t
-  
+
 val add    : 'a t -> 'a -> id
 val remove : 'a t -> id -> bool
 val mem    : 'a t -> id -> bool

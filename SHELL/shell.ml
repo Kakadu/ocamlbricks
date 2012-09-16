@@ -34,7 +34,7 @@ type foldername = string;;
 
 (** {2 Text filters} *)
 
-(** Wrapper for the {b awk} unix filter. The first argument is the awk program, 
+(** Wrapper for the {b awk} unix filter. The first argument is the awk program,
     the second one is the input text (string list).
 {b Example}:
 {[# awk "{print $1}" ["Hello World";"Bye Bye"];;
@@ -43,7 +43,7 @@ type foldername = string;;
 let awk ?(opt="") prog text = textfilter ~at:Treat.quote "awk" ~opt ~args:(Some(prog)) text ;;
 
 
-(** Wrapper for the {b cut} unix filter. 
+(** Wrapper for the {b cut} unix filter.
 {b Example}:
 {[#  cut "-d: -f2,3" ["AA:BB:CC:DD:EE:FF"];;
   : string list = ["BB:CC"]
@@ -109,8 +109,8 @@ let tac ?(opt="") text = textfilter "tac" ~opt text ;;
 ]}*)
 let tail ?(opt="") text = textfilter "tail" ~opt text ;;
 
-(** Wrapper for the {b tee} unix filter. 
-    Filenames are quoted then merged with the blank separator.  
+(** Wrapper for the {b tee} unix filter.
+    Filenames are quoted then merged with the blank separator.
 {b Example}:
 {[# tee ["foo.bar"] ["Salut"; "Hello"; "Ciao"];;
   : string list = ["Salut"; "Hello"; "Ciao"]
@@ -118,8 +118,8 @@ let tail ?(opt="") text = textfilter "tail" ~opt text ;;
 # Unix.cat "foo.bar";;
   : string = "Salut\nHello\nCiao\n"]
 ]}*)
-let tee ?(opt="") (files:filename list) text = 
-  let args = List.map StringExtra.quote files in 
+let tee ?(opt="") (files:filename list) text =
+  let args = List.map StringExtra.quote files in
   let args = String.concat " " args in
   textfilter ~at:Treat.identity "tee" ~opt ~args:(Some args) text ;;
 
@@ -128,7 +128,7 @@ let tee ?(opt="") (files:filename list) text =
 {[# tr 'a' 'A' ["Salut"; "Hello"; "Ciao"];;
   : string list = ["SAlut"; "Hello"; "CiAo"]
 ]}*)
-let tr ?(opt="") c1 c2 text = 
+let tr ?(opt="") c1 c2 text =
  let s1 = StringExtra.quote (Char.escaped c1) in
  let s2 = StringExtra.quote (Char.escaped c2) in
  let args = String.concat " " [s1;s2] in
@@ -146,15 +146,15 @@ let uniq ?(opt="") text = textfilter "uniq" ~opt text ;;
 {[# wc ["AA BB"; "CC"; "DD EE"];;
   : int = 5
 ]}*)
-let wc text : int = 
- make  ~it:(Some StringExtra.Text.to_string) 
-       ~ot:(StringExtra.chop || int_of_string) 
+let wc text : int =
+ make  ~it:(Some StringExtra.Text.to_string)
+       ~ot:(StringExtra.chop || int_of_string)
        "wc -w"
        ~input:(Some text) () ;;
 
 (** Wrapper for the {b wc -c} unix char counter. In a {e strict} sense, the newline
-    characters added to strings in order to trasform them in lines (if needed) 
-    are not counted. By default [strict=false]. 
+    characters added to strings in order to trasform them in lines (if needed)
+    are not counted. By default [strict=false].
 {b Examples}:
 {[# cc ["AA BB"; "CC"];;
   : int = 9
@@ -165,10 +165,10 @@ let wc text : int =
 # cc ~strict:true ["AA BB"; "CC"];;
   : int = 7
 ]}*)
-let cc ?(strict=false) text : int = 
+let cc ?(strict=false) text : int =
  let it = Some(if strict then (String.concat "") else (StringExtra.Text.to_string)) in
- make  ~it 
-       ~ot:(StringExtra.chop || int_of_string) 
+ make  ~it
+       ~ot:(StringExtra.chop || int_of_string)
        "wc -c"
        ~input:(Some text) () ;;
 
@@ -180,16 +180,16 @@ module Files = struct
 
 (** Expand a file expression (with meta-characters) into the list of existing files.
     The optional parameter [null] refers to the [nullglob] bash option. By default [null=false].
-     
+
 {[# Files.glob "/etc/*tab";;
   : string list = ["/etc/crontab"; "/etc/fstab"; "/etc/inittab"; "/etc/mtab"]
 ]}*)
-let glob ?(null=false) (args:filexpr) = 
+let glob ?(null=false) (args:filexpr) =
   let shopt = ("shopt "^(if null then "-s" else "-u")^" nullglob\n") in
   let cmd = shopt^"for i in \"$@\"; do echo $i; done" in
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string cmd ~script:true ~args:(Some args) ();;
 
-(** The following functions are wrappers of the homonymous unix command. 
+(** The following functions are wrappers of the homonymous unix command.
     The difference from the [Shell] versions is that they ignore their input
     and take a [filexpr] as unique argument. *)
 
@@ -203,25 +203,25 @@ let glob ?(null=false) (args:filexpr) =
  let cat ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cat" ~opt ~args:(Some arg) ();;
 
- let cut  ?(opt="") (arg:filexpr) = 
+ let cut  ?(opt="") (arg:filexpr) =
    make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cut" ~opt ~args:(Some arg) ();;
 
- let head ?(opt="") (arg:filexpr) = 
+ let head ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "head" ~opt ~args:(Some arg) ();;
 
- let nl ?(opt="") (arg:filexpr) = 
+ let nl ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "nl" ~opt ~args:(Some arg) ();;
 
- let sort ?(opt="") (arg:filexpr) = 
+ let sort ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "sort" ~opt ~args:(Some arg) ();;
 
- let tac  ?(opt="") (arg:filexpr) = 
+ let tac  ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tac" ~opt ~args:(Some arg) ();;
 
- let tail ?(opt="") (arg:filexpr) = 
+ let tail ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tail" ~opt ~args:(Some arg) ();;
 
- let uniq ?(opt="") (arg:filexpr) = 
+ let uniq ?(opt="") (arg:filexpr) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "uniq" ~opt ~args:(Some arg) ();;
 
 
@@ -236,7 +236,7 @@ end;;
 #  date ~arg:"+%d-%m-%Y.%kh%M" ();;
   : string = "17-04-2007.21h06"
 ]}*)
-let date ?(opt="") ?(arg="") () = 
+let date ?(opt="") ?(arg="") () =
   make ~at:Treat.identity ~ot:StringExtra.chop "date" ~opt ~args:(Some arg) ();;
 
 
@@ -247,7 +247,7 @@ let date ?(opt="") ?(arg="") () =
 # id ~opt:"-g" ();;
   : string = "1031"
 ]}*)
-let id ?(opt="") ?(arg="") () = 
+let id ?(opt="") ?(arg="") () =
   make ~at:Treat.identity ~ot:StringExtra.chop "id" ~opt ~args:(Some arg) ();;
 
 (** Wrapper for the {b uname} unix command. {b Examples}:
@@ -274,14 +274,14 @@ let whoami () = make ~ot:StringExtra.chop "whoami" ();;
 {[# find "/etc/*tab -name '*n*'";;
   : string list = ["/etc/crontab"; "/etc/inittab"]
 ]}*)
- let find (arg:arg) = 
+ let find (arg:arg) =
   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "find" ~args:(Some arg) ();;
 
 
 (** {3 dd} *)
 
 
-(** A quite sofisticated wrapper for dd. The input (first argument) and 
+(** A quite sofisticated wrapper for dd. The input (first argument) and
     output (second argument) filenames are automatically quoted. {b Examples:}
 {[# dd "/etc/fstab" "fstab.copy";;
 2+1 records in
@@ -295,7 +295,7 @@ let whoami () = make ~ot:StringExtra.chop "whoami" ();;
 1130 bytes (1,1 kB) copied, 0,000191 seconde, 5,9 MB/s
   : unit = ()
 ]}*)
-let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) ?(count=None) ?(conv=None) 
+let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) ?(count=None) ?(conv=None)
  (x:filename) (y:filename) =
 
  let iF   = " if="^(StringExtra.quote x) in
@@ -310,30 +310,30 @@ let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) 
  let conv = match conv  with (Some n) -> " conv=" ^ (string_of_int n) | _ -> "" in
 
  let arg = (iF^oF^ibs^obs^bs^cbs^skip^seek^count^conv) in
- 
+
   make ~at:Treat.identity ~ot:ignore "dd" ~args:(Some arg) ()
 ;;
 
 (** {3 tar} *)
 
-(** Wrapper for the command [tar -cz]. 
+(** Wrapper for the command [tar -cz].
 {b Example:}
 {[# tgz_create "mysite.tgz" "/var/www/html /etc/httpd*";;
   : unit = ()
 ]}*)
-let tgz_create ?(opt="") (fname:filename) (files:filexpr) = 
+let tgz_create ?(opt="") (fname:filename) (files:filexpr) =
   let at (t,e) = ((StringExtra.quote t)^" "^e) in
   make ~at:(Some at) ~ot:ignore ("tar "^opt^" -czf $@") ~script:true ~args:(Some (fname,files)) ()
 ;;
 
 
-(** Wrapper for the command [tar -xz]. 
-    The gzip compressed archive will be extracted in the specified folder. 
+(** Wrapper for the command [tar -xz].
+    The gzip compressed archive will be extracted in the specified folder.
 {b Example:}
 {[# tgz_extract "foo.tgz" "temp/";;
   : unit = ()
 ]}*)
-let tgz_extract ?(opt="") (fname:filename) (rep:foldername) = 
+let tgz_extract ?(opt="") (fname:filename) (rep:foldername) =
   let at (t,r) = ((StringExtra.quote t)^" "^(StringExtra.quote r)) in
   make ~at:(Some at) ~ot:ignore ("tar "^opt^" -C $2 -xzf $1") ~script:true ~args:(Some (fname,rep)) ()
 ;;
@@ -341,7 +341,7 @@ let tgz_extract ?(opt="") (fname:filename) (rep:foldername) =
 
 (** {2 Permissions} *)
 
-(** The following functions check some attributes (or permissions for the CURRENT user) 
+(** The following functions check some attributes (or permissions for the CURRENT user)
     of the filesystem objects the given expression expands to.
     An exception is raised if the expression (pattern) expands to nothing, otherwise
     [true] is returned iff the condition holds for {b all} items. *)
@@ -349,9 +349,9 @@ let tgz_extract ?(opt="") (fname:filename) (rep:foldername) =
 (** Equivalent to [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
 
 (** Support. *)
-module Check = struct 
+module Check = struct
 
-let check cmd cmdname ?(nullglob=false) (patt:filexpr) = 
+let check cmd cmdname ?(nullglob=false) (patt:filexpr) =
   let wrapper x = make ~at:Treat.quote ~ot:Treat.is_true cmd ~script:true ~args:(Some x) () in
   match (Files.glob ~null:nullglob patt) with
   | [] -> failwith (cmdname^": argument '"^patt^"' globs to nothing")
@@ -362,25 +362,25 @@ end;; (* module Check *)
 
 
 (** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
-let dir_writable ?(nullglob=false) (dirpatt:filexpr) = 
+let dir_writable ?(nullglob=false) (dirpatt:filexpr) =
   let cmd = "test -d $1 -a -r $1 -a -w $1 && echo true" in
   Check.check cmd "dir_writable" ~nullglob dirpatt
 ;;
 
 (** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 && -x $1 \]\]]. *)
-let dir_comfortable ?(nullglob=false) (dirpatt:filexpr) = 
+let dir_comfortable ?(nullglob=false) (dirpatt:filexpr) =
   let cmd = "test -d $1 -a -r $1 -a -w $1 -a -x $1 && echo true" in
   Check.check cmd "dir_comfortable" ~nullglob dirpatt
 ;;
 
 (** Equivalent to the bash test [\[\[ -f $1 && -r $1 \]\]]. *)
-let regfile_readable ?(nullglob=false) (dirpatt:filexpr) = 
+let regfile_readable ?(nullglob=false) (dirpatt:filexpr) =
   let cmd = "test -f $1 -a -r $1 && echo true" in
   Check.check cmd "regfile_readable" ~nullglob dirpatt
 ;;
 
 (** Equivalent to the bash test [\[\[ -f $1 && -r $1 && -w $1 \]\]]. *)
-let regfile_modifiable ?(nullglob=false) (dirpatt:filexpr) = 
+let regfile_modifiable ?(nullglob=false) (dirpatt:filexpr) =
   let cmd = "test -f $1 -a -r $1 -a -w $1 && echo true" in
   Check.check cmd "regfile_modifiable" ~nullglob dirpatt
 ;;
@@ -388,7 +388,7 @@ let regfile_modifiable ?(nullglob=false) (dirpatt:filexpr) =
 
 (** Check if a file with the given name can be created by the current user. *)
 let freshname_possible x =
-  let d = (Filename.dirname x) in 
+  let d = (Filename.dirname x) in
   (* prerr_endline ("freshname_possible: x="^x^" d="^d) ;  *)
   (dir_writable d)
- ;; 
+ ;;

@@ -15,17 +15,17 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
-(** This simple program run as the famous {b grep} command but taking a regular expression in the [Str] O'Caml library format. 
+(** This simple program run as the famous {b grep} command but taking a regular expression in the [Str] O'Caml library format.
     The regular expression must be given as the first and unique argument. The parsed file is the standard input. *)
 
-let main () = 
+let main () =
  let re = Str.regexp (Sys.argv.(1)) in
- let rec boucle () = 
+ let rec boucle () =
   try begin
    let line = read_line () in
    (match Str.string_match re line 0 with
 	| true  -> print_endline line
-	| false -> ()); 
+	| false -> ());
    boucle ()
   end with End_of_file -> ()
   in boucle ()

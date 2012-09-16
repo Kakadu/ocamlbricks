@@ -25,13 +25,13 @@
 
     A result [(x,(a,b),gl)] means that:
 
-	- there exists a substring [x] of the input string 
+	- there exists a substring [x] of the input string
 	  that matches the regular expression;
-            
-    	- the integers [a] and [b] (the {e frame}) are the positions (indexes) 
+
+    	- the integers [a] and [b] (the {e frame}) are the positions (indexes)
 	  of the beginning and the end of the substring [x] w.r.t. the input string;
 
-    	- the value [gl] is the list of substrings which have matched the groups defined in 
+    	- the value [gl] is the list of substrings which have matched the groups defined in
     	  the regular expression; the length of this list will be equal to the number of groups
     	  defined in the regular expression.
 
@@ -70,7 +70,7 @@ let result_as_object (matched,frame,groups) =
   end
 
 
-(** Facility for building regular expressions. 
+(** Facility for building regular expressions.
     The call [mkregexp ~prefix ~groups ~suffix ()] causes the following actions:
     - the strings in [prefix] are simply catenated in a unique string (the {e prefix})
     - the strings in [groups] are catenated enclosing each one into ["\\("] and ["\\)"] in order to define distinct {e groups}
@@ -95,16 +95,16 @@ let mkregexp ?(mode=`inner) ?case_insensitive ?(prefix=[]) ?(groups=[]) ?(suffix
    | None    -> Str.regexp expr
    | Some () -> Str.regexp_case_fold expr
 
-(** The call [matched_groups i x] returns the list 
+(** The call [matched_groups i x] returns the list
     of substrings of [x] matching groups starting from the group number [i].
     See the standard [Str.matched_group] for more details. *)
-let rec matched_groups i x : (string list) = 
+let rec matched_groups i x : (string list) =
   try
     let g=(Str.matched_group i x) in
     g::(matched_groups (i+1) x)
   with _ -> []
 
-(** The heuristic [match_frame r s (a,b)] try to match the substring [(a,b)] 
+(** The heuristic [match_frame r s (a,b)] try to match the substring [(a,b)]
     of the string [s] with the compiled regular expression [r]. *)
 let match_frame (r:Str.regexp) (s:string) (a,b) : result option =
   try
@@ -116,11 +116,11 @@ let match_frame (r:Str.regexp) (s:string) (a,b) : result option =
   with Not_found -> None
 
 
-(** The heuristic [match_whole r s (a,b)] try to match the whole string [s] 
+(** The heuristic [match_whole r s (a,b)] try to match the whole string [s]
     with the compiled regular expression [r]. *)
-let match_whole (r:Str.regexp) (s:string) : result option = 
+let match_whole (r:Str.regexp) (s:string) : result option =
   try
-    let a  = Str.search_forward r s 0 in 
+    let a  = Str.search_forward r s 0 in
     let y  = Str.matched_string s     in
     let b  = (Str.match_end ())-1     in
     Some (y, (a,b), (matched_groups 1 s))
@@ -317,17 +317,17 @@ module Posix = struct
     let alnum  = Str.regexp "[a-zA-Z0-9]"
 
     (** Alphabetic characters [[a-zA-Z]] *)
-    let alpha  = Str.regexp "[a-zA-Z]" 
+    let alpha  = Str.regexp "[a-zA-Z]"
 
     (** ASCII characters [[\x00-\x7F]] *)
     let ascii  = Str.regexp "[\x00-\x7F]"
 
     (** Space and tab [[ \t]] *)
     let blank  = Str.regexp "[ \t]"
-    
+
     (** Control characters [[\x00-\x1F\x7F]] *)
     let cntrl  = Str.regexp "[\x00-\x1F\x7F]"
-    
+
     (** Digits [[0-9]] *)
     let digit  = Str.regexp "[0-9]"
 
@@ -342,9 +342,9 @@ module Posix = struct
 
     (** Punctuation and symbols *)
     let punct  = Str.regexp "[!\"#$%&'()*+,\\-./:;<=>?@[\\]^_`{|}~]"
-    
+
     (** All whitespace characters, including line breaks [[ \t\r\n\\v\\f]] *)
-    let space  = Str.regexp "[ \t\r\n\\v\\f]" 
+    let space  = Str.regexp "[ \t\r\n\\v\\f]"
 
     (** Uppercase letters [[A-Z]] *)
     let upper  = Str.regexp "[A-Z]"

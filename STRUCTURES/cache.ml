@@ -37,4 +37,3 @@ let optimize ~(revision:'t->int) (f:'t->'a) (t:'t) =
     else cache_fault revision
   in
   thunk
- 

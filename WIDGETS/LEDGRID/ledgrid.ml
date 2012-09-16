@@ -16,7 +16,7 @@
 
 (** Ledgrid widgets. *)
 
-(** {2 Constants} 
+(** {2 Constants}
     Some global constant definitions, for fine-tuning. *)
 
 (** The duration of a LED light "flash", in milliseconds: *)
@@ -47,7 +47,7 @@ exception Non_existing_port of int
 let make_pixmap_from_xpm_file ~file_name =
   GDraw.pixmap_from_xpm ~file:file_name ()
 
-(** {2 A single LED light} 
+(** {2 A single LED light}
     Gtk+ simulation of just {e one} LED light. Particularly useful when arranged in a
     grid. *)
 
@@ -57,7 +57,7 @@ let make_pixmap_from_xpm_file ~file_name =
     state until its state is explitly changed by the user. The user can simply set
     the object's state, or can set its state *also changing the default*. As soon
     as the current state changes the widget's appearance on screen is updated.
-    A LED light can be also 'flashed', i.e. set to its non-default value for a 
+    A LED light can be also 'flashed', i.e. set to its non-default value for a
     short time, after which it automatically reverts to its default state, or
     'blinked', i.e. ordered to repeatedly toggle its state very fast for a short
     time, before automatically reverting to its default state.
@@ -92,13 +92,13 @@ object(self)
   (** Default state and current state; see above: *)
   val default = ref(default)
   val state = ref(false)
-  
+
   (** Return the current default state: *)
   method get_default = !default
 
   (** Update the default state *and also the current state*; this changes the widget's
       appearance if the new value is different from the current state: *)
-  method set_default value = default := value; 
+  method set_default value = default := value;
                              self#set value;
                              ()
 
@@ -117,7 +117,7 @@ object(self)
   (** Set the widget current state to be on if it's currently off, or vice-versa.
       This always changes the widget's appearance: *)
   method toggle = self#set(not self#get); ()
-  
+
   (** Return the widget position as it was set at creation time, or (-1, -1) if
       it was not set: *)
   method get_position = x, y
@@ -128,7 +128,7 @@ object(self)
   (** Order the LED light to flash (see above) for the established time, and
       return immediately: *)
   method flash = self#set (not !default);
-                 ignore (GMain.Timeout.add 
+                 ignore (GMain.Timeout.add
                            flash_duration
                            (function () -> self#reset; false))
 
@@ -159,7 +159,7 @@ let useless_array_of_led_light_options = Array.make 0 None
 let useless_label = GMisc.label ()
 
 
-(** {2 LED grid} 
+(** {2 LED grid}
     Gtk+ simulation of a {e grid} of LED lights. *)
 
 (** A LED grid visually represents a matrix of LED lights, where each light is
@@ -179,9 +179,9 @@ class led_grid ?default:(default=false)
                ?no_leds_at:(no_leds_at=[]) () = object(self)
   (** The pixmap objects made from user-supplied files. Notice how the same three
       pixmaps are shared among all the lights (and 'holes'): *)
-  val off_pixmap = make_pixmap_from_xpm_file ~file_name:off_xpm_file_name 
-  val on_pixmap = make_pixmap_from_xpm_file ~file_name:on_xpm_file_name 
-  val nothing_pixmap = make_pixmap_from_xpm_file ~file_name:nothing_xpm_file_name 
+  val off_pixmap = make_pixmap_from_xpm_file ~file_name:off_xpm_file_name
+  val on_pixmap = make_pixmap_from_xpm_file ~file_name:on_xpm_file_name
+  val nothing_pixmap = make_pixmap_from_xpm_file ~file_name:nothing_xpm_file_name
 
   (** A two-dimensional matrix of led_light option: *)
   val led_lights_matrix = Array.make columns useless_array_of_led_light_options
@@ -202,7 +202,7 @@ class led_grid ?default:(default=false)
   val no_leds_at = let hash = Hashtbl.create (columns * rows) in
                      List.iter (fun x_y -> Hashtbl.add hash x_y ()) no_leds_at;
                      hash
-  
+
   (** Initialize the complex state of the grid: *)
   initializer
   for x = 0 to columns - 1 do
@@ -223,8 +223,8 @@ class led_grid ?default:(default=false)
     done;
   done;
   for y = 0 to rows - 1 do
-     let left_label = GMisc.label ~packing:(table_widget#attach ~left:0 ~top:(y + 1)) () in 
-     let right_label = GMisc.label ~packing:(table_widget#attach ~left:(columns + 1) ~top:(y + 1)) () in 
+     let left_label = GMisc.label ~packing:(table_widget#attach ~left:0 ~top:(y + 1)) () in
+     let right_label = GMisc.label ~packing:(table_widget#attach ~left:(columns + 1) ~top:(y + 1)) () in
      Array.set left_labels y left_label;
      Array.set right_labels y right_label;
   done;
@@ -254,7 +254,7 @@ class led_grid ?default:(default=false)
     with Non_existing_led_light(_) ->
       self#get_random_led_light
 
-  (** Get and set the text of each label. Notice that all arrays are 0-based: *)  
+  (** Get and set the text of each label. Notice that all arrays are 0-based: *)
   method get_top_label x = (Array.get top_labels x)#text
   method set_top_label x text = (Array.get top_labels x)#set_text text
   method get_bottom_label x = (Array.get bottom_labels x)#text
@@ -351,7 +351,7 @@ object(self)
     | 2, false -> self#set_right_label 2 "TX/RX"
     | 1, true ->  self#set_right_label 1 "100Mb/s"
     | 2, true ->  self#set_right_label 1 "100Mb/s";
-                  self#set_right_label 3 "100Mb/s"; 
+                  self#set_right_label 3 "100Mb/s";
                   self#set_right_label 4 "TX/RX"
     | _ -> assert false;
 
@@ -430,13 +430,13 @@ end
       ~off_xpm_file_name:"sample-files/off.xpm"
       ~on_xpm_file_name:"sample-files/on.xpm"
       ~nothing_xpm_file_name:"sample-files/nothing.xpm"
-      () in  
+      () in
   for i = 1 to ports / 3 do
     grid#connect ((Random.int ports) + 1);
   done;
 
   (** Simulate a distinct communication between two ports every 50 milliseconds: *)
-  GMain.Timeout.add 50 (function () -> grid#blink (grid#random_connected_port); 
+  GMain.Timeout.add 50 (function () -> grid#blink (grid#random_connected_port);
                                        grid#blink (grid#random_connected_port);
                                        true);
   window#show ();

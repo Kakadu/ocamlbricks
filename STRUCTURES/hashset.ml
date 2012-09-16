@@ -22,7 +22,7 @@ let default_size = 251;;
 
 class ['a] hashset = fun ?(size=default_size) () ->
 
-  object (self) 
+  object (self)
 
   (** The state of the hashset. *)
   val current : ('a, unit) Hashtbl.t = (Hashtbl.create size)
@@ -31,10 +31,10 @@ class ['a] hashset = fun ?(size=default_size) () ->
   method mem x = Hashtbl.mem current x
 
   (** Add the element to the set *)
-  method add x = (Hashtbl.replace current x ()) 
+  method add x = (Hashtbl.replace current x ())
 
   (** Remove the element from the set *)
-  method remove x = (Hashtbl.remove current x) 
+  method remove x = (Hashtbl.remove current x)
 
 end;; (* class hashset *)
 
@@ -43,7 +43,7 @@ end;; (* class hashset *)
 
 (** The abstract type of an hashset. *)
 type 'a t       = 'a hashset ;;
- 
+
 (** The hashset constructor. *)
 let make ?(size=default_size) () : 'a t = new hashset ~size () ;;
 
@@ -52,22 +52,22 @@ let mem (hs:'a t) (x:'a) = hs#mem x;;
 
 (** Add a member to the hashset. *)
 let add (hs:'a t) (x:'a) = hs#add x;;
- 
+
 (** Remove a member from the hashset. *)
 let remove (hs:'a t) (x:'a) = hs#remove x;;
- 
+
 (** Make an hashset from a list. *)
-let of_list (l:'a list) : 'a t = 
- let n = List.length l in 
+let of_list (l:'a list) : 'a t =
+ let n = List.length l in
  let size = if n<(default_size/2) then default_size else n*2 in
- let hs = make ~size () in 
+ let hs = make ~size () in
  (List.iter (add hs) l); hs
 ;;
 
 (* Support for uniq. *)
 let rec uniq hs = function
  | []   -> []
- | x::l -> if (hs#mem x) then (uniq hs l) else ((hs#add x); (x::(uniq hs l)))   
+ | x::l -> if (hs#mem x) then (uniq hs l) else ((hs#add x); (x::(uniq hs l)))
 ;;
 
 (** Exploit an hashset for implementing the uniq function over lists. *)

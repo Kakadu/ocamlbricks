@@ -16,7 +16,7 @@
 
 (** Additional features for (and instances of) the standard module [Set]. *)
 
-module type S = 
+module type S =
   sig
     type elt
     type t
@@ -59,7 +59,7 @@ module Int_set    : S with type elt = int
 
 module Destructive : sig
 
-  module type S = 
+  module type S =
     sig
       type elt
       type t
@@ -96,5 +96,5 @@ module Destructive : sig
   module Make : functor (Ord : Set.OrderedType) -> S with type elt = Ord.t
   module String_set : S with type elt = string
   module Int_set    : S with type elt = int
-  
+
 end (* Destructive *)

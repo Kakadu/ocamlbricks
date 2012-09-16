@@ -30,7 +30,7 @@
 {b Example}:
 {[(* Define your log modules: *)
 module Log1 = Log_builder.Make (struct
-  let debug_level () = ...                (* explain here where to get the current value of the debugging level; 
+  let debug_level () = ...                (* explain here where to get the current value of the debugging level;
                                              this value must be greater or equal to the verbosity, otherwise do nothing *)
   let verbosity = 1                       (* the default value of verbosity for printing functions *)
   let log_channel = `stderr               (* put messages here *)
@@ -39,9 +39,9 @@ module Log1 = Log_builder.Make (struct
 
 module Log2 = Log_builder.Make (struct
   let debug_level () = ...
-  let verbosity = 2                       
+  let verbosity = 2
   let log_channel = `stderr               (* share the same channel of Log1 *)
-  let synchronized = true                 
+  let synchronized = true
  end);;
 
 (* Put calls somewhere in your code : *)

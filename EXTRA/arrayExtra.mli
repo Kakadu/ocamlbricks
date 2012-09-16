@@ -22,7 +22,7 @@ val partition : ('a -> int) -> 'a array -> 'a array array
 val int_seq   : min:int   -> max:int   -> incr:int   -> int array
 val float_seq : min:float -> max:float -> incr:float -> float array
 
-val sorted_copy      : ?compare:('a -> 'a -> int) -> 'a array -> 'a array 
+val sorted_copy      : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
 val fast_sorted_copy : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
 
 val for_all : (int -> 'a -> bool) -> 'a array -> bool

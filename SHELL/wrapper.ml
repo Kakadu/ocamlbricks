@@ -14,11 +14,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Handling shell scripts in {e OCaml}. A general technique for wrapping 
-    shell commands or scripts is proposed in this module. 
+(** Handling shell scripts in {e OCaml}. A general technique for wrapping
+    shell commands or scripts is proposed in this module.
     The technique is applied in the module {!Shell} for building a significative set
-    of ready-to-use wrappers corresponding to the most famous {e Unix} tools 
-    ({b grep}, {b dd}, {b tar},..). 
+    of ready-to-use wrappers corresponding to the most famous {e Unix} tools
+    ({b grep}, {b dd}, {b tar},..).
 *)
 
 open Sugar;;
@@ -43,7 +43,7 @@ type script = string;;
 
 (** {2 Envelop} *)
 
-(** Envelop a script into a function followed by a call of this function. 
+(** Envelop a script into a function followed by a call of this function.
 
 {b Example}:
 {[# print_endline (envelop "test -d $1");;
@@ -53,22 +53,22 @@ test -d $1
 auxfun418234
   : unit = ()
 ]}*)
-let envelop ?(name:string=("auxfun"^(string_of_int (Random.int 819200)))) (script:script) : call =  
+let envelop ?(name:string=("auxfun"^(string_of_int (Random.int 819200)))) (script:script) : call =
  ("function "^name^" () {\n"^script^"\n}\n"^name)
-;; 
+;;
 
 (** {2 Wrapper} *)
 
-(** 
+(**
 {[
- 
+
                                            ?args:'a
                                               |
-                                        +-----+-----+ 
+                                        +-----+-----+
                                         |    ?at    | argument(s)
                                    ?opt +-----+-----+ treatment
                                      |        |
-                                   +----------+--+         
+                                   +----------+--+
              +-----------+         | Unix.shell  |         +-----------+
 ?input:'b -->+    ?it    +-------->+             +-------->+    ~ot    +-->'c
              +-----------+         |   command   |         +-----------+
@@ -77,31 +77,31 @@ let envelop ?(name:string=("auxfun"^(string_of_int (Random.int 819200)))) (scrip
 ]}
 *)
 
-(** General constructor for shell encapsulation: 
+(** General constructor for shell encapsulation:
 
-    - the function [~it] (the {e input treatment}, by default [None]) represent the action 
-     to execute before the [command], in order to transform a value of a 
-     type ['b] into a [string]; the result 
+    - the function [~it] (the {e input treatment}, by default [None]) represent the action
+     to execute before the [command], in order to transform a value of a
+     type ['b] into a [string]; the result
      will be used as {b standard input} for the [command];
-   
-    - the function [~ot] (the {e output treatment}) represent the action 
-      to execute after the [command] 
-      in order to transform its {b standard output} (a [string]) 
+
+    - the function [~ot] (the {e output treatment}) represent the action
+      to execute after the [command]
+      in order to transform its {b standard output} (a [string])
       in a value of an arbitrary type ['c];
 
-    - the function [~at] (the {e argument treatment}, by default [None]) permits a similar 
-      re-arrangement of the signature, 
+    - the function [~at] (the {e argument treatment}, by default [None]) permits a similar
+      re-arrangement of the signature,
       but for the argument(s) of the command, which could be of any type ['a] (then
-      also a tuple). This function converts the argument(s) in a string, 
-      which is the suitable type for the [command]; 
-  
-    - options (by default [~opt=""]) are appended as-is at right side of the 
-      command and before the string representation of arguments.  
+      also a tuple). This function converts the argument(s) in a string,
+      which is the suitable type for the [command];
 
-    If the flag [~script] is set the [command] is enveloped in order to allow the 
+    - options (by default [~opt=""]) are appended as-is at right side of the
+      command and before the string representation of arguments.
+
+    If the flag [~script] is set the [command] is enveloped in order to allow the
     use of positionnal parameters [$1], [$2],... By default [~script=false].
 
-    The function raises a failure if an argument or an input is provided 
+    The function raises a failure if an argument or an input is provided
     (in the form [Some v])
     while the corresponding treatment is undefined (equals to [None]).
 *)
@@ -111,16 +111,16 @@ let make
     ?(it:(('a->string) option)=None)
     ~(ot:(string->'b))
     ?(script=false)
-     (cmd:command) 
+     (cmd:command)
     ?(opt="")
     ?(args:('c option)=None) ?(input:('a option)=None) () =
 
     let cmd = if script then envelop cmd else cmd in
 
-    let perform_treat t x = match (t,x) with 
-      | ((Some f), (Some x)) -> (f x) 
-      | (    _   ,  None)    -> "" 
-      | ( None   , (Some x)) -> failwith "Wrapper.make: argument provided without a treatment" in 
+    let perform_treat t x = match (t,x) with
+      | ((Some f), (Some x)) -> (f x)
+      | (    _   ,  None)    -> ""
+      | ( None   , (Some x)) -> failwith "Wrapper.make: argument provided without a treatment" in
 
     let args  = perform_treat at args  in
     let input = perform_treat it input in
@@ -130,22 +130,22 @@ let make
 
 (** {3 Text filters} *)
 
-(** This constructor represent a specialization of the function {!make} 
+(** This constructor represent a specialization of the function {!make}
     for building wrappers dealing with texts (string lists):
 - the input treatment  [~it] is set to [Some String.Text.to_string]
 - the output treatment [~ot] is set to [String.Text.of_string]
  *)
-let textfilter  
+let textfilter
     ?(at:(('c->string) option)=None)
     ?(script=false)
-     (cmd:command) 
+     (cmd:command)
     ?(opt="")
     ?(args:('c option)=None) (x:string list)
 
-    = make 
+    = make
        ~at ~script
-       ~it:(Some StringExtra.Text.to_string) 
-       ~ot:StringExtra.Text.of_string cmd 
+       ~it:(Some StringExtra.Text.to_string)
+       ~ot:StringExtra.Text.of_string cmd
        ~opt ~args ~input:(Some x) ();;
 
 
@@ -155,28 +155,28 @@ let textfilter
     of the type [('a -> 'b) option]. *)
 module Treat = struct
 
- (* {b Input/Argument treatments} *) 
+ (* {b Input/Argument treatments} *)
 
  (** Nothing to do (identity function). *)
  let identity = Some (fun x->x) ;;
 
- (** Simple quote the argument. Sometimes, the argument of the filter must be envelopd 
+ (** Simple quote the argument. Sometimes, the argument of the filter must be envelopd
     into simple quotes, as for [awk] and [sed], in order to prevent problems with special chars. *)
- let quote = Some (fun x -> "'"^x^"'");; 
+ let quote = Some (fun x -> "'"^x^"'");;
 
- (* {b Output treatments} *) 
+ (* {b Output treatments} *)
 
- (** Make your boolean scripts with this output treatment *) 
+ (** Make your boolean scripts with this output treatment *)
  let is_true = (StringExtra.chop || ((=) "true")) ;;
 
 end;; (* module Treat *)
 
-(** {2 Examples} 
+(** {2 Examples}
 
-Basically, the wrapper constructor may be used in a "quick and easy" way using strings 
+Basically, the wrapper constructor may be used in a "quick and easy" way using strings
 as parameters of the resulting wrapper. Instead, the more sofisticated way constists
-in defining a real abstract syntax for parameters and/or inputs, in order to avoid 
-bad calls of the wrapper at compile-time.   
+in defining a real abstract syntax for parameters and/or inputs, in order to avoid
+bad calls of the wrapper at compile-time.
 *)
 
 (** {3 Quick and easy wrapper} *)
@@ -184,7 +184,7 @@ bad calls of the wrapper at compile-time.
 
 (**{[
 (* A wrapper for the command date *)
-let date ?(opt="") ?(arg="") () = 
+let date ?(opt="") ?(arg="") () =
  make ~at:Treat.identity ~ot:String.chop "date" ~args:(Some arg) ~opt () ;;
 
 (* Examples of usage: *)
@@ -213,17 +213,17 @@ module Date = struct
  type synopsis = options list ;;
 
  (* (2) Define your conversion(s) *)
- let string_of_options = function 
+ let string_of_options = function
   | Option_f x -> "-f "^x
-  | Option_r x -> "-r "^x 
-  | Option_R   -> "-R " 
+  | Option_r x -> "-r "^x
+  | Option_R   -> "-R "
  ;;
 
  let string_of_synopsis = String.merge_map string_of_options;;
 
  (* (3) Apply the wrapper constructor *)
- let date (args:synopsis) = 
-  make ~at:(Some string_of_synopsis) ~ot:String.chop "date" ~args:(Some args) () 
+ let date (args:synopsis) =
+  make ~at:(Some string_of_synopsis) ~ot:String.chop "date" ~args:(Some args) ()
  ;;
 end;;
 
