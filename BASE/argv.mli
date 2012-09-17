@@ -113,6 +113,11 @@ type error_msg = string
 
 val register_usage_msg : string -> unit
 
+val tuning :
+  ?no_error_location_parsing_arguments:unit ->
+  ?no_usage_on_error_parsing_arguments:unit ->
+  unit -> unit
+
 (** {2 Options without argument} *)
 
 val register_unit_option :
@@ -139,6 +144,7 @@ val register_filename_option :
   string -> ?aliases:string list ->
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
+  ?error_msg:string ->
   ?tests:((string -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
   ?doc:string -> ?default:string option ->
@@ -147,6 +153,7 @@ val register_filename_option :
 val register_directory_option :
   string -> ?aliases:string list ->
   ?r:unit -> ?w:unit -> ?x:unit ->
+  ?error_msg:string ->
   ?tests:((string -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
   ?doc:string -> ?default:string option ->
@@ -258,6 +265,7 @@ val register_float_list1_argument :
 val register_filename_optional_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
+  ?error_msg:string ->
   ?tests:((string -> bool) * error_msg) list ->
   ?default:string option ->
   unit -> string option ref
@@ -265,18 +273,21 @@ val register_filename_optional_argument :
 val register_filename_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
+  ?error_msg:string ->
   ?tests:((string -> bool) * error_msg) list ->
   unit -> string ref
 
 val register_filename_list0_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
+  ?error_msg:string ->
   ?tests:((string -> bool) * error_msg) list ->
   unit -> string list ref
 
 val register_filename_list1_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
+  ?error_msg:string ->
   ?tests:((string -> bool) * error_msg) list ->
   unit -> string list ref
 

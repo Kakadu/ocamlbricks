@@ -23,16 +23,32 @@
 
 type error_msg = string
 type argument_spec =
-  | Optional   of (string -> unit)
-  | Mandatory  of (string -> unit) * error_msg
-  | List0      of (string -> unit)
-  | List1      of (string -> unit) * error_msg
-  | List0_last of (string -> unit)
-  | List1_last of (string -> unit) * error_msg
+  | Optional      of (string -> unit)
+  | Mandatory     of (string -> unit) * error_msg
+  | List0         of (string -> unit)
+  | List1         of (string -> unit) * error_msg
+  | Optional_last of (string -> unit)
+  | List0_last    of (string -> unit)
+  | List1_last    of (string -> unit) * error_msg
 
 let options_register = ref [] ;;
 let arguments_register : argument_spec list ref  = ref [] ;;
 let usage_msg = ref "Usage: " ;;
+
+module Tuning = struct
+  let no_error_location_parsing_arguments = ref None
+  let no_usage_on_error_parsing_arguments = ref None
+end
+
+let tuning
+  ?no_error_location_parsing_arguments
+  ?no_usage_on_error_parsing_arguments
+  ()
+  =
+  begin
+    Tuning.no_error_location_parsing_arguments := no_error_location_parsing_arguments;
+    Tuning.no_usage_on_error_parsing_arguments := no_usage_on_error_parsing_arguments;
+  end
 
 (* -----------------------------------------
                     Usage
@@ -192,17 +208,17 @@ let test_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket filename =
 
 let register_filename_option
   (y:string)
-  ?aliases
-  ?r ?w ?x
-  ?follow ?f ?d ?c ?b ?h ?p ?socket
-  ?tests
+  ?aliases ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests
   ?(arg_name_in_help="FILE") ?doc ?default ()
   =
   let file_test =
     let pred = (test_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket) in
     let err_msg =
-      let parenthesis = parenthesis_about_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket () in
-      Printf.sprintf "file doesn't exist or does not fit the conditions; option `-%s' expects a %sfile name." y parenthesis
+      match error_msg with
+      | Some m -> m
+      | None ->
+	  let parenthesis = parenthesis_about_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket () in
+	  Printf.sprintf "file doesn't exist or does not fit the conditions; option `-%s' expects a %sfile name." y parenthesis
     in
     (pred, err_msg)
   in
@@ -211,13 +227,20 @@ let register_filename_option
   register_string_option y ?aliases ~arg_name_in_help ~tests ?doc ?default ()
 ;;
 
-let register_directory_option (y:string) ?aliases ?r ?w ?x ?tests ?(arg_name_in_help="DIR") ?doc ?default () =
+let register_directory_option
+  (y:string)
+  ?aliases ?r ?w ?x ?error_msg ?tests
+  ?(arg_name_in_help="DIR") ?doc ?default ()
+  =
   let file_test =
     (* In order to prevent the exception that Sys.is_directory could raise: *)
     let pred v = (Sys.file_exists v) && (Sys.is_directory v) && (test_access ?r ?w ?x v) in
     let err_msg =
-      let parenthesis = parenthesis_about_access_and_kind ?r ?w ?x () in
-      Printf.sprintf "directory doesn't exist or does not fit the conditions; option `-%s' expects a %sdirectory." y parenthesis
+      match error_msg with
+      | Some m -> m
+      | None ->
+          let parenthesis = parenthesis_about_access_and_kind ?r ?w ?x () in
+          Printf.sprintf "directory doesn't exist or does not fit the conditions; option `-%s' expects a %sdirectory." y parenthesis
     in
     (pred, err_msg)
   in
@@ -407,36 +430,42 @@ let register_bool_list1_argument ?(error_msg="bool argument(s) expected") () =
                 File arguments
    ----------------------------------------- *)
 
-let make_filename_test_for_argument ?(what="file") ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket () =
+let make_filename_test_for_argument
+  ?(what="file") ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg
+  ()
+  =
   let pred = (test_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket) in
   let err_msg =
-    let parenthesis = parenthesis_about_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket () in
-    Printf.sprintf "the expected %s%s doesn't exist or does not fit the conditions" parenthesis what
+    match error_msg with
+    | Some m -> m
+    | None ->
+        let parenthesis = parenthesis_about_access_and_kind ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket () in
+        Printf.sprintf "the expected %s%s doesn't exist or does not fit the conditions" parenthesis what
   in
   (pred, err_msg)
 
 (* File related test will be applied foremost: *)
-let make_filename_tests ?what ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () =
-  let file_test = make_filename_test_for_argument ?what ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket () in
+let make_filename_tests ?what ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () =
+  let file_test = make_filename_test_for_argument ?what ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg () in
   file_test::(match tests with None -> [] | Some ts -> ts)
 
-let register_filename_optional_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests ?default () =
-  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () in
+let register_filename_optional_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests ?default () =
+  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () in
   register_string_optional_argument ~tests ?default ()
 ;;
 
-let register_filename_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () =
-  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () in
+let register_filename_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () =
+  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () in
   register_string_argument ~tests ~error_msg:"filename expected" ()
 ;;
 
-let register_filename_list0_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () =
-  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () in
+let register_filename_list0_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () =
+  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () in
   register_string_list0_argument ~tests ()
 ;;
 
-let register_filename_list1_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () =
-  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?tests () in
+let register_filename_list1_argument ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () =
+  let tests = make_filename_tests ~what:"file" ?r ?w ?x ?follow ?f ?d ?c ?b ?h ?p ?socket ?error_msg ?tests () in
   register_string_list1_argument ~tests ~error_msg:"filename(s) expected" ()
 ;;
 
@@ -463,10 +492,18 @@ let attempt_and_branch ?(err_msg="attempt_and_branch") f a ~success ~failure =
   | Failure err_msg -> failure err_msg
 ;;
 
-let parse_actuals ~usage ~arguments_spec_list ~actuals =
+let parse_actuals ~usage_with_options ~arguments_spec_list ~actuals =
   let raise_bad nth err_msg =
-    let usage = Lazy.force usage in
-    let bad_err_msg = Printf.sprintf "%s: %d-th argument: %s\n%s" Sys.argv.(0) nth err_msg usage in
+    let usage_with_options =
+      if !Tuning.no_usage_on_error_parsing_arguments<>None
+        then ""
+        else Lazy.force usage_with_options
+    in
+    let bad_err_msg =
+      match !Tuning.no_error_location_parsing_arguments with
+      | None    -> Printf.sprintf "%s: argument #%d: %s\n%s" Sys.argv.(0) nth err_msg usage_with_options
+      | Some () -> Printf.sprintf "%s\n%s" err_msg usage_with_options
+    in
     (raise (Arg.Bad bad_err_msg))
   in
   let rec loop nth sl al =
@@ -477,6 +514,14 @@ let parse_actuals ~usage ~arguments_spec_list ~actuals =
            ~failure:(fun  _ -> loop nth sl' al)
 
     | (Optional f)::sl', [] ->
+         loop nth sl' []
+
+    | (Optional_last f)::sl', a::al' ->
+         attempt_and_branch f a
+           ~success:(fun () -> loop (nth+1) sl' al')
+           ~failure:(raise_bad nth)
+
+    | (Optional_last f)::sl', [] ->
          loop nth sl' []
 
     | (Mandatory (f, _))::sl', a::al' ->
@@ -540,7 +585,8 @@ let get_arguments_spec_list () =
      the error message raised by the last executed test (associated to the last list). *)
   let xs =
     match !arguments_register with
-    | (List0 f)::xs -> (List0_last f)::xs
+    | (Optional f)::xs        -> (Optional_last f)::xs
+    | (List0 f)::xs           -> (List0_last f)::xs
     | (List1 (f,err_msg))::xs -> (List1_last (f,err_msg))::xs
     | xs -> xs
   in
@@ -555,7 +601,7 @@ let parse_argv argv =
   (* Parse now the actual arguments: *)
   let () =
     parse_actuals
-      ~usage:(lazy (Arg.usage_string options_spec_list !usage_msg))
+      ~usage_with_options:(lazy (Arg.usage_string options_spec_list !usage_msg))
       ~arguments_spec_list:(get_arguments_spec_list ())
       ~actuals:(List.rev !actuals)
   in
@@ -572,7 +618,7 @@ let parse ?(exit_with_errno=1) () =
   (* Parse now the actual arguments: *)
   let () =
     parse_actuals
-      ~usage:(lazy (Arg.usage_string options_spec_list !usage_msg))
+      ~usage_with_options:(lazy (Arg.usage_string options_spec_list !usage_msg))
       ~arguments_spec_list:(get_arguments_spec_list ())
       ~actuals:(List.rev !actuals)
   in
