@@ -81,6 +81,14 @@ let temp_dir ?temp_dir ?(prefix="") ?(suffix="") ?(perm=0o755) () =
   Unix.chmod result perm; (* Yes, we insist because it seems necessary... *)
   result
 
-let to_absolute x =
+let to_absolute ?parent x =
   if not (Filename.is_relative x) then x else
-  Filename.concat (Sys.getcwd ()) x
+  let parent =
+    match parent with
+    | None -> Sys.getcwd ()
+    | Some p ->
+        if Filename.is_relative p
+          then failwith "to_absolute: non-absolute parent provided"
+          else p
+  in
+  Filename.concat parent x

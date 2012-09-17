@@ -29,4 +29,4 @@ val temp_dir :
   ?perm:int ->
   unit -> string
 
-val to_absolute : string -> string
+val to_absolute : ?parent:string -> string -> string
