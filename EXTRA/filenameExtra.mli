@@ -28,3 +28,5 @@ val temp_dir :
   ?suffix:string ->
   ?perm:int ->
   unit -> string
+
+val to_absolute : string -> string

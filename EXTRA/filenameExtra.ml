@@ -80,3 +80,7 @@ let temp_dir ?temp_dir ?(prefix="") ?(suffix="") ?(perm=0o755) () =
   Unix.mkdir result perm;
   Unix.chmod result perm; (* Yes, we insist because it seems necessary... *)
   result
+
+let to_absolute x =
+  if not (Filename.is_relative x) then x else
+  Filename.concat (Sys.getcwd ()) x
