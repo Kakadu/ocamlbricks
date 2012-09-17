@@ -14,17 +14,17 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** High-level impure but cool API for the standard module [Arg]. *)   
-   
-(** List of available registering functions with their codomain: 
+(** High-level impure but cool API for the standard module [Arg]. *)
+
+(** List of available registering functions with their codomain:
 
 {[val register_usage_msg : string -> unit
 val register_h_option_as_help : unit -> unit
 
-val register_unit_option      : .. -> unit option ref                             
-val register_bool_option      : .. -> bool option ref                                                                          
-val register_string_option    : .. -> string option ref                                                                      
-val register_filename_option  : .. -> string option ref                                                                    
+val register_unit_option      : .. -> unit option ref
+val register_bool_option      : .. -> bool option ref
+val register_string_option    : .. -> string option ref
+val register_filename_option  : .. -> string option ref
 val register_directory_option : .. -> string option ref
 val register_enum_option      : .. -> string option ref
 val register_int_option       : .. -> int option ref
@@ -80,7 +80,7 @@ let files  = register_filename_list1_argument ~r:() ~f:() () ;;
 let main =
   begin
     (* Parse the command line (Sys.argv). The program will exit if something goes wrong parsing the command line: *)
-    parse (); 
+    parse ();
     (* At this point all involved references have been updated: *)
     ...
   end
@@ -105,7 +105,7 @@ Options:
   -help     Display this list of options
   --help    Display this list of options
 
-(* end of example *)  
+(* end of example *)
 ]}
 *)
 
@@ -115,60 +115,61 @@ val register_usage_msg : string -> unit
 
 (** {2 Options without argument} *)
 
-val register_unit_option : 
-  string -> ?doc:string -> ?default:unit option -> 
+val register_unit_option :
+  string -> ?aliases:string list ->
+  ?doc:string -> ?default:unit option -> ?toggle:unit ->
   unit -> unit option ref
 
 (** {2 Options with argument} *)
-  
+
 val register_bool_option :
-  string ->
+  string -> ?aliases:string list ->
   ?arg_name_in_help:string ->
-  ?doc:string -> ?default:bool option -> 
+  ?doc:string -> ?default:bool option ->
   unit -> bool option ref
 
 val register_string_option :
-  string ->
+  string -> ?aliases:string list ->
   ?tests:((string -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
-  ?doc:string -> ?default:string option -> 
+  ?doc:string -> ?default:string option ->
   unit -> string option ref
 
 val register_filename_option :
-  string ->
+  string -> ?aliases:string list ->
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
   ?tests:((string -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
-  ?doc:string -> ?default:string option -> 
+  ?doc:string -> ?default:string option ->
   unit -> string option ref
-  
+
 val register_directory_option :
-  string ->
+  string -> ?aliases:string list ->
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?tests:((string -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
-  ?doc:string -> ?default:string option -> 
+  ?doc:string -> ?default:string option ->
   unit -> string option ref
 
 val register_enum_option :
-  string ->
+  string -> ?aliases:string list ->
   admissible_args:string list ->
-  ?doc:string -> ?default:string option -> 
+  ?doc:string -> ?default:string option ->
   unit -> string option ref
 
 val register_int_option :
-  string ->
+  string -> ?aliases:string list ->
   ?tests:((int -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
-  ?doc:string -> ?default:int option -> 
+  ?doc:string -> ?default:int option ->
   unit -> int option ref
 
 val register_float_option :
-  string ->
+  string -> ?aliases:string list ->
   ?tests:((float -> bool) * error_msg) list ->
   ?arg_name_in_help:string ->
-  ?doc:string -> ?default:float option -> 
+  ?doc:string -> ?default:float option ->
   unit -> float option ref
 
 val register_h_option_as_help : unit -> unit
@@ -177,102 +178,102 @@ val register_h_option_as_help : unit -> unit
 
 val register_string_optional_argument :
   ?tests:((string -> bool) * error_msg) list ->
-  ?default:string option -> 
+  ?default:string option ->
   unit -> string option ref
-  
+
 val register_string_argument :
   ?tests:((string -> bool) * error_msg) list ->
-  ?error_msg:error_msg -> 
+  ?error_msg:error_msg ->
   unit -> string ref
-  
+
 val register_string_list0_argument :
   ?tests:((string -> bool) * error_msg) list ->
   unit -> string list ref
-  
+
 val register_string_list1_argument :
   ?tests:((string -> bool) * error_msg) list ->
-  ?error_msg:error_msg -> 
+  ?error_msg:error_msg ->
   unit -> string list ref
 
 (** {2 Bool arguments } *)
-  
+
 val register_bool_optional_argument :
-  ?default:bool option -> 
+  ?default:bool option ->
   unit -> bool option ref
 
-val register_bool_argument       : 
-  ?error_msg:error_msg -> 
+val register_bool_argument       :
+  ?error_msg:error_msg ->
   unit -> bool ref
 
-val register_bool_list0_argument : 
+val register_bool_list0_argument :
   unit -> bool list ref
 
-val register_bool_list1_argument : 
-  ?error_msg:error_msg -> 
+val register_bool_list1_argument :
+  ?error_msg:error_msg ->
   unit -> bool list ref
 
 (** {2 Int arguments } *)
-  
+
 val register_int_optional_argument :
   ?tests:((int -> bool) * error_msg) list ->
-  ?default:int option -> 
+  ?default:int option ->
   unit -> int option ref
-  
+
 val register_int_argument :
   ?tests:((int -> bool) * error_msg) list ->
-  ?error_msg:error_msg -> 
+  ?error_msg:error_msg ->
   unit -> int ref
-  
+
 val register_int_list0_argument :
   ?tests:((int -> bool) * error_msg) list ->
   unit -> int list ref
-  
+
 val register_int_list1_argument :
   ?tests:((int -> bool) * error_msg) list ->
-  ?error_msg:error_msg -> 
+  ?error_msg:error_msg ->
   unit -> int list ref
 
 (** {2 Float arguments } *)
-  
+
 val register_float_optional_argument :
   ?tests:((float -> bool) * error_msg) list ->
-  ?default:float option -> 
+  ?default:float option ->
   unit -> float option ref
-  
+
 val register_float_argument :
   ?tests:((float -> bool) * error_msg) list ->
-  ?error_msg:error_msg -> 
+  ?error_msg:error_msg ->
   unit -> float ref
-  
+
 val register_float_list0_argument :
   ?tests:((float -> bool) * error_msg) list ->
   unit -> float list ref
-  
+
 val register_float_list1_argument :
   ?tests:((float -> bool) * error_msg) list ->
   ?error_msg:error_msg -> unit -> float list ref
-  
+
 (** {2 Filename arguments } *)
- 
+
 val register_filename_optional_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
   ?tests:((string -> bool) * error_msg) list ->
-  ?default:string option -> 
+  ?default:string option ->
   unit -> string option ref
-  
+
 val register_filename_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
   ?tests:((string -> bool) * error_msg) list ->
   unit -> string ref
-  
+
 val register_filename_list0_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
   ?tests:((string -> bool) * error_msg) list ->
   unit -> string list ref
-  
+
 val register_filename_list1_argument :
   ?r:unit -> ?w:unit -> ?x:unit ->
   ?follow:unit -> ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?h:unit -> ?p:unit -> ?socket:unit ->
@@ -280,7 +281,7 @@ val register_filename_list1_argument :
   unit -> string list ref
 
 (** {2 Parsing functions } *)
-  
+
 val parse_argv : string array -> unit
 val parse : ?exit_with_errno:int -> unit -> unit
 
