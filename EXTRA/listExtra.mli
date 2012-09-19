@@ -153,13 +153,15 @@ val best : ?choice:('a -> 'a -> 'a) -> 'a list -> 'a
 
 val transpose : 'a list list -> 'a list list
 
-(** Association lists. Not more than 1 binding per key ensured. *)
+(** Association lists.
+    Not more than 1 binding per key ensured. *)
 module Assoc :
   sig
     val mem        : 'a -> ('a * 'b) list -> bool
     val remove     : 'a -> ('a * 'b) list -> ('a * 'b) list
     val find       : 'a -> ('a * 'b) list -> 'b
     val add        : 'a -> 'b -> ('a * 'b) list -> ('a * 'b) list
+    val set        : ('a * 'b) list -> 'a -> 'b ->  ('a * 'b) list (* add with flipped arguments *)
     val find_first : 'a list -> ('a * 'b) list -> 'b
   end
 
@@ -171,5 +173,6 @@ module Assq :
     val remove     : 'a -> ('a * 'b) list -> ('a * 'b) list
     val find       : 'a -> ('a * 'b) list -> 'b
     val add        : 'a -> 'b -> ('a * 'b) list -> ('a * 'b) list
+    val set        : ('a * 'b) list -> 'a -> 'b ->  ('a * 'b) list (* add with flipped arguments *)
     val find_first : 'a list -> ('a * 'b) list -> 'b
   end

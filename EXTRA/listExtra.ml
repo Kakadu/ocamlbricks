@@ -432,6 +432,8 @@ let find = List.assoc
 let add x y xys =
   (x,y)::(List.remove_assoc x xys)
 
+let set xys x y = add x y xys
+
 let rec find_first xs ys = match xs with
 | [] -> raise Not_found
 | x::xs -> try List.assoc x ys with Not_found -> find_first xs ys
@@ -445,6 +447,8 @@ let remove  = List.remove_assq
 let find = List.assq
 let add x y xys =
   (x,y)::(List.remove_assq x xys)
+
+let set xys x y = add x y xys
 
 let rec find_first xs ys = match xs with
 | [] -> raise Not_found
