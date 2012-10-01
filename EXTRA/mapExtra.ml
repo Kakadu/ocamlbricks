@@ -30,6 +30,12 @@ module Extend = functor (M:Map.S) -> struct
   let filter (p : key -> 'a -> bool) (m : 'a t) : 'a t =
     fold (fun k a m' -> if p k a then add k a m' else m') m empty
 
+  let filter_map (p : key -> 'a -> bool) (f:'a -> 'b) (m : 'a t) : 'b t =
+    fold (fun k a m' -> if p k a then add k (f a) m' else m') m empty
+
+  let filter_mapi (p : key -> 'a -> bool) (f:key -> 'a -> 'b) (m : 'a t) : 'b t =
+    fold (fun k a m' -> if p k a then add k (f k a) m' else m') m empty
+    
   let of_list ?(acc=empty) (xs : (key * 'a) list) : 'a t =
     List.fold_left (fun m (k,a) -> add k a m) acc xs
 

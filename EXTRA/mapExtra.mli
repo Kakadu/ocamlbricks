@@ -22,13 +22,15 @@ module type S =
 
       (* Extra functions: *)
 
-      val filter    : (key -> 'a -> bool) -> 'a t -> 'a t
-      val of_list   : ?acc:'a t -> (key * 'a) list -> 'a t
-      val to_list   : ?acc:(key * 'a) list -> ?reverse:bool -> 'a t -> (key * 'a) list
-      val domain    : ?reverse:bool -> 'a t -> key list
-      val codomain  : ?reverse:bool -> 'a t -> 'a list
-      val restrict  : 'a t -> key list -> 'a t
-      val substract : 'a t -> key list -> 'a t
+      val filter      : (key -> 'a -> bool) -> 'a t -> 'a t
+      val filter_map  : (key -> 'a -> bool) -> ('a -> 'b) -> 'a t -> 'b t
+      val filter_mapi : (key -> 'a -> bool) -> (key -> 'a -> 'b) -> 'a t -> 'b t
+      val of_list     : ?acc:'a t -> (key * 'a) list -> 'a t
+      val to_list     : ?acc:(key * 'a) list -> ?reverse:bool -> 'a t -> (key * 'a) list
+      val domain      : ?reverse:bool -> 'a t -> key list
+      val codomain    : ?reverse:bool -> 'a t -> 'a list
+      val restrict    : 'a t -> key list -> 'a t
+      val substract   : 'a t -> key list -> 'a t
     end
 
 
