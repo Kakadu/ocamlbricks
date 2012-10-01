@@ -25,6 +25,7 @@ module type S =
       val filter      : (key -> 'a -> bool) -> 'a t -> 'a t
       val filter_map  : (key -> 'a -> bool) -> ('a -> 'b) -> 'a t -> 'b t
       val filter_mapi : (key -> 'a -> bool) -> (key -> 'a -> 'b) -> 'a t -> 'b t
+      val product     : 'a t -> 'b t -> ('a * 'b) t
       val of_list     : ?acc:'a t -> (key * 'a) list -> 'a t
       val to_list     : ?acc:(key * 'a) list -> ?reverse:bool -> 'a t -> (key * 'a) list
       val domain      : ?reverse:bool -> 'a t -> key list
@@ -66,14 +67,16 @@ module Destructive : sig
 
       (* Extra functions: *)
 
-      val copy      : 'a t -> 'a t
-      val filter    : (key -> 'a -> bool) -> 'a t -> unit
-      val of_list   : ?acc:'a t -> (key * 'a) list -> 'a t
-      val to_list   : ?acc:(key * 'a) list -> ?reverse:bool -> 'a t -> (key * 'a) list
-      val domain    : ?reverse:bool -> 'a t -> key list
-      val codomain  : ?reverse:bool -> 'a t -> 'a list
-      val restrict  : 'a t -> key list -> unit
-      val substract : 'a t -> key list -> unit
+      val copy        : 'a t -> 'a t
+      val filter      : (key -> 'a -> bool) -> 'a t -> unit
+      val filter_map  : (key -> 'a -> bool) -> ('a -> 'a) -> 'a t -> unit
+      val filter_mapi : (key -> 'a -> bool) -> (key -> 'a -> 'a) -> 'a t -> unit
+      val of_list     : ?acc:'a t -> (key * 'a) list -> 'a t
+      val to_list     : ?acc:(key * 'a) list -> ?reverse:bool -> 'a t -> (key * 'a) list
+      val domain      : ?reverse:bool -> 'a t -> key list
+      val codomain    : ?reverse:bool -> 'a t -> 'a list
+      val restrict    : 'a t -> key list -> unit
+      val substract   : 'a t -> key list -> unit
     end
 
 
