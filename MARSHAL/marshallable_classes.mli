@@ -79,6 +79,17 @@ and marshaller :
       ('objects_t -> unit) ->                                  (* setter *)
         unit
 
+    method register_trifunctorized_objects_field :
+    'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t .
+      ?name:string ->                                          (* name *)
+      (('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> 'ace_t -> 'bdf_t) -> (* trifunctor *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj3)) ->  (* object maker 3 *)
+      (unit -> 'objects_t) ->                                  (* getter *)
+      ('objects_t -> unit) ->                                  (* setter *)
+        unit
+
     method parent_class_name : string option
 
     method protected_load_from_string_in_a_context : Unmarshalling_env.t -> string -> unit * Unmarshalling_env.t

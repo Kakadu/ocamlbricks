@@ -618,6 +618,85 @@ object (self)
          self#register_string_adapted_accessors ?field_name:name
            (self#adapt_bifunctorized_objects_field map1 map2 maker1 maker2 real_get real_set)
 
+  (* ---------------------------------------------
+       Registering TRI-FUNCTORIZED OBJECTS fields
+     --------------------------------------------- *)
+
+  method private adapt_trifunctorized_objects_field
+     :  'objects_t.
+
+        (* bifunctor map1 *)
+        (((< marshaller : marshaller; .. > as 'obj1) -> marshallable) ->
+         ((< marshaller : marshaller; .. > as 'obj2) -> marshallable) ->
+         ((< marshaller : marshaller; .. > as 'obj3) -> marshallable) -> 'objects_t -> marshallable) ->
+
+        (* bifunctor map2 *)
+        ((marshallable -> 'obj1) -> (marshallable -> 'obj2) -> (marshallable -> 'obj3) -> marshallable -> 'objects_t) ->
+
+        (unit -> 'obj1) ->         (* object maker 1 *)
+        (unit -> 'obj2) ->         (* object maker 2 *)
+        (unit -> 'obj3) ->         (* object maker 3 *)
+        (unit -> 'objects_t) ->    (* getter *)
+        ('objects_t -> unit) ->    (* setter *)
+
+        Fields_register.string_adapted_accessors (* result *)
+     =
+     fun map1 map2 object_maker1 object_maker2 object_maker3 real_get real_set ->
+     let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
+       fun marshalling_env () ->
+         let objects_t = real_get () in
+         let marshallable_t, marshalling_env =
+           (Functor.map_and_fold_of_trifunctor map1)
+             (self#marshallable_of_object)
+             (self#marshallable_of_object)
+             (self#marshallable_of_object)
+             (marshalling_env)
+             objects_t
+         in
+         (Datum (Obj.magic marshallable_t), marshalling_env)
+     in
+     let string_adapted_set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t =
+       fun unmarshalling_env ->
+         function
+         | Datum x ->
+             let marshallable_t = Obj.magic x in
+             let objects_t, unmarshalling_env =
+               (Functor.map_and_fold_of_trifunctor map2)
+                 (self#object_of_marshallable ~object_getter_or_maker:object_maker1)
+                 (self#object_of_marshallable ~object_getter_or_maker:object_maker2)
+                 (self#object_of_marshallable ~object_getter_or_maker:object_maker3)
+                 (unmarshalling_env)
+                 marshallable_t
+             in
+             ((real_set objects_t), unmarshalling_env)
+
+         (* The field is a non-object structure containing objects *)
+         | Pointer _ -> (assert false)
+     in
+     { Fields_register.get = string_adapted_get;
+       Fields_register.set = string_adapted_set}
+
+
+  method register_trifunctorized_objects_field
+     :  'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t .
+        ?name:string ->                                          (* name *)
+        (('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> 'ace_t -> 'bdf_t) -> (* trifunctor *)
+        (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
+        (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
+        (unit -> (< marshaller : marshaller; .. > as 'obj3)) ->  (* object maker 3 *)
+        (unit -> 'objects_t) ->                                  (* getter *)
+        ('objects_t -> unit) ->                                  (* setter *)
+          unit
+     = fun ?name trifunctor_map object_maker1 object_maker2 object_maker3 real_get real_set ->
+         let map1 = Obj.magic trifunctor_map in
+         let map2 = Obj.magic trifunctor_map in
+         (* Because of a strange typing problem: *)
+         let maker1 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker1 in
+         let maker2 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker2 in
+         let maker3 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker3 in
+         self#register_string_adapted_accessors ?field_name:name
+           (self#adapt_trifunctorized_objects_field map1 map2 maker1 maker2 maker3 real_get real_set)
+
   (* --------------------------------------
           S A V I N G    (marshalling)
      -------------------------------------- *)
