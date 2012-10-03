@@ -26,6 +26,10 @@ val extract_or        : ('a,'b) t -> 'b -> 'b
 val extract_or_force  : ('a,'b) t-> 'b Lazy.t -> 'b
 val extract_from_list : ?acc:'b list -> ('a,'b) t list -> 'b list
 
+(* Raise Invalid_argument *)
+val right : ('a,'b) t -> 'b
+val left  : ('a,'b) t -> 'a
+
 val iter : ('b -> unit) -> ('a,'b) t -> unit
 val map  : ('b -> 'c) -> ('a,'b) t -> ('a,'c) t
 val bind : ('a,'b) t -> ('b -> ('a,'c) t) -> ('a,'c) t
@@ -40,3 +44,6 @@ val list_of : ('a,'b) t -> 'b list
 
 val to_string : ?a:('a -> string) -> ?b:('b -> string) -> ('a, 'b) t -> string
 
+module Bifunctor : sig
+  val map : ('a0 -> 'a1) -> ('b0 -> 'b1) -> ('a0,'b0) t -> ('a1,'b1) t
+end

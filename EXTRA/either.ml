@@ -17,6 +17,16 @@
 type ('a,'b) t = Left of 'a | Right of 'b
 type ('a,'b) either = ('a,'b) t
 
+let right =
+ function
+  | Right b -> b
+  | Left  _ -> invalid_arg "Either.right"
+
+let left =
+ function
+  | Left  a -> a
+  | Right _ -> invalid_arg "Either.left"
+
 let extract ?(failwith_msg="Either.extract") ?(fallback=(fun _ -> failwith failwith_msg)) =
  function
   | Left a -> fallback a
@@ -69,3 +79,14 @@ let to_string ?(a=fun _ -> "_") ?(b=fun _ -> "_") =
  function
  | Left  x -> "Left "^(a x)
  | Right x -> "Right "^(b x)
+
+module Bifunctor = struct
+
+ let map : ('a0 -> 'a1) -> ('b0 -> 'b1) -> ('a0,'b0) t -> ('a1,'b1) t =
+   fun f1 f2 ->
+     function
+     | Left  a -> Left  (f1 a)
+     | Right b -> Right (f2 b)
+
+end
+

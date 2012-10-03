@@ -23,9 +23,9 @@ type field_name = string
 class marshallable_class :
   ?name:string ->
   marshaller:marshaller option ref ->
-  unit -> 
-  object 
-    method marshaller : marshaller 
+  unit ->
+  object
+    method marshaller : marshaller
   end
 
 and marshaller :
@@ -35,34 +35,58 @@ and marshaller :
   object
     method save_to_string : string
     method save_to_file   : string -> unit
-    
+
     method load_from_string : ?mapping:(field_name -> field_name) -> string -> unit
     method load_from_file   : ?mapping:(field_name -> field_name) -> string -> unit
-    
+
     method compare : < marshaller : marshaller; .. > -> int
     method equals  : < marshaller : marshaller; .. > -> bool
     method md5sum  : string
     method hash    : int
 
-    method register_functorized_object_field : 
-      ?name:string -> 'd -> 'e -> 'f -> 'g -> unit
-    
-    method register_object_field : 
-      ?name:string -> 
-      (unit -> (< marshaller : marshaller; .. > as 'h)) ->
-      ('h -> unit) -> unit
-    
+    (* Reload the object with himself in order to make its components as possible simplest
+       (remove the surplus of components attributes caused by some casting operations (:>)) *)
+    method remake_simplest : unit
+
     method register_simple_field :
-      ?name:string -> (unit -> 'i) -> ('i -> unit) -> unit
-    
+      ?name:string ->                                          (* the field name *)
+      (unit -> 'a) ->                                          (* the field getter *)
+      ('a -> unit) ->                                          (* the field setter *)
+      unit
+
+    method register_object_field :
+      ?name:string ->                                          (* the field name *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the field getter *)
+      ('obj -> unit) ->                                        (* the field setter *)
+      unit
+
+    method register_functorized_object_field :
+    'obj 'obj_t 'a 'b 'a_t 'b_t.
+      ?name:string ->                                          (* the field name *)
+      (('a -> 'b) -> 'a_t -> 'b_t) ->                          (* the functor *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the object maker *)
+      (unit -> 'obj_t) ->                                      (* the field getter *)
+      ('obj_t -> unit) ->                                      (* the field setter *)
+      unit
+
+    method register_bifunctorized_objects_field :
+    'obj1 'obj2 'objects_t 'a 'b 'c 'd 'ac_t 'bd_t.
+      ?name:string ->                                          (* name *)
+      (('a -> 'b) -> ('c -> 'd) -> 'ac_t -> 'bd_t) ->          (* bifunctor *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
+      (unit -> 'objects_t) ->                                  (* getter *)
+      ('objects_t -> unit) ->                                  (* setter *)
+        unit
+
     method parent_class_name : string option
-    
+
     method protected_load_from_string_in_a_context : Unmarshalling_env.t -> string -> unit * Unmarshalling_env.t
     method protected_save_to_string_in_a_context   : Marshalling_env.t   -> string * Marshalling_env.t
-    
+
   end
 
-  
+
 val marshallable_classes_version  : string
 val marshallable_classes_metadata : unit -> string
 
@@ -82,10 +106,13 @@ module Example :
       object
         method get_field0 : int
         method set_field0 : int -> unit
+
         method get_field1 : string
         method set_field1 : string -> unit
+
         method get_field2 : int option
         method set_field2 : int option -> unit
+
         method marshaller : marshaller
       end
     class class2 :
@@ -94,16 +121,22 @@ module Example :
       object
         method get_field0 : int
         method set_field0 : int -> unit
+
         method get_field1 : string
         method set_field1 : string -> unit
+
         method get_field2 : int option
         method set_field2 : int option -> unit
+
         method get_field3 : class1
         method set_field3 : class1 -> unit
+
         method get_field4 : class2 option
         method set_field4 : class2 option -> unit
+
         method get_field5 : class2 list
         method set_field5 : class2 list -> unit
+
         method marshaller : marshaller
       end
     class class3 :
@@ -112,18 +145,28 @@ module Example :
       object
         method get_field0 : int
         method set_field0 : int -> unit
+
         method get_field1 : string
         method set_field1 : string -> unit
+
         method get_field2 : int option
         method set_field2 : int option -> unit
+
         method get_field3 : class1
         method set_field3 : class1 -> unit
+
         method get_field4 : class2 option
         method set_field4 : class2 option -> unit
+
         method get_field5 : class2 list
         method set_field5 : class2 list -> unit
+
         method get_field6 : char
         method set_field6 : char -> unit
+
+        method get_field7 : (class2, class3) Either.t
+        method set_field7 : (class2, class3) Either.t -> unit
+
         method marshaller : marshaller
       end
     val crash_test : unit -> unit
