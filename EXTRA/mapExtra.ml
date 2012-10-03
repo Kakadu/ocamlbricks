@@ -36,9 +36,9 @@ module Extend = functor (M:Map.S) -> struct
   let filter_mapi (p : key -> 'a -> bool) (f:key -> 'a -> 'b) (m : 'a t) : 'b t =
     fold (fun k a m' -> if p k a then add k (f k a) m' else m') m empty
 
-  let product (m1:'a t) (m2:'b t) : ('a * 'b) t = 
-    filter_mapi (fun k _ -> mem k m2) (fun k a -> (a, (find k m2))) m1  
-    
+  let product (m1:'a t) (m2:'b t) : ('a * 'b) t =
+    filter_mapi (fun k _ -> mem k m2) (fun k a -> (a, (find k m2))) m1
+
   let of_list ?(acc=empty) (xs : (key * 'a) list) : 'a t =
     List.fold_left (fun m (k,a) -> add k a m) acc xs
 
@@ -124,7 +124,7 @@ module Destructive = struct
   let filter f t = (t := Persistent.filter f !t)
   let filter_map  p f t = (t := Persistent.filter_map  p f !t)
   let filter_mapi p f t = (t := Persistent.filter_mapi p f !t)
-  
+
   let of_list ?acc l =
     let acc = match acc with None -> None | Some t -> Some (!t) in
     ref (Persistent.of_list ?acc l)

@@ -89,28 +89,6 @@ let extract_or_force xo y = match xo with
  | None   -> Lazy.force y
 end
 
-(* A reference-based map to map&fold converter: *)
-let map_and_fold map (f:('a -> 'b -> 'c * 'a)) (s0:'a) xs =
-  let state = ref s0 in
-  let ys = map (fun x -> let (c,a) = f !state x in state := a; c) xs in
-  (ys, !state)
-
-let map_and_fold2
-  map2
-  (f1:('a -> 'b1 -> 'c * 'a))
-  (f2:('a -> 'b2 -> 'c * 'a))
-  (s0:'a)
-  xs
-  =
-  let state = ref s0 in
-  let ys =
-    map2
-      (fun x1 -> let (c,a) = f1 !state x1 in state := a; c)
-      (fun x2 -> let (c,a) = f2 !state x2 in state := a; c)
-      xs
-  in
-  (ys, !state)
-
 type oid = Oid of int
 type index = int
 type next_index = int
@@ -515,19 +493,19 @@ object (self)
 
   method private adapt_functorized_object_field
      :  'obj_t.
-        (((< marshaller : marshaller; .. > as 'obj) -> marshallable) -> 'obj_t -> marshallable) -> (* functor_map1 *)
-        ((marshallable -> 'obj) -> marshallable -> 'obj_t) ->                                      (* functor_map2 *)
+        (((< marshaller : marshaller; .. > as 'obj) -> marshallable) -> 'obj_t -> marshallable) -> (* functor map1 *)
+        ((marshallable -> 'obj) -> marshallable -> 'obj_t) ->                                      (* functor map2 *)
         (unit -> 'obj) ->                                                                          (* object maker *)
         (unit -> 'obj_t) ->                                                                        (* getter *)
         ('obj_t -> unit) ->                                                                        (* setter *)
         Fields_register.string_adapted_accessors (* result *)
      =
-     fun functor_map1 functor_map2 object_maker real_get real_set ->
+     fun map1 map2 object_maker real_get real_set ->
      let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
        fun marshalling_env () ->
          let object_t = real_get () in
          let marshallable_t, marshalling_env =
-           (map_and_fold functor_map1) (self#marshallable_of_object) (marshalling_env) object_t
+           (Functor.map_and_fold_of_functor map1) (self#marshallable_of_object) (marshalling_env) object_t
          in
          (Datum (Obj.magic marshallable_t), marshalling_env)
      in
@@ -537,7 +515,7 @@ object (self)
          | Datum x ->
              let marshallable_t = Obj.magic x in
              let object_t, unmarshalling_env =
-               (map_and_fold functor_map2)
+               (Functor.map_and_fold_of_functor map2)
                  (self#object_of_marshallable ~object_getter_or_maker:object_maker)
                  (unmarshalling_env)
                  marshallable_t
@@ -562,6 +540,7 @@ object (self)
      = fun ?name functor_map object_maker real_get real_set ->
          let map1 = Obj.magic functor_map in
          let map2 = Obj.magic functor_map in
+         (* Because of a strange typing problem: *)
          let object_maker : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker in
          self#register_string_adapted_accessors ?field_name:name
            (self#adapt_functorized_object_field map1 map2 object_maker real_get real_set)
@@ -573,11 +552,11 @@ object (self)
   method private adapt_bifunctorized_objects_field
      :  'objects_t.
 
-        (* bifunctor_map1 *)
+        (* bifunctor map1 *)
         (((< marshaller : marshaller; .. > as 'obj1) -> marshallable) ->
          ((< marshaller : marshaller; .. > as 'obj2) -> marshallable) -> 'objects_t -> marshallable) ->
 
-        (* bifunctor_map2 *)
+        (* bifunctor map2 *)
         ((marshallable -> 'obj1) -> (marshallable -> 'obj2) -> marshallable -> 'objects_t) ->
 
         (unit -> 'obj1) ->         (* object maker 1 *)
@@ -587,12 +566,12 @@ object (self)
 
         Fields_register.string_adapted_accessors (* result *)
      =
-     fun functor_map1 functor_map2 object_maker1 object_maker2 real_get real_set ->
+     fun map1 map2 object_maker1 object_maker2 real_get real_set ->
      let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
        fun marshalling_env () ->
          let objects_t = real_get () in
          let marshallable_t, marshalling_env =
-           (map_and_fold2 functor_map1)
+           (Functor.map_and_fold_of_bifunctor map1)
              (self#marshallable_of_object)
              (self#marshallable_of_object)
              (marshalling_env)
@@ -606,7 +585,7 @@ object (self)
          | Datum x ->
              let marshallable_t = Obj.magic x in
              let objects_t, unmarshalling_env =
-               (map_and_fold2 functor_map2)
+               (Functor.map_and_fold_of_bifunctor map2)
                  (self#object_of_marshallable ~object_getter_or_maker:object_maker1)
                  (self#object_of_marshallable ~object_getter_or_maker:object_maker2)
                  (unmarshalling_env)
@@ -633,6 +612,7 @@ object (self)
      = fun ?name bifunctor_map object_maker1 object_maker2 real_get real_set ->
          let map1 = Obj.magic bifunctor_map in
          let map2 = Obj.magic bifunctor_map in
+         (* Because of a strange typing problem: *)
          let maker1 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker1 in
          let maker2 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker2 in
          self#register_string_adapted_accessors ?field_name:name

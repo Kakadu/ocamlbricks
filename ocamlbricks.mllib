@@ -33,6 +33,7 @@ Endpoint
 Environment
 FilenameExtra
 Fix
+Functor
 Future
 Gettext_builder
 Hashmap
