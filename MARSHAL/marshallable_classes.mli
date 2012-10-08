@@ -19,6 +19,7 @@ module Marshalling_env   : sig type t end
 module Unmarshalling_env : sig type t end
 
 type field_name = string
+type object_structure
 
 class marshallable_class :
   ?name:string ->
@@ -64,7 +65,7 @@ and marshaller :
     'obj 'obj_t 'a 'b 'a_t 'b_t.
       ?name:string ->                                          (* the field name *)
       (('a -> 'b) -> 'a_t -> 'b_t) ->                          (* the functor *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the object maker *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the object maker (simplest constructor) *)
       (unit -> 'obj_t) ->                                      (* the field getter *)
       ('obj_t -> unit) ->                                      (* the field setter *)
       unit
@@ -73,8 +74,8 @@ and marshaller :
     'obj1 'obj2 'objects_t 'a 'b 'c 'd 'ac_t 'bd_t.
       ?name:string ->                                          (* name *)
       (('a -> 'b) -> ('c -> 'd) -> 'ac_t -> 'bd_t) ->          (* bifunctor *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 (simplest constructor) *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 (simplest constructor) *)
       (unit -> 'objects_t) ->                                  (* getter *)
       ('objects_t -> unit) ->                                  (* setter *)
         unit
@@ -83,17 +84,18 @@ and marshaller :
     'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t .
       ?name:string ->                                          (* name *)
       (('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> 'ace_t -> 'bdf_t) -> (* trifunctor *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj3)) ->  (* object maker 3 *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 (simplest constructor) *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 (simplest constructor) *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj3)) ->  (* object maker 3 (simplest constructor) *)
       (unit -> 'objects_t) ->                                  (* getter *)
       ('objects_t -> unit) ->                                  (* setter *)
         unit
 
     method parent_class_name : string option
 
-    method protected_load_from_string_in_a_context : Unmarshalling_env.t -> string -> unit * Unmarshalling_env.t
-    method protected_save_to_string_in_a_context   : Marshalling_env.t   -> string * Marshalling_env.t
+    (* Internal methods (shoud be protected), not for users: *)
+    method protected_load_from_object_structure : Unmarshalling_env.t -> object_structure -> unit * Unmarshalling_env.t
+    method protected_save_to_object_structure   : Marshalling_env.t -> object_structure * Marshalling_env.t
 
   end
 
@@ -107,6 +109,11 @@ val disable_warnings : unit -> unit
 val enable_tracing  : unit -> unit
 val disable_tracing : unit -> unit
 
+(* After class definition, don't forget to register a basic constructor: *)
+(*type 'a whatever_object = < .. > as 'a
+type 'a basic_class_constructor = unit -> 'a whatever_object
+val register_basic_constructor : class_name:string -> 'a basic_class_constructor -> unit
+val get_basic_constructor : string -> involved_field:string -> involved_class:string -> 'a basic_class_constructor*)
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Example :

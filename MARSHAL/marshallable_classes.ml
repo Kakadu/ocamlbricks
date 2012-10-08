@@ -90,7 +90,6 @@ let extract_or_force xo y = match xo with
 end
 
 type oid = Oid of int
-type index = int
 type next_index = int
 
 type magic = int ref (* just a pointer... *)
@@ -128,16 +127,43 @@ module Oid_map = Map_Make (struct type t = oid let compare = compare end)
 module Int_map = Map_Make (struct type t = int let compare = compare end)
 module String_map = Map_Make (struct type t = string let compare = compare end)
 
+
+(* **************************************** *
+    Marshalling/Unmarshalling environments
+ * **************************************** *)
+
+type index = int
+ 
 (* In any case marshallable without closures: *)
 type marshallable =
   | Pointer of index (* to an object or a string (representing the object) *)
-  | Datum of magic
+  | Datum of magic   (* something marshallable without closures *)
 
-(* Marshalling environments: *)
+type field_name = string
+type labelled_values = (field_name * marshallable) (* ordered *) list
+type unlabelled_values = marshallable list
+
+(* This structure requires a saving or loading environment in order to be meaningfull. 
+   (because we have to correctly interpret pointers) *)
+type object_structure = {
+  class_name        : string option;
+  labelled_values   : (field_name * marshallable) (* ordered *) list;
+  unlabelled_values : marshallable list;
+  }
+
+(* The ready-to-be-marshalled structure representing objects: *)
+type object_closure = 
+  index_struct_list * object_structure
+
+and index_struct_list = 
+  (index * object_structure) (* ordered *) list
+  
+
+(* Environments used for marshalling (saving): *)
 module Marshalling_env = struct
- type t = next_index * oid_index_env * index_string_env
+ type t = next_index * oid_index_env * index_struct_env
   and oid_index_env    = index  Oid_map.t (* oid   -> index *)
-  and index_string_env = string Int_map.t (* index -> string *)
+  and index_struct_env = object_structure Int_map.t (* index -> object_structure *)
 
  let initial ~parent_oid =
    let parent_index = 0 in
@@ -145,79 +171,68 @@ module Marshalling_env = struct
    let oid_index_env =
       Oid_map.add (Oid parent_oid) (parent_index) (Oid_map.empty)
    in
-   let index_string_env = Int_map.empty in
-   (next_index, oid_index_env, index_string_env)
+   let index_struct_env = Int_map.empty in
+   (next_index, oid_index_env, index_struct_env)
 
  let search_index_by_oid oid t =
-   let (next_index, oid_index_env, index_string_env) = t in
+   let (next_index, oid_index_env, index_struct_env) = t in
    try
      Some (Oid_map.find oid oid_index_env)
    with Not_found -> None
 
  let add_oid_and_get_index (oid:oid) (t:t) : (t * index) =
-   let (next_index, oid_index_env, index_string_env) = t in
+   let (next_index, oid_index_env, index_struct_env) = t in
    let index = next_index in
    let oid_index_env' =  Oid_map.add oid index oid_index_env in
    let next_index'    = index + 1 in
-   let t' = (next_index', oid_index_env', index_string_env) in
+   let t' = (next_index', oid_index_env', index_struct_env) in
    (t', index)
 
- let add_marshalled_object (index:index) (str:string) (t:t) : t =
-   let (next_index, oid_index_env, index_string_env) = t in
-   let index_string_env' = Int_map.add index str index_string_env in
-   let t' = (next_index, oid_index_env, index_string_env') in
+ let add_object_structure (index:index) (str:object_structure) (t:t) : t =
+   let (next_index, oid_index_env, index_struct_env) = t in
+   let index_struct_env' = Int_map.add index str index_struct_env in
+   let t' = (next_index, oid_index_env, index_struct_env') in
    t'
 
- let extract_index_string_env (t:t) : (index * string) (* ordered *) list =
-   let (next_index, oid_index_env, index_string_env) = t in
-   Int_map.to_list index_string_env
+ let extract_index_struct_env (t:t) : (index * object_structure) (* ordered *) list =
+   let (next_index, oid_index_env, index_struct_env) = t in
+   Int_map.to_list index_struct_env
 
 end (* module Marshalling_env *)
 
 (* Unmarshalling environments: *)
 module Unmarshalling_env = struct
 
- (* index -> (Left of string | Right of object) *)
+ (* index -> (Left of object_structure | Right of object) *)
  type t = {
-   index_map : ((string, magic) either) Int_map.t;
+   index_map : ((object_structure, magic) either) Int_map.t;
    label_mapping : (string -> string) option
    }
 
- let get_string_or_object_by_index index t =
+ let get_structure_or_object_by_index index t =
    Int_map.find (index) t.index_map
 
- let replace_string_with_object (index:index) obj t =
+ let replace_structure_with_object (index:index) obj t =
    {t with index_map = Int_map.add index (Right obj) t.index_map; }
 
- let initial ?mapping ~(parent:magic) ~(index_string_list: (index * string) list) () =
+ let initial ?mapping ~(parent:magic) ~(index_struct_list: (index * object_structure) list) () =
    let parent_index = 0 in
-   let index_string_env = Int_map.of_list index_string_list in
-   let imported_index_string_env =
-     Int_map.map (fun str -> Left str) index_string_env
+   let index_struct_env = Int_map.of_list index_struct_list in
+   let imported_index_struct_env =
+     Int_map.map (fun str -> Left str) index_struct_env
    in
    let label_mapping =
      Option.map
        (fun f -> fun x -> try f x with _ -> x)
        mapping
    in
-   { index_map = Int_map.add parent_index (Right parent) (imported_index_string_env);
+   { index_map = Int_map.add parent_index (Right parent) (imported_index_struct_env);
      label_mapping = label_mapping; }
 
  let extract_label_mapping t = t.label_mapping
 
 end (* module Marshalling_env *)
 
-type field_name = string
-type label = string
-type labelled_values = (label * marshallable) list
-type unlabelled_values = marshallable list
-
-(* The ready-to-be-marshalled structure representing objects: *)
-type mystic_structure = {
-  labelled_values   : labelled_values;
-  unlabelled_values : unlabelled_values;
-  index_string_list : (index * string) (* ordered *) list;
-  }
 
 module Fields_register = struct
 
@@ -242,7 +257,7 @@ module Fields_register = struct
    | None      -> {t with anonymous_fields=(saa :: t.anonymous_fields)}
    | Some name -> {t with named_fields = String_map.add name saa t.named_fields}
 
- let match_named_fields_with_labelled_values ?class_name ?label_mapping (t:t) (labelled_values: (string * 'a) list)
+ let match_named_fields_with_labelled_values ?foreign_class_name ?class_name ?label_mapping (t:t) (labelled_values: (string * 'a) list)
    : (string_adapted_accessors * 'a) list
    =
    let labelled_values = match label_mapping with
@@ -264,11 +279,11 @@ module Fields_register = struct
      match (compare nf nv), (nm < (min nf nv)) with
      | -1, false ->
 	Printf.kfprintf flush stderr
-	  "Warning: loading %s from a serialized richer object (%d labelled values expected, %d found).\n"
+	  "Warning: loading %s from a serialized richer object (%d/%d labelled values taken).\n"
 	  (Lazy.force what) nf nv
      |  1, false ->
 	Printf.kfprintf flush stderr
-	  "Warning: loading %s from a serialized poorer object (%d labelled values expected, %d found).\n"
+	  "Warning: loading %s from a serialized poorer object (%d/%d labelled values taken).\n"
 	  (Lazy.force what) nf nv
      |  0, false -> ()
      | _ ->
@@ -279,7 +294,7 @@ module Fields_register = struct
    (* Now forget field names: *)
    List.map snd matching_as_list
 
- let match_anonymous_fields_with_unlabelled_values ?class_name (t:t) (unlabelled_values: 'a list)
+ let match_anonymous_fields_with_unlabelled_values ?foreign_class_name ?class_name (t:t) (unlabelled_values: 'a list)
    : (string_adapted_accessors * 'a) list
    =
    let what = lazy (match class_name with
@@ -294,7 +309,7 @@ module Fields_register = struct
          let () =
            if are_warnings_disabled () then () else
            Printf.kfprintf flush stderr
-             "Warning: loading the anonymous fields of %s from a serialized richer object (%d values expected, %d found).\n"
+             "Warning: loading the anonymous fields of %s from a serialized richer object (%d/%d values taken).\n"
              (Lazy.force what)
              (List.length t.anonymous_fields)
              (List.length unlabelled_values)
@@ -303,7 +318,7 @@ module Fields_register = struct
          let () =
            if are_warnings_disabled () then () else
            Printf.kfprintf flush stderr
-             "Warning: loading the anonymous fields of %s from a serialized poorer object (%d values expected, %d found).\n"
+             "Warning: loading the anonymous fields of %s from a serialized poorer object (%d/%d values taken).\n"
              (Lazy.force what)
              (List.length t.anonymous_fields)
              (List.length unlabelled_values)
@@ -418,10 +433,10 @@ object (self)
         (if is_tracing_enable () then
           Printf.kfprintf flush stderr "marshallable_of_object: added object (oid = %d) with index %d\n" (Oo.id obj) index);
         let (str, marshalling_env) =
-          obj#marshaller#protected_save_to_string_in_a_context marshalling_env
+          obj#marshaller#protected_save_to_object_structure marshalling_env
         in
         let marshalling_env =
-          Marshalling_env.add_marshalled_object index str marshalling_env
+          Marshalling_env.add_object_structure index str marshalling_env
         in
         let pointer = (Pointer index) in
         (pointer, marshalling_env)
@@ -431,16 +446,16 @@ object (self)
       function
       | Pointer index ->
          begin
-          match Unmarshalling_env.get_string_or_object_by_index index unmarshalling_env with
-	  | Left (x:string) ->
+          match Unmarshalling_env.get_structure_or_object_by_index index unmarshalling_env with
+	  | Left (obj_structure : object_structure) ->
 	      let obj = object_getter_or_maker () in
               (if is_tracing_enable () then
 	        Printf.kfprintf flush stderr "object_of_marshallable: adding object (oid = %d) with index %d then unmarshalling\n" (Oo.id obj) index);
 	      let unmarshalling_env =
-		Unmarshalling_env.replace_string_with_object index (Obj.magic obj) unmarshalling_env
+		Unmarshalling_env.replace_structure_with_object index (Obj.magic obj) unmarshalling_env
 	      in
 	      let (), unmarshalling_env =
-		obj#marshaller#protected_load_from_string_in_a_context unmarshalling_env x
+		obj#marshaller#protected_load_from_object_structure (unmarshalling_env) (obj_structure)
 	      in
 	      (obj, unmarshalling_env)
 
@@ -702,45 +717,41 @@ object (self)
      -------------------------------------- *)
 
   method save_to_string : string =
-    let mystic_structure = self#save_to_mystic_structure in
-    Marshal.to_string (mystic_structure) (_WITHOUT_CLOSURES_OF_COURSE)
+    let object_closure = self#save_to_object_closure in
+    Marshal.to_string (object_closure) (_WITHOUT_CLOSURES_OF_COURSE)
 
   method save_to_file filename =
-    let mystic_structure = self#save_to_mystic_structure in
+    let object_closure = self#save_to_object_closure in
     with_open_out_bin ~filename
       (fun out_channel ->
          Marshal.to_channel out_channel
-           (mystic_structure)
+           (object_closure)
            (_WITHOUT_CLOSURES_OF_COURSE))
 
-  method private save_to_mystic_structure : mystic_structure =
-    let ((labelled_values, unlabelled_values), marshalling_env) =
-      self#save_to_labelled_and_unlabelled_values
+  method private save_to_object_closure : object_closure =
+    let (object_structure, marshalling_env) =
+      self#protected_save_to_object_structure
         (Marshalling_env.initial ~parent_oid:(Oo.id parent))
     in
     (* Extract now the index->string environment from the marshalling_env: *)
-    let index_string_list =
-      Marshalling_env.extract_index_string_env marshalling_env
+    let index_struct_list =
+      Marshalling_env.extract_index_struct_env marshalling_env
     in
-    { labelled_values=labelled_values;
-      unlabelled_values=unlabelled_values;
-      index_string_list=index_string_list; }
+    let object_closure = (index_struct_list, object_structure) in
+    object_closure
 
-  method (* private *) protected_save_to_string_in_a_context marshalling_env : string * Marshalling_env.t =
-    let ((labelled_values, unlabelled_values), marshalling_env) =
-      self#save_to_labelled_and_unlabelled_values marshalling_env
-    in
-    let str = Marshal.to_string (labelled_values, unlabelled_values) (_WITHOUT_CLOSURES_OF_COURSE) in
-    (str, marshalling_env)
-
-  method private save_to_labelled_and_unlabelled_values
-    (marshalling_env : Marshalling_env.t)
-    : (labelled_values * unlabelled_values) * Marshalling_env.t
+  method (* protected *) protected_save_to_object_structure (marshalling_env) : object_structure * Marshalling_env.t
     =
     let labelled_values,   marshalling_env = self#save_to_labelled_values   (marshalling_env) in
     let unlabelled_values, marshalling_env = self#save_to_unlabelled_values (marshalling_env) in
-    ((labelled_values, unlabelled_values), marshalling_env)
-
+    let object_structure = { 
+      class_name = self#parent_class_name;
+      labelled_values = labelled_values;
+      unlabelled_values = unlabelled_values;
+      }
+    in
+    (object_structure, marshalling_env)
+    
   method private save_to_labelled_values (marshalling_env) =
     let (result: (string*marshallable) list), marshalling_env =
       List.fold_left
@@ -774,12 +785,12 @@ object (self)
 
   (* Loading from a string: *)
   method load_from_string ?mapping (str:string) : unit =
-    let mystic_structure = (Marshal.from_string str 0) in
-    self#load_from_mystic_structure ?mapping mystic_structure
+    let object_closure = (Marshal.from_string str 0) in
+    self#load_from_object_closure ?mapping object_closure
 
   (* Loading from a file: *)
   method load_from_file ?mapping filename : unit =
-    let (mystic_structure : mystic_structure) =
+    let (object_closure : object_closure) =
       try
         with_open_in_bin ~filename
           (fun in_channel length ->
@@ -787,56 +798,47 @@ object (self)
       with _ ->
         failwith "load_from_file: failed unmarshalling the file content"
     in
-    self#load_from_mystic_structure ?mapping (mystic_structure)
+    self#load_from_object_closure ?mapping (object_closure)
 
-  (* Loading from a mystic_structure: *)
-  method private load_from_mystic_structure : ?mapping:(string->string) -> mystic_structure -> unit =
-    fun ?mapping mystic_structure ->
-      let index_string_list = mystic_structure.index_string_list in
+  (* Loading from a object_closure: *)
+  method private load_from_object_closure : ?mapping:(string->string) -> object_closure -> unit =
+    fun ?mapping object_closure ->
+      let (index_struct_list, object_structure) = object_closure in
       let unmarshalling_env =
-        Unmarshalling_env.initial ?mapping ~parent:(Obj.magic parent) ~index_string_list ()
+        Unmarshalling_env.initial ?mapping ~parent:(Obj.magic parent) ~index_struct_list ()
       in
-      let (), _unmarshalling_env =
-	self#load_from_labelled_and_unlabelled_values
-	  (unmarshalling_env)
-	  (mystic_structure.labelled_values)
-	  (mystic_structure.unlabelled_values)
+      let (), _unmarshalling_env = 
+        self#protected_load_from_object_structure (unmarshalling_env) (object_structure) 
       in
       ()
-
-  method (* private *) protected_load_from_string_in_a_context (unmarshalling_env) (str:string)
-    : unit * Unmarshalling_env.t
-    =
-    let (labelled_values, unlabelled_values) =
-      try
-        Marshal.from_string str 0
-      with _ ->
-        failwith "protected_load_from_string_in_a_context: failed unmarshalling the string"
-    in
-    self#load_from_labelled_and_unlabelled_values (unmarshalling_env) (labelled_values) (unlabelled_values)
 
   (* Loading from a both labelled and unlabelled values.
      It's simply the composition of the two functions loading
      from labelled and from unlabelled values: *)
-  method private load_from_labelled_and_unlabelled_values
+  method (* protected *) protected_load_from_object_structure
     (unmarshalling_env)
-    (labelled_values : (label * marshallable) list)
-    (unlabelled_values : marshallable list)
+    (object_structure : object_structure)
     : unit * Unmarshalling_env.t
     =
-    let (), unmarshalling_env = self#load_from_labelled_values   (unmarshalling_env) (labelled_values)   in
-    let (), unmarshalling_env = self#load_from_unlabelled_values (unmarshalling_env) (unlabelled_values) in
+    let foreign_class_name = object_structure.class_name 
+    and labelled_values    = object_structure.labelled_values 
+    and unlabelled_values  = object_structure.unlabelled_values 
+    in
+    let (), unmarshalling_env = self#load_from_labelled_values   ?foreign_class_name (unmarshalling_env) (labelled_values)   in
+    let (), unmarshalling_env = self#load_from_unlabelled_values ?foreign_class_name (unmarshalling_env) (unlabelled_values) in
     ((), unmarshalling_env)
 
   (* Loading from a list of labelled values: *)
   method private load_from_labelled_values
+    ?foreign_class_name
     (unmarshalling_env)
-    (labelled_values : (label * marshallable) list)
+    (labelled_values : (field_name * marshallable) list)
     : unit * Unmarshalling_env.t
     =
     let set_arg_list =
       let saa_arg_list =
         Fields_register.match_named_fields_with_labelled_values
+          ?foreign_class_name
           ?class_name:(self#parent_class_name)
           ?label_mapping:(Unmarshalling_env.extract_label_mapping unmarshalling_env)
           (self#get_fields_register)
@@ -848,6 +850,7 @@ object (self)
 
   (* Loading from a list of unlabelled values: *)
   method private load_from_unlabelled_values
+    ?foreign_class_name
     (unmarshalling_env)
     (unlabelled_values : marshallable list)
     : unit * Unmarshalling_env.t
@@ -855,6 +858,7 @@ object (self)
     let set_arg_list =
       let saa_arg_list =
         Fields_register.match_anonymous_fields_with_unlabelled_values
+          ?foreign_class_name
           ?class_name:(self#parent_class_name)
           (self#get_fields_register)
           (unlabelled_values)
@@ -892,6 +896,35 @@ object (self)
      self#load_from_string (self#save_to_string)
 
 end;;
+
+
+(* ********************************* *
+       Basic class constructors
+ * ********************************* *)
+
+type 'a whatever_object = < .. > as 'a
+type 'a basic_class_constructor = unit -> 'a whatever_object
+
+let basic_class_constructors = ref String_map.empty
+let bcc = basic_class_constructors (* convenient alias *)
+
+let register_basic_constructor ~(class_name:string) (f: 'a basic_class_constructor) =
+  bcc := String_map.add class_name (Obj.magic f) !bcc
+
+let get_basic_constructor class_name ~involved_field ~involved_class : 'a basic_class_constructor =
+ try
+   Obj.magic (String_map.find class_name !bcc)
+ with
+  Not_found ->
+    invalid_arg
+      (Printf.sprintf
+         "Error: unmarshalling field `%s.%s' needs to recreate `%s' instances but this class has not a registered basic constructor."
+         involved_class involved_field class_name)
+
+
+(* ********************************* *
+              Example
+ * ********************************* *)
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Example = struct
@@ -931,8 +964,9 @@ object (self)
     self#marshaller#register_simple_field ~name:"field2" (fun () -> self#get_field2) self#set_field2;
 
 
-end (* class1 *)
-
+end (* end of class1.. *)
+(* ..but the class definition is not complete: we have to register its basic class constructor: *)
+let () = register_basic_constructor ~class_name:"class1" (fun () -> new class1 ())
 
 class class2 ?(marshaller:(marshaller option ref) option) () =
 let marshaller = match marshaller with None -> ref None | Some r -> r in
@@ -963,7 +997,8 @@ object (self)
   method get_field4 = field4
   method set_field4 v = field4 <- v
   initializer
-    let object_maker () = new class2 () in (* from the tag *)
+    (* from the tag: *)
+    let object_maker = get_basic_constructor "class2" ~involved_field:"field4" ~involved_class:"class2" in
     let functor_map = Option.map in        (* from the tag: option -> Option.map *)
     self#marshaller#register_functorized_object_field ~name:"field4"
       functor_map
@@ -979,7 +1014,7 @@ object (self)
   method get_field5 = field5
   method set_field5 v = field5 <- v
   initializer
-    let object_maker () = new class2 () in (* from the tag *)
+    let object_maker = get_basic_constructor "class2" ~involved_field:"field5" ~involved_class:"class2" in
     let functor_map = List.map in          (* from the tag: list -> List.map *)
     self#marshaller#register_functorized_object_field ~name:"field5"
       functor_map
@@ -987,7 +1022,9 @@ object (self)
       (fun () -> self#get_field5)
       self#set_field5
 
-end (* class2 *)
+end (* end of class2.. *)
+(* ..but the class definition is not complete: we have to register its basic class constructor: *)
+let () = register_basic_constructor ~class_name:"class2" (fun () -> new class2 ())
 
 class class3 ?(marshaller:(marshaller option ref) option) () =
 let marshaller = match marshaller with None -> ref None | Some r -> r in
@@ -1009,8 +1046,8 @@ object (self)
   method get_field7 = field7
   method set_field7 v = field7 <- v
   initializer
-    let object_maker1 () = new class2 () in
-    let object_maker2 () = new class3 () in
+    let object_maker1 = get_basic_constructor "class2" ~involved_field:"field7" ~involved_class:"class3" in
+    let object_maker2 = get_basic_constructor "class3" ~involved_field:"field7" ~involved_class:"class3" in
     let functor_map = Either.Bifunctor.map in
     self#marshaller#register_bifunctorized_objects_field ~name:"field7"
       functor_map
@@ -1019,7 +1056,8 @@ object (self)
       (fun () -> self#get_field7)
       self#set_field7
 
-end (* class3 *)
+end
+let () = register_basic_constructor ~class_name:"class3" (fun () -> new class3 ())
 
 
 let crash_test () =
