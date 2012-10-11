@@ -34,6 +34,7 @@ FITNESS FOR A PARTICULAR PURPOSE.
 let warnings = ref true ;;
 let enable_warnings  () = (warnings := true);;
 let disable_warnings () = (warnings := false);;
+let are_warnings_enable () = !warnings
 let are_warnings_disabled () = not !warnings
 
 let tracing = ref false ;;
@@ -43,7 +44,7 @@ let is_tracing_enable () = !tracing
 let is_tracing_disabled () = not !tracing
 
 (* ********************************* *
-              M A I N
+              TOOLS
  * ********************************* *)
 
 let with_open_in_bin ~filename mtdh =
@@ -87,7 +88,14 @@ let iter f = function None -> () | Some x -> (f x)
 let extract_or_force xo y = match xo with
  | Some x -> x
  | None   -> Lazy.force y
-end
+
+(* To manage the type `unit option' which is isomorphic to bool: *)
+let switch (opt) (case_None) (case_Some) =
+     match opt with
+      | None    -> case_None
+      | Some () -> case_Some
+
+end (* Option *)
 
 type oid = Oid of int
 type next_index = int
@@ -128,12 +136,55 @@ module Int_map = Map_Make (struct type t = int let compare = compare end)
 module String_map = Map_Make (struct type t = string let compare = compare end)
 
 
+(* ********************************* *
+       Basic class constructors
+ * ********************************* *)
+
+type 'a whatever_object = < .. > as 'a
+type 'a basic_class_constructor = unit -> 'a whatever_object
+
+let basic_class_constructors = ref String_map.empty
+let bcc = basic_class_constructors (* convenient alias *)
+
+let register_basic_constructor ~(class_name:string) (f: 'a basic_class_constructor) =
+  let f () =
+    if is_tracing_disabled () then f () else begin
+    Printf.kfprintf flush stderr "\n--- loading: creating instance for class `%s' BEGIN\n" class_name;
+    let result = f () in
+    Printf.kfprintf flush stderr "--- loading: created object %d for class `%s' END\n\n" (Oo.id result) class_name;
+    result
+    end
+  in
+  bcc := String_map.add class_name (Obj.magic f) !bcc
+
+let get_basic_constructor ~involved_field ~involved_class class_name : 'a basic_class_constructor =
+ try
+   Obj.magic (String_map.find class_name !bcc)
+ with
+  Not_found ->
+    invalid_arg
+      (Printf.sprintf
+         "Error: loading field `%s.%s' needs to recreate `%s' instances but this class has not a registered basic constructor."
+         involved_class involved_field class_name)
+
+let search_a_basic_constructor_for class_name : (string, 'a basic_class_constructor) either =
+ try
+   Right (Obj.magic (String_map.find class_name !bcc))
+ with
+  Not_found ->
+    let warning_msg =
+      (Printf.sprintf
+         "Warning: loading would need to recreate a `%s' foreign instance but this class is not defined in this program."
+         class_name)
+    in Left warning_msg
+
+
 (* **************************************** *
     Marshalling/Unmarshalling environments
  * **************************************** *)
 
 type index = int
- 
+
 (* In any case marshallable without closures: *)
 type marshallable =
   | Pointer of index (* to an object or a string (representing the object) *)
@@ -143,7 +194,7 @@ type field_name = string
 type labelled_values = (field_name * marshallable) (* ordered *) list
 type unlabelled_values = marshallable list
 
-(* This structure requires a saving or loading environment in order to be meaningfull. 
+(* This structure requires a saving or loading environment in order to be meaningfull.
    (because we have to correctly interpret pointers) *)
 type object_structure = {
   class_name        : string option;
@@ -152,15 +203,15 @@ type object_structure = {
   }
 
 (* The ready-to-be-marshalled structure representing objects: *)
-type object_closure = 
+type object_closure =
   index_struct_list * object_structure
 
-and index_struct_list = 
+and index_struct_list =
   (index * object_structure) (* ordered *) list
-  
+
 
 (* Environments used for marshalling (saving): *)
-module Marshalling_env = struct
+module Saving_env = struct
  type t = next_index * oid_index_env * index_struct_env
   and oid_index_env    = index  Oid_map.t (* oid   -> index *)
   and index_struct_env = object_structure Int_map.t (* index -> object_structure *)
@@ -198,16 +249,51 @@ module Marshalling_env = struct
    let (next_index, oid_index_env, index_struct_env) = t in
    Int_map.to_list index_struct_env
 
-end (* module Marshalling_env *)
+end (* module Saving_env *)
 
 (* Unmarshalling environments: *)
-module Unmarshalling_env = struct
+module Loading_env = struct
 
- (* index -> (Left of object_structure | Right of object) *)
  type t = {
+   (* index -> (Left of object_structure | Right of object) *)
    index_map : ((object_structure, magic) either) Int_map.t;
-   label_mapping : (string -> string) option
+   options : loading_options;
    }
+  and loading_options = {
+   mapping                     : (field_name->field_name) option;
+   try_to_preserve_upcasting   : unit option;
+   try_to_reuse_living_objects : unit option;
+   }
+
+ (* This function is the unique way to build options. It will be exported in the .mli. *)
+ let make_loading_options
+  ?(mapping:(field_name -> field_name) option)
+  ?(mapping_by_list:((field_name * field_name) list) option)
+  ?try_to_preserve_upcasting
+  ?try_to_reuse_living_objects
+  () : loading_options
+  =
+  let mapping =
+    match mapping, mapping_by_list with
+    | None, None -> None
+    | Some f, None -> Some f
+    | None, Some l ->
+        let smap = String_map.of_list l in
+        Some (fun field -> String_map.find field smap)
+    | Some f, Some l ->
+        let smap = String_map.of_list l in
+        Some (fun field -> try (f field) with _ -> (String_map.find field smap))
+  in
+  (* Simply ignore mapping failures: *)
+  let mapping =
+     Option.map
+       (fun f -> fun x -> try f x with _ -> x)
+       mapping
+  in
+  { mapping                     = mapping;
+    try_to_preserve_upcasting   = try_to_preserve_upcasting;
+    try_to_reuse_living_objects = try_to_reuse_living_objects;
+    }
 
  let get_structure_or_object_by_index index t =
    Int_map.find (index) t.index_map
@@ -215,36 +301,78 @@ module Unmarshalling_env = struct
  let replace_structure_with_object (index:index) obj t =
    {t with index_map = Int_map.add index (Right obj) t.index_map; }
 
- let initial ?mapping ~(parent:magic) ~(index_struct_list: (index * object_structure) list) () =
+ let initial ?options ~(parent:magic) ~(index_struct_list: (index * object_structure) list) () =
    let parent_index = 0 in
    let index_struct_env = Int_map.of_list index_struct_list in
    let imported_index_struct_env =
      Int_map.map (fun str -> Left str) index_struct_env
    in
-   let label_mapping =
-     Option.map
-       (fun f -> fun x -> try f x with _ -> x)
-       mapping
+   let options = match options with
+   | None -> make_loading_options ()
+   | Some options -> options
    in
    { index_map = Int_map.add parent_index (Right parent) (imported_index_struct_env);
-     label_mapping = label_mapping; }
+     options = options;}
 
- let extract_label_mapping t = t.label_mapping
+ let extract_label_mapping t = t.options.mapping
 
-end (* module Marshalling_env *)
+ let create_or_recycle_object_according_to_options
+   ~(field_declared_class_name:string option)
+   ~(foreign_class_name:string option)
+   ~(object_maker)
+   (* if the getter is not provided, the maker is used instead: *)
+   ?(object_getter = object_maker)
+   t
+   =
+   let switch = Option.switch in
+   if (t.options.try_to_preserve_upcasting = None)
+   || (foreign_class_name = None)
+   || (foreign_class_name = field_declared_class_name) (* no upcasting *)
+   then
+     (* It's a simple case: create or reuse according to the associated option: *)
+     switch (t.options.try_to_reuse_living_objects) (object_maker) (object_getter)
+   else
+   (* We try to preserve upcasting
+     *and* the foreign class is defined
+     *and* the foreign class is not the declared class of the field (there is an upcasting to preserve): *)
+   let foreign_class_name = Option.extract foreign_class_name in
+   match search_a_basic_constructor_for (foreign_class_name) with
+   | Left warning_msg ->
+       (* --- there isn't a local constructor for the foreign class, so we can't preserve upcasting anyway: *)
+       (if are_warnings_enable () then Printf.kfprintf flush stderr "%s\n" warning_msg);
+       switch (t.options.try_to_reuse_living_objects) (object_maker) (object_getter)
+       (* --- *)
+   | Right foreign_class_maker->
+       (* --- there is a local constructor for the foreign class. Now the question became:
+              can the current instance be reused? *)
+       let current_object_class_name = (object_getter ())#marshaller#parent_class_name in
+       if current_object_class_name = (Some foreign_class_name)
+       then
+         (* Yes, it can be reused (according to the option) because it belongs to the same class: *)
+         switch (t.options.try_to_reuse_living_objects) (foreign_class_maker) (object_getter)
+       else
+         (* No, it cannot be reused, we have to create a new object: *)
+         foreign_class_maker
 
+end (* module Saving_env *)
+
+(* Elements to be exported (in the interface): *)
+type loading_options = Loading_env.loading_options
+let make_loading_options = Loading_env.make_loading_options
+type saving_env = Saving_env.t
+type loading_env = Loading_env.t
 
 module Fields_register = struct
 
  (* Variables that I call "saa" are of this type: *)
- type string_adapted_accessors = {
-   get : Marshalling_env.t   -> unit -> marshallable * Marshalling_env.t;
-   set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t;
+ type adapted_accessors = {
+   get : Saving_env.t   -> unit -> marshallable * Saving_env.t;
+   set : Loading_env.t -> marshallable -> unit * Loading_env.t;
    }
 
  type t = {
-   anonymous_fields : string_adapted_accessors list;         (* The order here is relevant *)
-   named_fields     : string_adapted_accessors String_map.t; (* field-name -> string_adapted_accessors *)
+   anonymous_fields : adapted_accessors list;         (* The order here is relevant *)
+   named_fields     : adapted_accessors String_map.t; (* field-name -> adapted_accessors *)
    }
 
  let empty : t = {
@@ -258,7 +386,7 @@ module Fields_register = struct
    | Some name -> {t with named_fields = String_map.add name saa t.named_fields}
 
  let match_named_fields_with_labelled_values ?foreign_class_name ?class_name ?label_mapping (t:t) (labelled_values: (string * 'a) list)
-   : (string_adapted_accessors * 'a) list
+   : (adapted_accessors * 'a) list
    =
    let labelled_values = match label_mapping with
    | None   -> labelled_values
@@ -295,7 +423,7 @@ module Fields_register = struct
    List.map snd matching_as_list
 
  let match_anonymous_fields_with_unlabelled_values ?foreign_class_name ?class_name (t:t) (unlabelled_values: 'a list)
-   : (string_adapted_accessors * 'a) list
+   : (adapted_accessors * 'a) list
    =
    let what = lazy (match class_name with
    | None -> "an object"
@@ -348,7 +476,7 @@ object (self)
           in
           let () = if is_tracing_disabled () then () else
             Printf.kfprintf flush stderr
-              "%s.marshallable_class(%d).initializer: created the marshaller %d\n"
+              "creating: %s.marshallable_class(%d).initializer: created the marshaller %d\n"
               (Option.extract name) (Oo.id self) (Oo.id created_marshaller)
           in
           shared_marshaller := (Some created_marshaller); (* Release the information to the parent *)
@@ -356,7 +484,7 @@ object (self)
     | Some m ->
           let () = if is_tracing_disabled () then () else
             Printf.kfprintf flush stderr
-              "%s.marshallable_class(%d).initializer: sharing the marshaller %d\n"
+              "creating: %s.marshallable_class(%d).initializer: sharing the marshaller %d\n"
               (Option.extract name) (Oo.id self) (Oo.id m)
           in
           () (* It's fine, a shared marshaller has been already created *)
@@ -382,33 +510,33 @@ object (self)
     let m = fields_register.Fields_register.named_fields in
     String_map.to_list m
 
-  method private register_string_adapted_accessors ?field_name (saa : Fields_register.string_adapted_accessors) =
+  method private register_adapted_accessors ?field_name (saa : Fields_register.adapted_accessors) =
      fields_register <- (Fields_register.add ?field_name saa fields_register)
 
   (* -----------------------------
        Registering SIMPLE fields
      ----------------------------- *)
 
-  method private adapt_simple_field : 'a. (unit -> 'a) -> ('a -> unit) -> Fields_register.string_adapted_accessors =
+  method private adapt_simple_field : 'a. (unit -> 'a) -> ('a -> unit) -> Fields_register.adapted_accessors =
      fun real_get real_set ->
-     let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
-       fun marshalling_env () ->
+     let adapted_get : Saving_env.t -> unit -> marshallable * Saving_env.t =
+       fun saving_env () ->
          let x = real_get () in
          let datum = Datum (Obj.magic x) in
-         (datum, marshalling_env)
+         (datum, saving_env)
      in
-     let string_adapted_set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t =
-       fun unmarshalling_env ->
+     let adapted_set : Loading_env.t -> marshallable -> unit * Loading_env.t =
+       fun loading_env ->
          function
-         | Datum x      -> ((real_set (Obj.magic x)), unmarshalling_env)
+         | Datum x      -> ((real_set (Obj.magic x)), loading_env)
          | Pointer index -> assert false
      in
-     { Fields_register.get = string_adapted_get;
-       Fields_register.set = string_adapted_set}
+     { Fields_register.get = adapted_get;
+       Fields_register.set = adapted_set}
 
   method register_simple_field : 'a. ?name:string -> (unit -> 'a) -> ('a -> unit) -> unit =
      fun ?name real_get real_set ->
-       self#register_string_adapted_accessors ?field_name:name (self#adapt_simple_field real_get real_set)
+       self#register_adapted_accessors ?field_name:name (self#adapt_simple_field real_get real_set)
 
   (* -----------------------------
        Registering OBJECT fields
@@ -416,90 +544,103 @@ object (self)
 
   (* To be used with map_and_fold (map the first result, fold the second) *)
   method private marshallable_of_object
-     : Marshalling_env.t -> (< marshaller:marshaller; .. > as 'a) -> marshallable * Marshalling_env.t
-    = fun marshalling_env obj ->
+    : Saving_env.t -> (< marshaller:marshaller; .. > as 'a) -> marshallable * Saving_env.t
+    = fun saving_env obj ->
     let oid = Oid (Oo.id obj) in
-    (* The result is always a pointer (the string is stored in the marshalling_env): *)
-    match Marshalling_env.search_index_by_oid oid marshalling_env with
+    (* The result is always a pointer (the string is stored in the saving_env): *)
+    match Saving_env.search_index_by_oid oid saving_env with
     | Some index ->
         (if is_tracing_enable () then
-           Printf.kfprintf flush stderr "marshallable_of_object: making a pointer to index %d\n" index);
+           Printf.kfprintf flush stderr "saving: making a pointer to index %d\n" index);
         let pointer = (Pointer index) in
-        (pointer, marshalling_env)
+        (pointer, saving_env)
     | None ->
-        let (marshalling_env, index) =
-          Marshalling_env.add_oid_and_get_index oid marshalling_env
+        let (saving_env, index) =
+          Saving_env.add_oid_and_get_index oid saving_env
         in
         (if is_tracing_enable () then
-          Printf.kfprintf flush stderr "marshallable_of_object: added object (oid = %d) with index %d\n" (Oo.id obj) index);
-        let (str, marshalling_env) =
-          obj#marshaller#protected_save_to_object_structure marshalling_env
+          Printf.kfprintf flush stderr "saving: added object oid %d with index %d\n" (Oo.id obj) index);
+        let (str, saving_env) =
+          obj#marshaller#protected_save_to_object_structure saving_env
         in
-        let marshalling_env =
-          Marshalling_env.add_object_structure index str marshalling_env
+        let saving_env =
+          Saving_env.add_object_structure index str saving_env
         in
         let pointer = (Pointer index) in
-        (pointer, marshalling_env)
+        (pointer, saving_env)
 
-  method private object_of_marshallable (* : .. -> .. -> object * unmarshalling_env *) =
-    fun ~object_getter_or_maker unmarshalling_env ->
+  method private object_of_marshallable (* : .. -> .. -> object * loading_env *) =
+    fun ?getter ~maker loading_env ->
       function
       | Pointer index ->
          begin
-          match Unmarshalling_env.get_structure_or_object_by_index index unmarshalling_env with
+          match Loading_env.get_structure_or_object_by_index index loading_env with
 	  | Left (obj_structure : object_structure) ->
-	      let obj = object_getter_or_maker () in
+	      let create_or_recycle_object =
+	        Loading_env.create_or_recycle_object_according_to_options
+	          ~field_declared_class_name:None
+	          ~foreign_class_name:(obj_structure.class_name)
+	          ~object_maker:maker
+	          ?object_getter:getter
+	          loading_env
+	      in
+	      let obj = create_or_recycle_object () in
               (if is_tracing_enable () then
-	        Printf.kfprintf flush stderr "object_of_marshallable: adding object (oid = %d) with index %d then unmarshalling\n" (Oo.id obj) index);
-	      let unmarshalling_env =
-		Unmarshalling_env.replace_structure_with_object index (Obj.magic obj) unmarshalling_env
+	        Printf.kfprintf flush stderr "loading: adding object oid %d with index %d before loading it\n" (Oo.id obj) index);
+	      let loading_env =
+		Loading_env.replace_structure_with_object index (Obj.magic obj) loading_env
 	      in
-	      let (), unmarshalling_env =
-		obj#marshaller#protected_load_from_object_structure (unmarshalling_env) (obj_structure)
+	      let (), loading_env =
+		obj#marshaller#protected_load_from_object_structure (loading_env) (obj_structure)
 	      in
-	      (obj, unmarshalling_env)
+	      (obj, loading_env)
 
 	  | Right obj ->
               (if is_tracing_enable () then
-	        Printf.kfprintf  flush stderr "object_of_marshallable: found object (oid = %d) with index %d\n" (Oo.id (Obj.magic obj)) index);
-	      (Obj.magic obj), unmarshalling_env
+	        Printf.kfprintf  flush stderr "loading: found object oid %d with index %d\n" (Oo.id (Obj.magic obj)) index);
+	      (Obj.magic obj), loading_env
          end (* of Pointer's case *)
       | Datum _ -> assert false
 
 
   method private adapt_object_field
-     : (unit -> (< marshaller:marshaller; .. >)) ->  (* The real get-accessor of the field *)
-       (< marshaller:marshaller; .. > -> unit) ->    (* The real set-accessor of the field *)
-       Fields_register.string_adapted_accessors
+     : (unit -> (< marshaller : marshaller; .. >)) ->  (* object maker *)
+       (unit -> (< marshaller:marshaller; .. >)) ->    (* The real get-accessor of the field *)
+       (< marshaller:marshaller; .. > -> unit) ->      (* The real set-accessor of the field *)
+       Fields_register.adapted_accessors
      =
-     fun real_get real_set ->
-     let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
-       fun marshalling_env () ->
+     fun object_maker real_get real_set ->
+     let adapted_get : Saving_env.t -> unit -> marshallable * Saving_env.t =
+       fun saving_env () ->
          let obj = real_get () in
-         self#marshallable_of_object marshalling_env obj
+         self#marshallable_of_object saving_env obj
      in
-     let string_adapted_set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t =
-       fun unmarshalling_env marshallable ->
-         let (obj, unmarshalling_env) =
+     let adapted_set : Loading_env.t -> marshallable -> unit * Loading_env.t =
+       fun loading_env marshallable ->
+         let (obj, loading_env) =
            self#object_of_marshallable
-             ~object_getter_or_maker:real_get
-             (unmarshalling_env)
+             ~getter:(real_get)
+             ~maker:(object_maker)
+             (loading_env)
              (marshallable)
          in
-         ((real_set (Obj.magic obj)), unmarshalling_env)
+         ((real_set (Obj.magic obj)), loading_env)
      in
-     { Fields_register.get = string_adapted_get;
-       Fields_register.set = string_adapted_set}
+     { Fields_register.get = adapted_get;
+       Fields_register.set = adapted_set}
 
   method register_object_field
-     : 'a. ?name:string ->
-           (unit -> (< marshaller:marshaller; .. > as 'a)) ->  (* The real get-accessor of the field *)
-           ('a -> unit) ->                                     (* The real set-accessor of the field *)
+     : 'obj. ?name:string ->
+           (unit -> (< marshaller : marshaller; .. > as 'obj)) ->  (* object maker *)
+           (unit -> 'obj) ->                                       (* getter *)
+           ('obj -> unit) ->                                       (* setter *)
            unit
-     =
-     Obj.magic begin
-       fun ?name real_get real_set ->
-         (self#register_string_adapted_accessors ?field_name:name (self#adapt_object_field real_get real_set))
+     = Obj.magic begin
+	fun ?name (object_maker:unit->'obj) real_get real_set ->
+	  let object_maker : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker in
+	  (self#register_adapted_accessors
+	      ?field_name:name
+	      (self#adapt_object_field object_maker real_get real_set))
        end
 
   (* -----------------------------------------
@@ -507,65 +648,93 @@ object (self)
      ----------------------------------------- *)
 
   method private adapt_functorized_object_field
-     :  'obj_t.
+     :  'obj_t 'a_t 'b_t 'ab_t.
+        ?zip:('a_t -> 'b_t -> 'ab_t) ->                                                            (* functor zip *)
         (((< marshaller : marshaller; .. > as 'obj) -> marshallable) -> 'obj_t -> marshallable) -> (* functor map1 *)
         ((marshallable -> 'obj) -> marshallable -> 'obj_t) ->                                      (* functor map2 *)
         (unit -> 'obj) ->                                                                          (* object maker *)
         (unit -> 'obj_t) ->                                                                        (* getter *)
         ('obj_t -> unit) ->                                                                        (* setter *)
-        Fields_register.string_adapted_accessors (* result *)
+        Fields_register.adapted_accessors (* result *)
      =
-     fun map1 map2 object_maker real_get real_set ->
-     let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
-       fun marshalling_env () ->
+     fun ?zip map1 map2 object_maker real_get real_set ->
+     let adapted_get : Saving_env.t -> unit -> marshallable * Saving_env.t =
+       fun saving_env () ->
          let object_t = real_get () in
-         let marshallable_t, marshalling_env =
-           (Functor.map_and_fold_of_functor map1) (self#marshallable_of_object) (marshalling_env) object_t
+         let marshallable_t, saving_env =
+           (Functor.map_and_fold_of_functor map1) (self#marshallable_of_object) (saving_env) object_t
          in
-         (Datum (Obj.magic marshallable_t), marshalling_env)
+         (Datum (Obj.magic marshallable_t), saving_env)
      in
-     let string_adapted_set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t =
-       fun unmarshalling_env ->
+     let adapted_set : Loading_env.t -> marshallable -> unit * Loading_env.t =
+       fun loading_env ->
+         let zip = Obj.magic zip in
          function
-         | Datum x ->
+         | Datum x when zip=None ->
              let marshallable_t = Obj.magic x in
-             let object_t, unmarshalling_env =
+             let object_t, loading_env =
                (Functor.map_and_fold_of_functor map2)
-                 (self#object_of_marshallable ~object_getter_or_maker:object_maker)
-                 (unmarshalling_env)
+                 (self#object_of_marshallable ~maker:object_maker)
+                 (loading_env)
                  marshallable_t
              in
-             ((real_set object_t), unmarshalling_env)
+             ((real_set object_t), loading_env)
+
+         | Datum x (* when zip<>None *) ->
+             let marshallable_t = Obj.magic x in
+             let zip = Option.extract zip in
+             let living_object_t = real_get () in
+             let object_t, loading_env =
+	       try
+		 let marshallable_object_t = zip marshallable_t living_object_t in (* this call may fails *)
+		 (Functor.map_and_fold_of_functor (Obj.magic map2))
+		    (fun env (msh,liv_obj) ->
+		        self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker env msh)
+		    (loading_env)
+		    marshallable_object_t
+	       with _ -> begin
+	         (* Ignore zip: *)
+		 (Functor.map_and_fold_of_functor map2)
+		   (self#object_of_marshallable ~maker:object_maker)
+		   (loading_env)
+		   marshallable_t
+		  end
+             in
+             ((real_set object_t), loading_env)
 
          (* The field is a non-object structure containing objects *)
          | Pointer _ -> (assert false)
      in
-     { Fields_register.get = string_adapted_get;
-       Fields_register.set = string_adapted_set}
+     { Fields_register.get = adapted_get;
+       Fields_register.set = adapted_set}
 
 
   method register_functorized_object_field
-     :  'obj 'obj_t 'a 'b 'a_t 'b_t .
+     :  'obj 'obj_t 'a 'b 'a_t 'b_t 'ab_t.
         ?name:string ->                                         (* name *)
+        ?zip:('a_t -> 'b_t -> 'ab_t) ->                         (* functor zip *)
         (('a -> 'b) -> 'a_t -> 'b_t) ->                         (* functor *)
         (unit -> (< marshaller : marshaller; .. > as 'obj)) ->  (* object maker *)
         (unit -> 'obj_t) ->                                     (* getter *)
         ('obj_t -> unit) ->                                     (* setter *)
           unit
-     = fun ?name functor_map object_maker real_get real_set ->
+     = fun ?name ?zip functor_map object_maker real_get real_set ->
          let map1 = Obj.magic functor_map in
          let map2 = Obj.magic functor_map in
          (* Because of a strange typing problem: *)
          let object_maker : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker in
-         self#register_string_adapted_accessors ?field_name:name
-           (self#adapt_functorized_object_field map1 map2 object_maker real_get real_set)
+         self#register_adapted_accessors ?field_name:name
+           (self#adapt_functorized_object_field ?zip map1 map2 object_maker real_get real_set)
 
   (* ---------------------------------------------
        Registering BI-FUNCTORIZED OBJECTS fields
      --------------------------------------------- *)
 
   method private adapt_bifunctorized_objects_field
-     :  'objects_t.
+     :  'objects_t 'au_t 'bv_t 'axb_uxv_t .
+
+        (* bifunctor zip *)
+        ?zip:('au_t -> 'bv_t -> 'axb_uxv_t) ->
 
         (* bifunctor map1 *)
         (((< marshaller : marshaller; .. > as 'obj1) -> marshallable) ->
@@ -579,73 +748,101 @@ object (self)
         (unit -> 'objects_t) ->    (* getter *)
         ('objects_t -> unit) ->    (* setter *)
 
-        Fields_register.string_adapted_accessors (* result *)
+        Fields_register.adapted_accessors (* result *)
      =
-     fun map1 map2 object_maker1 object_maker2 real_get real_set ->
-     let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
-       fun marshalling_env () ->
+     fun ?zip map1 map2 object_maker1 object_maker2 real_get real_set ->
+     let adapted_get : Saving_env.t -> unit -> marshallable * Saving_env.t =
+       fun saving_env () ->
          let objects_t = real_get () in
-         let marshallable_t, marshalling_env =
+         let marshallable_t, saving_env =
            (Functor.map_and_fold_of_bifunctor map1)
              (self#marshallable_of_object)
              (self#marshallable_of_object)
-             (marshalling_env)
+             (saving_env)
              objects_t
          in
-         (Datum (Obj.magic marshallable_t), marshalling_env)
+         (Datum (Obj.magic marshallable_t), saving_env)
      in
-     let string_adapted_set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t =
-       fun unmarshalling_env ->
+     let adapted_set : Loading_env.t -> marshallable -> unit * Loading_env.t =
+       fun loading_env ->
+         let zip = Obj.magic zip in
          function
-         | Datum x ->
+         | Datum x when zip=None ->
              let marshallable_t = Obj.magic x in
-             let objects_t, unmarshalling_env =
+             let objects_t, loading_env =
                (Functor.map_and_fold_of_bifunctor map2)
-                 (self#object_of_marshallable ~object_getter_or_maker:object_maker1)
-                 (self#object_of_marshallable ~object_getter_or_maker:object_maker2)
-                 (unmarshalling_env)
+                 (self#object_of_marshallable ~maker:object_maker1)
+                 (self#object_of_marshallable ~maker:object_maker2)
+                 (loading_env)
                  marshallable_t
              in
-             ((real_set objects_t), unmarshalling_env)
+             ((real_set objects_t), loading_env)
+
+         | Datum x (*when zip<>None*) ->
+             let marshallable_t = Obj.magic x in
+             let zip = Option.extract zip in
+             let living_objects_t = real_get () in
+             let objects_t, loading_env =
+	       try
+		 let marshallable_x_objects_t = zip marshallable_t living_objects_t in (* this call may fails *)
+                 (Functor.map_and_fold_of_bifunctor (Obj.magic map2))
+		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker1 env msh)
+		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker2 env msh)
+		    (loading_env)
+		    marshallable_x_objects_t
+	       with _ -> begin
+	         (* Ignore zip: *)
+                 (Functor.map_and_fold_of_bifunctor map2)
+                   (self#object_of_marshallable ~maker:object_maker1)
+                   (self#object_of_marshallable ~maker:object_maker2)
+                   (loading_env)
+                   marshallable_t
+		  end
+             in
+             ((real_set objects_t), loading_env)
 
          (* The field is a non-object structure containing objects *)
          | Pointer _ -> (assert false)
      in
-     { Fields_register.get = string_adapted_get;
-       Fields_register.set = string_adapted_set}
+     { Fields_register.get = adapted_get;
+       Fields_register.set = adapted_set}
 
 
   method register_bifunctorized_objects_field
-     :  'obj1 'obj2 'objects_t 'a 'b 'c 'd 'ac_t 'bd_t .
+     :  'obj1 'obj2 'objects_t 'a 'b 'c 'd 'ac_t 'bd_t 'au_t 'bv_t 'axb_uxv_t.
         ?name:string ->                                          (* name *)
+        ?zip:('au_t -> 'bv_t -> 'axb_uxv_t) ->                   (* zip for bifunctor *)
         (('a -> 'b) -> ('c -> 'd) -> 'ac_t -> 'bd_t) ->          (* bifunctor *)
         (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
         (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
         (unit -> 'objects_t) ->                                  (* getter *)
         ('objects_t -> unit) ->                                  (* setter *)
           unit
-     = fun ?name bifunctor_map object_maker1 object_maker2 real_get real_set ->
+     = fun ?name ?zip bifunctor_map object_maker1 object_maker2 real_get real_set ->
          let map1 = Obj.magic bifunctor_map in
          let map2 = Obj.magic bifunctor_map in
          (* Because of a strange typing problem: *)
          let maker1 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker1 in
          let maker2 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker2 in
-         self#register_string_adapted_accessors ?field_name:name
-           (self#adapt_bifunctorized_objects_field map1 map2 maker1 maker2 real_get real_set)
+         self#register_adapted_accessors ?field_name:name
+           (self#adapt_bifunctorized_objects_field ?zip map1 map2 maker1 maker2 real_get real_set)
 
   (* ---------------------------------------------
        Registering TRI-FUNCTORIZED OBJECTS fields
      --------------------------------------------- *)
 
   method private adapt_trifunctorized_objects_field
-     :  'objects_t.
+     :  'objects_t 'ace_t 'bdf_t 'aue_t 'bvf_t 'axb_uxv_exf_t.
 
-        (* bifunctor map1 *)
+        (* trifunctor zip *)
+        ?zip:('aue_t -> 'bvf_t -> 'axb_uxv_exf_t) ->
+
+        (* trifunctor map1 *)
         (((< marshaller : marshaller; .. > as 'obj1) -> marshallable) ->
          ((< marshaller : marshaller; .. > as 'obj2) -> marshallable) ->
          ((< marshaller : marshaller; .. > as 'obj3) -> marshallable) -> 'objects_t -> marshallable) ->
 
-        (* bifunctor map2 *)
+        (* trifunctor map2 *)
         ((marshallable -> 'obj1) -> (marshallable -> 'obj2) -> (marshallable -> 'obj3) -> marshallable -> 'objects_t) ->
 
         (unit -> 'obj1) ->         (* object maker 1 *)
@@ -654,47 +851,74 @@ object (self)
         (unit -> 'objects_t) ->    (* getter *)
         ('objects_t -> unit) ->    (* setter *)
 
-        Fields_register.string_adapted_accessors (* result *)
+        Fields_register.adapted_accessors (* result *)
      =
-     fun map1 map2 object_maker1 object_maker2 object_maker3 real_get real_set ->
-     let string_adapted_get : Marshalling_env.t -> unit -> marshallable * Marshalling_env.t =
-       fun marshalling_env () ->
+     fun ?zip map1 map2 object_maker1 object_maker2 object_maker3 real_get real_set ->
+     let adapted_get : Saving_env.t -> unit -> marshallable * Saving_env.t =
+       fun saving_env () ->
          let objects_t = real_get () in
-         let marshallable_t, marshalling_env =
+         let marshallable_t, saving_env =
            (Functor.map_and_fold_of_trifunctor map1)
              (self#marshallable_of_object)
              (self#marshallable_of_object)
              (self#marshallable_of_object)
-             (marshalling_env)
+             (saving_env)
              objects_t
          in
-         (Datum (Obj.magic marshallable_t), marshalling_env)
+         (Datum (Obj.magic marshallable_t), saving_env)
      in
-     let string_adapted_set : Unmarshalling_env.t -> marshallable -> unit * Unmarshalling_env.t =
-       fun unmarshalling_env ->
+     let adapted_set : Loading_env.t -> marshallable -> unit * Loading_env.t =
+       fun loading_env ->
+         let zip = Obj.magic zip in
          function
-         | Datum x ->
+         | Datum x when zip=None ->
              let marshallable_t = Obj.magic x in
-             let objects_t, unmarshalling_env =
+             let objects_t, loading_env =
                (Functor.map_and_fold_of_trifunctor map2)
-                 (self#object_of_marshallable ~object_getter_or_maker:object_maker1)
-                 (self#object_of_marshallable ~object_getter_or_maker:object_maker2)
-                 (self#object_of_marshallable ~object_getter_or_maker:object_maker3)
-                 (unmarshalling_env)
+                 (self#object_of_marshallable ~maker:object_maker1)
+                 (self#object_of_marshallable ~maker:object_maker2)
+                 (self#object_of_marshallable ~maker:object_maker3)
+                 (loading_env)
                  marshallable_t
              in
-             ((real_set objects_t), unmarshalling_env)
+             ((real_set objects_t), loading_env)
+
+         | Datum x (*when zip<>None*) ->
+             let marshallable_t = Obj.magic x in
+             let zip = Option.extract zip in
+             let living_objects_t = real_get () in
+             let objects_t, loading_env =
+	       try
+		 let marshallable_x_objects_t = zip marshallable_t living_objects_t in (* this call may fails *)
+                 (Functor.map_and_fold_of_trifunctor (Obj.magic map2))
+		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker1 env msh)
+		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker2 env msh)
+		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker3 env msh)
+		    (loading_env)
+		    marshallable_x_objects_t
+	       with _ -> begin
+	         (* Ignore zip: *)
+		  (Functor.map_and_fold_of_trifunctor map2)
+		    (self#object_of_marshallable ~maker:object_maker1)
+		    (self#object_of_marshallable ~maker:object_maker2)
+		    (self#object_of_marshallable ~maker:object_maker3)
+		    (loading_env)
+		    marshallable_t
+		  end
+             in
+             ((real_set objects_t), loading_env)
 
          (* The field is a non-object structure containing objects *)
          | Pointer _ -> (assert false)
      in
-     { Fields_register.get = string_adapted_get;
-       Fields_register.set = string_adapted_set}
+     { Fields_register.get = adapted_get;
+       Fields_register.set = adapted_set}
 
 
   method register_trifunctorized_objects_field
-     :  'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t .
+     :  'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t 'aue_t 'bvf_t 'axb_uxv_exf_t .
         ?name:string ->                                          (* name *)
+        ?zip:('aue_t -> 'bvf_t -> 'axb_uxv_exf_t) ->             (* trifunctor zip *)
         (('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> 'ace_t -> 'bdf_t) -> (* trifunctor *)
         (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 *)
         (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 *)
@@ -702,15 +926,15 @@ object (self)
         (unit -> 'objects_t) ->                                  (* getter *)
         ('objects_t -> unit) ->                                  (* setter *)
           unit
-     = fun ?name trifunctor_map object_maker1 object_maker2 object_maker3 real_get real_set ->
+     = fun ?name ?zip trifunctor_map object_maker1 object_maker2 object_maker3 real_get real_set ->
          let map1 = Obj.magic trifunctor_map in
          let map2 = Obj.magic trifunctor_map in
          (* Because of a strange typing problem: *)
          let maker1 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker1 in
          let maker2 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker2 in
          let maker3 : (unit -> < marshaller : marshaller; .. >) = Obj.magic object_maker3 in
-         self#register_string_adapted_accessors ?field_name:name
-           (self#adapt_trifunctorized_objects_field map1 map2 maker1 maker2 maker3 real_get real_set)
+         self#register_adapted_accessors ?field_name:name
+           (self#adapt_trifunctorized_objects_field ?zip map1 map2 maker1 maker2 maker3 real_get real_set)
 
   (* --------------------------------------
           S A V I N G    (marshalling)
@@ -729,54 +953,54 @@ object (self)
            (_WITHOUT_CLOSURES_OF_COURSE))
 
   method private save_to_object_closure : object_closure =
-    let (object_structure, marshalling_env) =
+    let (object_structure, saving_env) =
       self#protected_save_to_object_structure
-        (Marshalling_env.initial ~parent_oid:(Oo.id parent))
+        (Saving_env.initial ~parent_oid:(Oo.id parent))
     in
-    (* Extract now the index->string environment from the marshalling_env: *)
+    (* Extract now the index->string environment from the saving_env: *)
     let index_struct_list =
-      Marshalling_env.extract_index_struct_env marshalling_env
+      Saving_env.extract_index_struct_env saving_env
     in
     let object_closure = (index_struct_list, object_structure) in
     object_closure
 
-  method (* protected *) protected_save_to_object_structure (marshalling_env) : object_structure * Marshalling_env.t
+  method (* protected *) protected_save_to_object_structure (saving_env) : object_structure * Saving_env.t
     =
-    let labelled_values,   marshalling_env = self#save_to_labelled_values   (marshalling_env) in
-    let unlabelled_values, marshalling_env = self#save_to_unlabelled_values (marshalling_env) in
-    let object_structure = { 
+    let labelled_values,   saving_env = self#save_to_labelled_values   (saving_env) in
+    let unlabelled_values, saving_env = self#save_to_unlabelled_values (saving_env) in
+    let object_structure = {
       class_name = self#parent_class_name;
       labelled_values = labelled_values;
       unlabelled_values = unlabelled_values;
       }
     in
-    (object_structure, marshalling_env)
-    
-  method private save_to_labelled_values (marshalling_env) =
-    let (result: (string*marshallable) list), marshalling_env =
+    (object_structure, saving_env)
+
+  method private save_to_labelled_values (saving_env) =
+    let (result: (string*marshallable) list), saving_env =
       List.fold_left
-	(fun state ((name:string), (saa:Fields_register.string_adapted_accessors)) ->
-	    let result, marshalling_env = state in
-	    let (mshlable, marshalling_env) = saa.Fields_register.get marshalling_env () in
-	    let state' = ((name, mshlable)::result, marshalling_env) in
+	(fun state ((name:string), (saa:Fields_register.adapted_accessors)) ->
+	    let result, saving_env = state in
+	    let (mshlable, saving_env) = saa.Fields_register.get saving_env () in
+	    let state' = ((name, mshlable)::result, saving_env) in
 	    state')
-	([], marshalling_env)
+	([], saving_env)
 	self#get_named_fields_as_ordered_assoc_list (* NAMED FIELDS! *)
     in
-    (result, marshalling_env)
+    (result, saving_env)
 
-  method private save_to_unlabelled_values (marshalling_env) =
-    let (result: marshallable list), marshalling_env =
+  method private save_to_unlabelled_values (saving_env) =
+    let (result: marshallable list), saving_env =
       List.fold_left
-	(fun state (saa:Fields_register.string_adapted_accessors) ->
-	    let result, marshalling_env = state in
-	    let (mshlable, marshalling_env) = saa.Fields_register.get marshalling_env () in
-	    let state' = (mshlable::result, marshalling_env) in
+	(fun state (saa:Fields_register.adapted_accessors) ->
+	    let result, saving_env = state in
+	    let (mshlable, saving_env) = saa.Fields_register.get saving_env () in
+	    let state' = (mshlable::result, saving_env) in
 	    state')
-	([], marshalling_env)
+	([], saving_env)
 	self#get_anonymous_fields (* ANONYMOUS FIELDS! *)
     in
-    (List.rev result, marshalling_env)
+    (List.rev result, saving_env)
 
 
   (* --------------------------------------
@@ -784,12 +1008,12 @@ object (self)
      -------------------------------------- *)
 
   (* Loading from a string: *)
-  method load_from_string ?mapping (str:string) : unit =
+  method load_from_string ?options (str:string) : unit =
     let object_closure = (Marshal.from_string str 0) in
-    self#load_from_object_closure ?mapping object_closure
+    self#load_from_object_closure ?options object_closure
 
   (* Loading from a file: *)
-  method load_from_file ?mapping filename : unit =
+  method load_from_file ?options filename : unit =
     let (object_closure : object_closure) =
       try
         with_open_in_bin ~filename
@@ -798,17 +1022,17 @@ object (self)
       with _ ->
         failwith "load_from_file: failed unmarshalling the file content"
     in
-    self#load_from_object_closure ?mapping (object_closure)
+    self#load_from_object_closure ?options (object_closure)
 
   (* Loading from a object_closure: *)
-  method private load_from_object_closure : ?mapping:(string->string) -> object_closure -> unit =
-    fun ?mapping object_closure ->
+  method private load_from_object_closure : ?options:loading_options -> object_closure -> unit =
+    fun ?options object_closure ->
       let (index_struct_list, object_structure) = object_closure in
-      let unmarshalling_env =
-        Unmarshalling_env.initial ?mapping ~parent:(Obj.magic parent) ~index_struct_list ()
+      let loading_env =
+        Loading_env.initial ?options ~parent:(Obj.magic parent) ~index_struct_list ()
       in
-      let (), _unmarshalling_env = 
-        self#protected_load_from_object_structure (unmarshalling_env) (object_structure) 
+      let (), _loading_env =
+        self#protected_load_from_object_structure (loading_env) (object_structure)
       in
       ()
 
@@ -816,44 +1040,44 @@ object (self)
      It's simply the composition of the two functions loading
      from labelled and from unlabelled values: *)
   method (* protected *) protected_load_from_object_structure
-    (unmarshalling_env)
+    (loading_env)
     (object_structure : object_structure)
-    : unit * Unmarshalling_env.t
+    : unit * Loading_env.t
     =
-    let foreign_class_name = object_structure.class_name 
-    and labelled_values    = object_structure.labelled_values 
-    and unlabelled_values  = object_structure.unlabelled_values 
+    let foreign_class_name = object_structure.class_name
+    and labelled_values    = object_structure.labelled_values
+    and unlabelled_values  = object_structure.unlabelled_values
     in
-    let (), unmarshalling_env = self#load_from_labelled_values   ?foreign_class_name (unmarshalling_env) (labelled_values)   in
-    let (), unmarshalling_env = self#load_from_unlabelled_values ?foreign_class_name (unmarshalling_env) (unlabelled_values) in
-    ((), unmarshalling_env)
+    let (), loading_env = self#load_from_labelled_values   ?foreign_class_name (loading_env) (labelled_values)   in
+    let (), loading_env = self#load_from_unlabelled_values ?foreign_class_name (loading_env) (unlabelled_values) in
+    ((), loading_env)
 
   (* Loading from a list of labelled values: *)
   method private load_from_labelled_values
     ?foreign_class_name
-    (unmarshalling_env)
+    (loading_env)
     (labelled_values : (field_name * marshallable) list)
-    : unit * Unmarshalling_env.t
+    : unit * Loading_env.t
     =
     let set_arg_list =
       let saa_arg_list =
         Fields_register.match_named_fields_with_labelled_values
           ?foreign_class_name
           ?class_name:(self#parent_class_name)
-          ?label_mapping:(Unmarshalling_env.extract_label_mapping unmarshalling_env)
+          ?label_mapping:(Loading_env.extract_label_mapping loading_env)
           (self#get_fields_register)
           (labelled_values)
       in
       List.map (fun (saa,arg) -> (saa.Fields_register.set,arg)) saa_arg_list
     in
-    self#load_from_set_arg_list (unmarshalling_env) set_arg_list
+    self#load_from_set_arg_list (loading_env) set_arg_list
 
   (* Loading from a list of unlabelled values: *)
   method private load_from_unlabelled_values
     ?foreign_class_name
-    (unmarshalling_env)
+    (loading_env)
     (unlabelled_values : marshallable list)
-    : unit * Unmarshalling_env.t
+    : unit * Loading_env.t
     =
     let set_arg_list =
       let saa_arg_list =
@@ -865,16 +1089,16 @@ object (self)
       in
       List.map (fun (saa,arg) -> (saa.Fields_register.set,arg)) saa_arg_list
     in
-    self#load_from_set_arg_list (unmarshalling_env) set_arg_list
+    self#load_from_set_arg_list (loading_env) set_arg_list
 
-  method private load_from_set_arg_list (unmarshalling_env) set_arg_list : unit * Unmarshalling_env.t =
-    let unmarshalling_env =
+  method private load_from_set_arg_list (loading_env) set_arg_list : unit * Loading_env.t =
+    let loading_env =
       List.fold_left
-	(fun unmarshalling_env (set, arg) -> snd (set unmarshalling_env arg))
-	unmarshalling_env
+	(fun loading_env (set, arg) -> snd (set loading_env arg))
+	loading_env
 	set_arg_list
     in
-    ((), unmarshalling_env)
+    ((), loading_env)
 
   (* --------------------------------------
               Other methods
@@ -895,31 +1119,37 @@ object (self)
    method remake_simplest : unit =
      self#load_from_string (self#save_to_string)
 
+   (* Alias for remake_simplest: *)
+   method remove_upcasting : unit =
+     self#load_from_string (self#save_to_string)
+
 end;;
 
-
 (* ********************************* *
-       Basic class constructors
+         Associated tools
  * ********************************* *)
 
-type 'a whatever_object = < .. > as 'a
-type 'a basic_class_constructor = unit -> 'a whatever_object
+module Toolkit = struct
 
-let basic_class_constructors = ref String_map.empty
-let bcc = basic_class_constructors (* convenient alias *)
+ (* Just an alias for List.combine: *)
+ let zip_list = List.combine
 
-let register_basic_constructor ~(class_name:string) (f: 'a basic_class_constructor) =
-  bcc := String_map.add class_name (Obj.magic f) !bcc
+ let zip_array xs ys =
+   if (Array.length xs) <> (Array.length ys) then invalid_arg "zip_array" else
+   Array.mapi (fun i a -> (a,ys.(i))) xs ;;
 
-let get_basic_constructor class_name ~involved_field ~involved_class : 'a basic_class_constructor =
- try
-   Obj.magic (String_map.find class_name !bcc)
- with
-  Not_found ->
-    invalid_arg
-      (Printf.sprintf
-         "Error: unmarshalling field `%s.%s' needs to recreate `%s' instances but this class has not a registered basic constructor."
-         involved_class involved_field class_name)
+ let zip_option x y =
+   match (x,y) with
+   | (None, None)     -> None
+   | (Some x, Some y) -> Some (x,y)
+   | _ -> invalid_arg "zip_option"
+
+ let zip_either x y =
+   match (x,y) with
+   | (Either.Left  a, Either.Left  c) -> Either.Left  (a,c)
+   | (Either.Right b, Either.Right d) -> Either.Right (b,d)
+
+end
 
 
 (* ********************************* *
@@ -970,6 +1200,7 @@ let () = register_basic_constructor ~class_name:"class1" (fun () -> new class1 (
 
 class class2 ?(marshaller:(marshaller option ref) option) () =
 let marshaller = match marshaller with None -> ref None | Some r -> r in
+let involved_class = "class2" in
 object (self)
 
   (* Automatically added at the beginning of the class definition: *)
@@ -987,7 +1218,11 @@ object (self)
   method get_field3 = field3
   method set_field3 v = field3 <- v
   initializer
-    self#marshaller#register_object_field ~name:"field3" (fun () -> self#get_field3) self#set_field3;
+    let object_maker = get_basic_constructor "class1" ~involved_field:"field3" ~involved_class in
+    self#marshaller#register_object_field ~name:"field3"
+      object_maker
+      (fun () -> self#get_field3)
+      self#set_field3;
 
   (* A field containing an optional (marshallable) object:
      Concrete syntax:
@@ -998,9 +1233,10 @@ object (self)
   method set_field4 v = field4 <- v
   initializer
     (* from the tag: *)
-    let object_maker = get_basic_constructor "class2" ~involved_field:"field4" ~involved_class:"class2" in
+    let object_maker = get_basic_constructor "class2" ~involved_field:"field4" ~involved_class in
     let functor_map = Option.map in        (* from the tag: option -> Option.map *)
     self#marshaller#register_functorized_object_field ~name:"field4"
+      ~zip:(fun x y -> match (x,y) with None,None-> None| Some x, Some y -> Some (x,y))
       functor_map
       object_maker
       (fun () -> self#get_field4)
@@ -1014,9 +1250,10 @@ object (self)
   method get_field5 = field5
   method set_field5 v = field5 <- v
   initializer
-    let object_maker = get_basic_constructor "class2" ~involved_field:"field5" ~involved_class:"class2" in
+    let object_maker = get_basic_constructor "class2" ~involved_field:"field5" ~involved_class in
     let functor_map = List.map in          (* from the tag: list -> List.map *)
     self#marshaller#register_functorized_object_field ~name:"field5"
+      ~zip:(List.combine)
       functor_map
       object_maker
       (fun () -> self#get_field5)
@@ -1028,6 +1265,7 @@ let () = register_basic_constructor ~class_name:"class2" (fun () -> new class2 (
 
 class class3 ?(marshaller:(marshaller option ref) option) () =
 let marshaller = match marshaller with None -> ref None | Some r -> r in
+let involved_class = "class3" in
 object (self)
 
   (* Automatically added at the beginning of the class definition: *)
@@ -1046,10 +1284,11 @@ object (self)
   method get_field7 = field7
   method set_field7 v = field7 <- v
   initializer
-    let object_maker1 = get_basic_constructor "class2" ~involved_field:"field7" ~involved_class:"class3" in
-    let object_maker2 = get_basic_constructor "class3" ~involved_field:"field7" ~involved_class:"class3" in
+    let object_maker1 = get_basic_constructor "class2" ~involved_field:"field7" ~involved_class in
+    let object_maker2 = get_basic_constructor "class3" ~involved_field:"field7" ~involved_class in
     let functor_map = Either.Bifunctor.map in
     self#marshaller#register_bifunctorized_objects_field ~name:"field7"
+      ~zip:(fun x y -> match x,y with (Left a, Left b) -> Left (a,b) | (Right c, Right d) -> Right (c,d))
       functor_map
       object_maker1
       object_maker2
@@ -1059,7 +1298,6 @@ object (self)
 end
 let () = register_basic_constructor ~class_name:"class3" (fun () -> new class3 ())
 
-
 let crash_test () =
   let x  = new class3 () in
   let y  = new class3 () in
@@ -1068,12 +1306,32 @@ let crash_test () =
   assert (x#marshaller#equals y);
   let z1  = new class2 () in
   let z2  = new class2 () in
-  let load_y_with_x () =
-    y#marshaller#load_from_string (x#marshaller#save_to_string)
+  let load_y_with_x ?reuse ?upcasting () =
+    let options =
+      make_loading_options
+        ?try_to_preserve_upcasting:upcasting
+        ?try_to_reuse_living_objects:reuse
+        ()
+    in
+    y#marshaller#load_from_string ~options (x#marshaller#save_to_string)
   in
   x#set_field5 [z1; z2];
   assert (not (x#marshaller#equals y));
   load_y_with_x ();
+  assert (x#marshaller#equals y);
+
+  (* --- Test objects' reusing: *)
+  let oid1 = Oo.id (List.hd (x#get_field5)) in
+  let oid2 = Oo.id (List.hd (y#get_field5)) in
+  assert (oid1 <> oid2);
+  load_y_with_x ();
+  let oid3 = Oo.id (List.hd (y#get_field5)) in
+  assert (oid2 <> oid3);
+  load_y_with_x ~reuse:() ();
+  let oid4 = Oo.id (List.hd (y#get_field5)) in
+  assert (oid3 = oid4);
+
+  (* --- A little change in (the graph of) x: *)
   assert (x#marshaller#equals y);
   z1#set_field0 1234;
   assert (not (x#marshaller#equals y));
@@ -1082,22 +1340,73 @@ let crash_test () =
   z1'#set_field0 1234;
   assert (z1#marshaller#equals z1');
   assert (x#marshaller#equals y);
-  (* Test bifunctors: *)
+
+  (* --- Test bifunctors: *)
   let z  = new class3 () in
   x#set_field7 (Either.Right z);
   assert (not (x#marshaller#equals y));
   load_y_with_x ();
   assert (x#marshaller#equals y);
-  (* Test cyclicity and casting: *)
-  z#set_field7 (Either.Right x);
-  z#set_field5 ([y; x; z] :> class2 list);
+
+  (* --- Test reusing with bifunctors (zip): *)
+  let oid1 = Oo.id (Either.right (y#get_field7)) in
   load_y_with_x ();
-  assert ((y :> class2) = List.hd ((Either.right x#get_field7)#get_field5));
+  let oid2 = Oo.id (Either.right (y#get_field7)) in
+  assert (oid1 <> oid2);
+  load_y_with_x ~reuse:() ();
+  let oid3 = Oo.id (Either.right (y#get_field7)) in
+  assert (oid2 = oid3);
+
+  (* --- Test cyclicity and casting: *)
+  x#set_field3 (x :> class1);
+  assert (not (x#marshaller#equals y));
+  load_y_with_x ();
+  (* because loops are recognized and reproduced identically: *)
+  assert (x#marshaller#equals y);
+  (* but... *)
+  x#set_field3 (z1 :> class1);
+  load_y_with_x ();
+  (* now field3 is not a loop: *)
+  assert (not (x#marshaller#equals y));
+  (* we have to set the option ~try_to_preserve_upcasting *)
+  load_y_with_x ~upcasting:() ();
+  (* now it's fine: *)
+  assert (x#marshaller#equals y);
+
+  (* --- Test loading from structure containing itself: *)
+  z#set_field7 (Either.Right x);        (* x -> z -> x *)
+  z#set_field5 ([x; z] :> class2 list); (* x -> z -> z *)
+  load_y_with_x ();
   assert (not (x#marshaller#equals y)); (* because of casting! *)
+  load_y_with_x ~upcasting:() ();
+  assert (x#marshaller#equals y);
+
+  z#set_field5 ([y; x; z] :> class2 list); (* y is in the graph of x and conversely... *)
+  assert ((y :> class2) = List.hd ((Either.right x#get_field7)#get_field5));
+  load_y_with_x ~upcasting:() ();
+  (* because y in the list of (z of) x was not recognized as... y itself
+     when y was loading: *)
+  assert (not (x#marshaller#equals y));
+  (* but the first element of the list in y is the old state of y, not the new state
+     obtained loading from x: *)
+  let y'= List.hd ((Either.right y#get_field7)#get_field5) in
+  assert (not (y#marshaller#equals y'));
+  (* so, we can try to fix y' in this way: *)
+  let options = make_loading_options ~try_to_preserve_upcasting:() () in
+  y'#marshaller#load_from_string ~options (y#marshaller#save_to_string);
+  (* but y has not the same graph of x: is an equivalent graph where a loop
+     has been expanded: *)
+  assert (not (x#marshaller#equals y));
+  (* so, we can't restore the broken loop. A solution of this problem
+     could be to define a sigle method saving and loading at same time
+     (instead of doing them sequentially) *)
+
+  (* --- Test remove_upcasting: *)
   (* Reloading x and z with themselves, the surplus of methods
      of their sub-objects will be removed: *)
   x#marshaller#remake_simplest;
-  z#marshaller#remake_simplest;
+  assert (not (x#marshaller#equals y));
+  y#marshaller#remake_simplest;
   (* Now it's fine: *)
   assert (x#marshaller#equals y);
   (* Success: *)

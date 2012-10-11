@@ -15,11 +15,21 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
-module Marshalling_env   : sig type t end
-module Unmarshalling_env : sig type t end
-
 type field_name = string
 type object_structure
+type loading_options
+
+val make_loading_options :
+  ?mapping:(field_name -> field_name) ->
+  ?mapping_by_list:(field_name * field_name) list ->
+  ?try_to_preserve_upcasting:unit ->
+  ?try_to_reuse_living_objects:unit ->
+  unit -> loading_options
+
+(* For protected method: the user may forget them: *)
+type saving_env
+type loading_env
+
 
 class marshallable_class :
   ?name:string ->
@@ -37,8 +47,8 @@ and marshaller :
     method save_to_string : string
     method save_to_file   : string -> unit
 
-    method load_from_string : ?mapping:(field_name -> field_name) -> string -> unit
-    method load_from_file   : ?mapping:(field_name -> field_name) -> string -> unit
+    method load_from_string : ?options:loading_options -> string -> unit
+    method load_from_file   : ?options:loading_options -> string -> unit
 
     method compare : < marshaller : marshaller; .. > -> int
     method equals  : < marshaller : marshaller; .. > -> bool
@@ -46,8 +56,10 @@ and marshaller :
     method hash    : int
 
     (* Reload the object with himself in order to make its components as possible simplest
-       (remove the surplus of components attributes caused by some casting operations (:>)) *)
-    method remake_simplest : unit
+       (in other words remove the surplus of components attributes caused by some upcasting
+        operations (:>)) *)
+    method remake_simplest  : unit
+    method remove_upcasting : unit (* alias for remake_simplest *)
 
     method register_simple_field :
       ?name:string ->                                          (* the field name *)
@@ -56,14 +68,17 @@ and marshaller :
       unit
 
     method register_object_field :
+    'obj.
       ?name:string ->                                          (* the field name *)
-      (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the field getter *)
+      (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the object maker (simplest constructor) *)
+      (unit -> 'obj) ->                                        (* the field getter *)
       ('obj -> unit) ->                                        (* the field setter *)
       unit
 
     method register_functorized_object_field :
-    'obj 'obj_t 'a 'b 'a_t 'b_t.
+    'obj 'obj_t 'a 'b 'a_t 'b_t 'ab_t.
       ?name:string ->                                          (* the field name *)
+      ?zip:('a_t -> 'b_t -> 'ab_t) ->                          (* functor zip *)
       (('a -> 'b) -> 'a_t -> 'b_t) ->                          (* the functor *)
       (unit -> (< marshaller : marshaller; .. > as 'obj)) ->   (* the object maker (simplest constructor) *)
       (unit -> 'obj_t) ->                                      (* the field getter *)
@@ -71,8 +86,9 @@ and marshaller :
       unit
 
     method register_bifunctorized_objects_field :
-    'obj1 'obj2 'objects_t 'a 'b 'c 'd 'ac_t 'bd_t.
+    'obj1 'obj2 'objects_t 'a 'b 'c 'd 'ac_t 'bd_t 'au_t 'bv_t 'axb_uxv_t.
       ?name:string ->                                          (* name *)
+      ?zip:('au_t -> 'bv_t -> 'axb_uxv_t) ->                   (* zip for bifunctor *)
       (('a -> 'b) -> ('c -> 'd) -> 'ac_t -> 'bd_t) ->          (* bifunctor *)
       (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 (simplest constructor) *)
       (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 (simplest constructor) *)
@@ -81,8 +97,9 @@ and marshaller :
         unit
 
     method register_trifunctorized_objects_field :
-    'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t .
+    'obj1 'obj2 'obj3 'objects_t 'a 'b 'c 'd 'e 'f 'ace_t 'bdf_t 'aue_t 'bvf_t 'axb_uxv_exf_t .
       ?name:string ->                                          (* name *)
+      ?zip:('aue_t -> 'bvf_t -> 'axb_uxv_exf_t) ->             (* trifunctor zip *)
       (('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> 'ace_t -> 'bdf_t) -> (* trifunctor *)
       (unit -> (< marshaller : marshaller; .. > as 'obj1)) ->  (* object maker 1 (simplest constructor) *)
       (unit -> (< marshaller : marshaller; .. > as 'obj2)) ->  (* object maker 2 (simplest constructor) *)
@@ -94,8 +111,8 @@ and marshaller :
     method parent_class_name : string option
 
     (* Internal methods (shoud be protected), not for users: *)
-    method protected_load_from_object_structure : Unmarshalling_env.t -> object_structure -> unit * Unmarshalling_env.t
-    method protected_save_to_object_structure   : Marshalling_env.t -> object_structure * Marshalling_env.t
+    method protected_load_from_object_structure : loading_env -> object_structure -> unit * loading_env
+    method protected_save_to_object_structure   : saving_env  -> object_structure * saving_env
 
   end
 
@@ -109,11 +126,17 @@ val disable_warnings : unit -> unit
 val enable_tracing  : unit -> unit
 val disable_tracing : unit -> unit
 
-(* After class definition, don't forget to register a basic constructor: *)
-(*type 'a whatever_object = < .. > as 'a
-type 'a basic_class_constructor = unit -> 'a whatever_object
-val register_basic_constructor : class_name:string -> 'a basic_class_constructor -> unit
-val get_basic_constructor : string -> involved_field:string -> involved_class:string -> 'a basic_class_constructor*)
+module Toolkit : sig
+
+ (* Just an alias for List.combine: *)
+ val zip_list  : 'a list  -> 'b list -> ('a * 'b) list
+
+ val zip_array  : 'a array  -> 'b array  -> ('a * 'b) array
+ val zip_option : 'a option -> 'b option -> ('a * 'b) option
+ val zip_either : ('a,'b) Either.t -> ('c,'d) Either.t -> (('a * 'c), ('b * 'd)) Either.t
+
+end
+
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Example :
