@@ -77,6 +77,31 @@ let set_file_content ?perm ~filename content =
     (fun out_channel -> output_string out_channel content)
 ;;
 
+(* A simple (but portable) hash function generating natural numbers in the range [0..(2^31)-1]
+   with a uniform distribution. Note that the limit is exactly the value of max_int on 32-bit
+   architectures, i.e. 2147483647 = (2^31)-1 *)
+let hash32 s =
+  let s = Digest.to_hex (Digest.string s) in
+  let max_int32_succ = Int64.of_int 2147483648 (* (2^31) *) in
+  let hash_portion portion =
+    let length = 8 in
+    let offset = portion * length in
+    let sub = String.create (2+length) in
+    let () = String.blit "0x" 0 sub 0 2 in
+    let () = String.blit s offset sub 2 length in
+    let i = Int64.of_string sub in (* 0..(16^8)-1 = 0..(2^32)-1 *)
+    (Int64.rem i max_int32_succ)   (* 0..max_int32 *)
+  in
+  let result =
+    let xs = [ (hash_portion 0); (hash_portion 1); (hash_portion 2); (hash_portion 3) ] in
+    let sum = List.fold_left (fun s x -> Int64.add s x) Int64.zero xs in
+    let remainder = Int64.rem (sum) (max_int32_succ) in (* 0..max_int32 *)
+    Int64.to_int (remainder)
+  in
+  result
+;;
+
+
 module Option = struct
 let extract =
  function
@@ -1110,8 +1135,8 @@ object (self)
    method equals : 'a. (< marshaller:marshaller; .. > as 'a) -> bool
      = fun obj -> (self#save_to_string) = (obj#marshaller#save_to_string)
 
-   method hash : int =
-     Hashtbl.hash (self#save_to_string)
+   method hash32 : int =
+     hash32 (self#save_to_string)
 
    method md5sum : string =
      Digest.to_hex (Digest.string (self#save_to_string))
