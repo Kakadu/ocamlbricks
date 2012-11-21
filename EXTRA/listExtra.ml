@@ -259,7 +259,7 @@ let interval = range
 let indexes l = range 0 ((List.length l)-1);;
 
 (** Consider a list as a function from indexes to its content. The function is the identity outside the indexes of the list. *)
-let asFunction l = fun i -> try (List.nth l i) with _ -> i;;
+let asFunction l = fun i -> try (List.nth l i) with _ -> i
 
 (** Considering a list as a record and select some fields (indexes). Example:
 
@@ -269,10 +269,19 @@ let asFunction l = fun i -> try (List.nth l i) with _ -> i;;
      *)
 let select (l:'a list) (fieldlist:int list) =
  let a = Array.of_list l in
- let rec loop a = function
+ let rec loop = function
  | []    -> []
- | f::fl -> (Array.get a f)::(loop a fl)
- in loop a fieldlist
+ | f::fl -> (Array.get a f)::(loop fl)
+ in loop fieldlist
+
+(**  Example:
+{[# select_from_to [0;1;2;3;4;5;6] 2 5 ;;
+  : int list = [2; 3; 4; 5]
+]} *)
+let select_from_to xs a b =
+ try
+   Array.to_list (Array.sub (Array.of_list xs) a (b-a+1))
+ with Invalid_argument _ -> invalid_arg "ArrayExtra.select_from_to"
 
 (** Remove the element with the given index. *)
 let rmindex l i =

@@ -122,6 +122,7 @@ val asFunction : int list -> int -> int
 (** {b Selecting by indexes} *)
 
 val select : 'a list -> int list -> 'a list
+val select_from_to : 'a list -> int -> int -> 'a list
 
 (** {b Removing by indexes} *)
 
