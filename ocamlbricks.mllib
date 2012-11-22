@@ -71,6 +71,7 @@ Sugar
 StackExtra
 SysExtra
 ThreadExtra
+Thunk
 UnixExtra
 Widget
 Wrapper

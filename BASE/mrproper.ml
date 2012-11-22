@@ -1,5 +1,5 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2009  Jean-Vincent Loddo
+   Copyright (C) 2009 2012  Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,98 +14,87 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Register actions to perform exiting the program.
+type t = (one_shot * Thunk.t) Stack.t
+and one_shot = bool
 
-On the one hand, a definition as the following could be written at the beginning of a program:
-{[ let exit = Mrproper.exit ~ignore_errors:true ;; ]}
-and could be used for exiting the program.
-On the other hand, anywhere in the program you could register some actions in order to leave
-the program cleanly, as for instance:
-{[ let filename = temp_file ~perm:0o755 ~suffix:".sh" () in
- let () = Mrproper.register (lazy (Unix.unlink filename)) in
- ...]}
+let dress_thunk ?unprotected ?one_shot thunk =
+  let thunk =
+    match unprotected with
+    | Some () -> thunk
+    | None    -> Thunk.protect thunk
+  in
+  let result =
+    match one_shot with
+    | Some () -> (true, Thunk.linearize thunk) (* not really needed *)
+    | None    -> (false, thunk)
+  in
+  result
 
-Note that actions are internally registered in a {b stack} and are thus performed in the reversed order
-with respect to the registration (insertion).
-*)
+let stack_rev t0 = 
+  let t1 = Stack.create () in
+  Stack.iter (fun x -> Stack.push x t1) t0;
+  t1
+  
+let stack_remove_one_shot_thunks t0 = 
+  let t1 = Stack.create () in
+  Stack.iter (fun (b,x) -> if b then () else Stack.push (b,x) t1) t0;
+  Stack.clear t0;
+  Stack.iter (fun x -> Stack.push x t0) t1;
+  ()
 
-(** An action is a deferred value of type [unit]. *)
-type action = unit lazy_t
+let register_thunk ?unprotected ?one_shot thunk t =
+  let thunk = dress_thunk ?unprotected ?one_shot thunk in 
+  Stack.push (thunk) t
 
-(* A global stack with thunks that must be executed exiting. *)
-let mrproper = Stack.create ()
+let register_lazy ?unprotected lazy_action t =
+ let thunk = Thunk.of_lazy lazy_action in
+ register_thunk ?unprotected ~one_shot:() thunk t
 
-(** Force Mrproper to perform the list (stack) of registered actions. *)
-let work ?(ignore_errors=false) () =
-  let action =
-    (match ignore_errors with
-    | true  -> (fun x -> try Lazy.force x with _ -> ())
-    | false -> Lazy.force
-    ) in
-  (Stack.iter action mrproper);
-  (Stack.clear mrproper)
+let reverse_according_to ?fifo t = 
+  match fifo with
+  | None    -> t
+  | Some () -> stack_rev t
+ 
+let force ?fifo t = 
+  Stack.iter (fun (_,f) -> f ()) (reverse_according_to ?fifo t);
+  stack_remove_one_shot_thunks t;
+  ()
 
-(** Register an action,i.e. push it into the internal stack. *)
-let register ?(ignore_errors=false) deferred =
-  let deferred =
-    (match ignore_errors with
-    | true  -> lazy (try Lazy.force deferred with _ -> ())
-    | false -> deferred
-    ) in
-   (Stack.push deferred mrproper)
+module Make_instance (Unit:sig end) = struct
 
-(** Exit the program performing all registered actions in the stack.*)
-let exit ?(ignore_errors=false) code =
-  (work ~ignore_errors ());
+(* The global stack of thunks:  *)
+let global_t = Stack.create ()
+
+let fifo_discipline = ref None (* false *)
+
+let set_fifo_discipline () = 
+  fifo_discipline := Some () (* true *)
+  
+let force () = force ?fifo:!fifo_discipline global_t
+
+let register_thunk ?unprotected ?one_shot action =
+  register_thunk ?unprotected ?one_shot action global_t
+
+let register_lazy ?unprotected action =
+  register_lazy ?unprotected action global_t
+  
+let exit code =
+  (force ());
   (Pervasives.exit code)
 
-(** Make a {e local} mrproper structure via a functorial interface.
-    A typical use is to connect the function [work] to the destruction of
-    a temporary structure, as for instance a widget. The function [work]
-    of a local mrproper is registered into the global mrproper setting
-    the optional parameter [work_at_exit] to [true].
-    The value [ignore_errors] defines the default of this parameter for
-    all generated functions.
-
-    {b Example}:
-{[  let window = GWindow.window () in
-  let module Mrproper = Mrproper.Make (struct let ignore_errors=true let work_at_exit = false end) in
-  ..
-  Mrproper.register (lazy ...);
-  Mrproper.register (lazy ...);
-  ..
-  let _ = window#connect#destroy ~callback:Mrproper.work in
-  ..
-]}*)
-module Make
- (Defaults: sig
-    val ignore_errors : bool
-    val work_at_exit : bool
-  end) = struct
-
- let global_register = register
-
- let mrproper = Stack.create ()
-
- let work ?(ignore_errors=Defaults.ignore_errors) () =
-  let action =
-    (match ignore_errors with
-    | true  -> (fun x -> try Lazy.force x with _ -> ())
-    | false -> Lazy.force
-    ) in
-  (Stack.iter action mrproper);
-  (Stack.clear mrproper)
-
- let side_effect = match Defaults.work_at_exit with
-  | true  -> global_register (lazy (work ()))
-  | false -> ()
-
- let register ?(ignore_errors=Defaults.ignore_errors) deferred =
-  let deferred =
-    (match ignore_errors with
-    | true  -> lazy (try Lazy.force deferred with _ -> ())
-    | false -> deferred
-    ) in
-   (Stack.push deferred mrproper)
-
+end (* functor Make_instance *)
+  
+class obj ?fifo () = 
+  let (register_thunk, register_lazy, force) =
+    let module M = Make_instance(struct end) in
+    let () = Option.iter M.set_fifo_discipline fifo in
+    (M.register_thunk, M.register_lazy, M.force)
+  in
+  object (self)
+    method register_thunk = register_thunk
+    method register_lazy  = register_lazy
+    method force = force
 end
+
+(* Make and include the global instance: *)
+include Make_instance (struct end)
