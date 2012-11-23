@@ -17,11 +17,18 @@
 
 (** Support for managing the component garbage. *)
 class virtual destroy_methods () =
+ let mrproper = new Mrproper.obj () in
  object
-  val mutable destroy_callbacks = []
-  method add_destroy_callback f = (destroy_callbacks <- f::destroy_callbacks)
+  
+  (* Accessor to the inner mrproper object: *)
+  method mrproper = mrproper
+  
+  (* Automatically protected and considered as one-shot (linear) thunk: *)
+  method add_destroy_callback f = mrproper#register_lazy f
+  
   (* Initially private, but may became public: *)
-  method private destroy = List.iter (fun e -> Lazy.force e) destroy_callbacks
+  method private destroy = mrproper#force ()
+ 
  end (* destroy_methods *)
 
 
