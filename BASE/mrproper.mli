@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Register actions to perform exiting the program or destroying a 
+(** Register actions to perform exiting the program or destroying a
     temporary structure.
 
 On the one hand, a definition as the following could be written at the beginning of a program:
@@ -30,12 +30,12 @@ Note that actions are internally registered in a {b stack} and are thus performe
 with respect to the registration (insertion). You can switch to a fifo discipline with
 the function [set_fifo_discipline].
 *)
-   
+
 (** Push a thunk into the global stack of thunks. *)
 val register_thunk : ?unprotected:unit -> ?one_shot:unit -> Thunk.t -> unit
 
 (** Push a lazy action into the global stack of thunks.
-    Lazy actions are forced to be one-shot: when unprotected, the 
+    Lazy actions are forced to be one-shot: when unprotected, the
     thunk will not re-raise the same exception forcing the thunk execution twice. *)
 val register_lazy  : ?unprotected:unit -> unit Lazy.t -> unit
 

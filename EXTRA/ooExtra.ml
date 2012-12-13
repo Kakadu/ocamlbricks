@@ -19,16 +19,16 @@
 class virtual destroy_methods () =
  let mrproper = new Mrproper.obj () in
  object
-  
+
   (* Accessor to the inner mrproper object: *)
   method mrproper = mrproper
-  
+
   (* Automatically protected and considered as one-shot (linear) thunk: *)
   method add_destroy_callback f = mrproper#register_lazy f
-  
+
   (* Initially private, but may became public: *)
   method private destroy = mrproper#force ()
- 
+
  end (* destroy_methods *)
 
 

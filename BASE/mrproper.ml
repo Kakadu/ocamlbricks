@@ -30,12 +30,12 @@ let dress_thunk ?unprotected ?one_shot thunk =
   in
   result
 
-let stack_rev t0 = 
+let stack_rev t0 =
   let t1 = Stack.create () in
   Stack.iter (fun x -> Stack.push x t1) t0;
   t1
-  
-let stack_remove_one_shot_thunks t0 = 
+
+let stack_remove_one_shot_thunks t0 =
   let t1 = Stack.create () in
   Stack.iter (fun (b,x) -> if b then () else Stack.push (b,x) t1) t0;
   Stack.clear t0;
@@ -43,19 +43,19 @@ let stack_remove_one_shot_thunks t0 =
   ()
 
 let register_thunk ?unprotected ?one_shot thunk t =
-  let thunk = dress_thunk ?unprotected ?one_shot thunk in 
+  let thunk = dress_thunk ?unprotected ?one_shot thunk in
   Stack.push (thunk) t
 
 let register_lazy ?unprotected lazy_action t =
  let thunk = Thunk.of_lazy lazy_action in
  register_thunk ?unprotected ~one_shot:() thunk t
 
-let reverse_according_to ?fifo t = 
+let reverse_according_to ?fifo t =
   match fifo with
   | None    -> t
   | Some () -> stack_rev t
- 
-let force ?fifo t = 
+
+let force ?fifo t =
   Stack.iter (fun (_,f) -> f ()) (reverse_according_to ?fifo t);
   stack_remove_one_shot_thunks t;
   ()
@@ -67,9 +67,9 @@ let global_t = Stack.create ()
 
 let fifo_discipline = ref None (* false *)
 
-let set_fifo_discipline () = 
+let set_fifo_discipline () =
   fifo_discipline := Some () (* true *)
-  
+
 let force () = force ?fifo:!fifo_discipline global_t
 
 let register_thunk ?unprotected ?one_shot action =
@@ -77,14 +77,14 @@ let register_thunk ?unprotected ?one_shot action =
 
 let register_lazy ?unprotected action =
   register_lazy ?unprotected action global_t
-  
+
 let exit code =
   (force ());
   (Pervasives.exit code)
 
 end (* functor Make_instance *)
-  
-class obj ?fifo () = 
+
+class obj ?fifo () =
   let (register_thunk, register_lazy, force) =
     let module M = Make_instance(struct end) in
     let () = Option.iter M.set_fifo_discipline fifo in

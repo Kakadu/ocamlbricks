@@ -456,7 +456,9 @@ class stream_channel ?max_input_size fd =
 
 end (* class stream_channel *)
 
-(** Useful for writing polymorphic protocols that refer only to method #send and #receive: *)
+(** Useful for writing polymorphic protocols that refer only to method #send and #receive:.
+    Note that the parameter `max_input_size' became meaningless because the method #receive 
+    is defined as ch#input_line that ignores this parameter. *)
 let line_oriented_channel_of_stream_channel (ch:stream_channel) =
   object
     method receive = ch#input_line
@@ -755,39 +757,39 @@ let stream_dgram_protocol_composition
     end
 
 (* datagram - unix *)
-let dgram_unix_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?socketfile
+let dgram_unix_server ?max_pending_requests ?stream_max_input_size ?tutor_behaviour ?no_fork ?socketfile
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
-  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  let server_fun = server_fun_of_stream_protocol ?max_input_size:stream_max_input_size protocol_composition in
   unix_server ?max_pending_requests ?tutor_behaviour ?no_fork ?socketfile server_fun
 
 (* datagram - inet4 *)
-let dgram_inet4_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
+let dgram_inet4_server ?max_pending_requests ?stream_max_input_size ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
-  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  let server_fun = server_fun_of_stream_protocol ?max_input_size:stream_max_input_size protocol_composition in
   inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port server_fun
 
 (* datagram - inet6 *)
-let dgram_inet6_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port
+let dgram_inet6_server ?max_pending_requests ?stream_max_input_size ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
-  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  let server_fun = server_fun_of_stream_protocol ?max_input_size:stream_max_input_size protocol_composition in
   inet6_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range6 ?ipv6 ?port server_fun
 
 (* datagram - inet *)
-let dgram_inet_server ?max_pending_requests ?max_input_size ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port
+let dgram_inet_server ?max_pending_requests ?stream_max_input_size ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port
   ~(bootstrap : stream_channel   -> dgram_channel)
   ~(protocol  : dgram_channel -> unit)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
-  let server_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  let server_fun = server_fun_of_stream_protocol ?max_input_size:stream_max_input_size protocol_composition in
   inet_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?range6 ?ipv4 ?ipv6 ?port server_fun
 
 
@@ -838,23 +840,23 @@ let stream_inet_client ?max_input_size ~ipv4_or_v6 ~port ~(protocol:stream_chann
   inet_client ~ipv4_or_v6 ~port client_fun
 
 (* datagram - unix *)
-let dgram_unix_client ?max_input_size ~socketfile
+let dgram_unix_client ?stream_max_input_size ~socketfile
   ~(bootstrap : stream_channel -> dgram_channel)
   ~(protocol  : dgram_channel  -> 'a)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
-  let client_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  let client_fun = server_fun_of_stream_protocol ?max_input_size:stream_max_input_size protocol_composition in
   unix_client ~socketfile client_fun
 
 (* datagram - inet4 or inet6 *)
-let dgram_inet_client ?max_input_size
+let dgram_inet_client ?stream_max_input_size
   ~ipv4_or_v6
   ~port
   ~(bootstrap : stream_channel -> dgram_channel)
   ~(protocol  : dgram_channel  -> 'a)
   () =
   let protocol_composition = stream_dgram_protocol_composition ~bootstrap ~protocol in
-  let client_fun = server_fun_of_stream_protocol ?max_input_size protocol_composition in
+  let client_fun = server_fun_of_stream_protocol ?max_input_size:stream_max_input_size protocol_composition in
   inet_client ~ipv4_or_v6 ~port client_fun
 
 
@@ -1043,6 +1045,9 @@ end (* module Socat *)
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Examples = struct
 
+let server_max_input_size = 10;;
+let max_input_size = server_max_input_size ;;
+
 (* A simple echo server: *)
 let rec simple_echo_server_protocol ch =
   let pr = Printf.kfprintf flush stderr in
@@ -1052,13 +1057,22 @@ let rec simple_echo_server_protocol ch =
     then (pr "ECHO server: exiting.\n")
     else simple_echo_server_protocol ch
 
+(* A simple echo client: *)
 let rec simple_echo_client_protocol ch =
   let pr = Printf.kfprintf flush stderr in
+  let pr1 = Printf.kfprintf flush stderr in
+  let pr2 = Printf.kfprintf flush stderr in
   pr "Enter the text to send: ";
   let x = try input_line stdin with _ -> "quit" in
   let () = (ch#send x) in
   let y = ch#receive () in
-  (if x=y then (pr "Echo received, ok.\n") else (pr "Bad echo!!!!\n"));
+  let n = String.length y in
+  (if x=y
+     then
+        (pr1 "Echo received, ok. (%d chars)\n" n)
+     else
+        (pr2 "Bad echo!!!!! Received: %s (%d chars)\n" y n)
+     );
   if y="quit"
    then (pr "ECHO client: exiting.\n")
    else simple_echo_client_protocol ch
@@ -1078,7 +1092,7 @@ let dgram_inet_echo_server ?no_fork ?inet6 ?port () =
       let (fd0, sockaddr0, port0) =
         dgram_input_port_of ~dgram_output_port ~my_stream_inet_addr ()
       in
-      let dgram_channel = new dgram_channel ~fd0 ~sockaddr1 () in
+      let dgram_channel = new dgram_channel ~max_input_size ~fd0 ~sockaddr1 () in
       Log.printf "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
       (ch#output_binary_int port0);
       dgram_channel
@@ -1108,7 +1122,7 @@ let dgram_unix_echo_server ?no_fork ?stream_socketfile () =
         dgram_input_socketfile_of ~dgram_output_socketfile ~stream_socketfile ()
       in
       let sockaddr1 = Unix.ADDR_UNIX dgram_output_socketfile in
-      let dgram_channel = new dgram_channel ~fd0 ~sockaddr1 () in
+      let dgram_channel = new dgram_channel ~max_input_size ~fd0 ~sockaddr1 () in
       Log.printf "Sending the filename %s (my input line) to %s\n" socketfile0 sockname;
       (ch#send socketfile0);
       dgram_channel
@@ -1168,7 +1182,7 @@ let stream_unix_echo_server ?no_fork ?socketfile () =
     let protocol (ch:stream_channel) =
       simple_echo_server_protocol (line_oriented_channel_of_stream_channel ch)
     in
-    stream_unix_server ?no_fork ~protocol ~socketfile ()
+    stream_unix_server ?no_fork ~max_input_size ~protocol ~socketfile ()
   in
   (t, socketfile)
 
@@ -1188,7 +1202,7 @@ let seqpacket_unix_echo_server ?no_fork ?socketfile () =
     let protocol (ch:seqpacket_channel) =
       simple_echo_server_protocol ch
     in
-    seqpacket_unix_server ?no_fork ~protocol ~socketfile ()
+    seqpacket_unix_server ~max_input_size ?no_fork ~protocol ~socketfile ()
   in
   (t, socketfile)
 
@@ -1206,8 +1220,8 @@ let stream_inet_echo_server ?no_fork ?inet6 ?port () =
       simple_echo_server_protocol (line_oriented_channel_of_stream_channel ch)
     in
     match inet6 with
-    | None    -> stream_inet4_server ?no_fork ?port ~protocol ()
-    | Some () -> stream_inet6_server ?no_fork ?port ~protocol ()
+    | None    -> stream_inet4_server ?no_fork ?port ~max_input_size ~protocol ()
+    | Some () -> stream_inet6_server ?no_fork ?port ~max_input_size ~protocol ()
   in
   (thread, ip, port)
 

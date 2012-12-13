@@ -16,7 +16,7 @@
 
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
-   
+
 type t = unit -> unit
 
 (** Transform a thunk in a one-shot thunk, i.e. a thunk that cannot be executed more than once (the second call and subsequent calls return immediately with the token [()]) *)
@@ -29,16 +29,16 @@ let linearize thunk =
        thunk ()
      end
 
-(** The resulting thunk will be protected from exceptions. 
-    It will translate all exceptions in the output [()]. *)     
+(** The resulting thunk will be protected from exceptions.
+    It will translate all exceptions in the output [()]. *)
 let protect thunk =
  (fun x -> try thunk x with _ -> ())
 
 (** Simply the application. *)
 let apply thunk = thunk ()
 
-(** Conversion from lazy. Note that the result is directly a linear (one-shot) thunk because of the lazyness. 
-    However, the tool [linearize] still remains interesting for this kind of thunks. 
-    Actually, if the lazy value raises an exception, the resulting thunk raises this exception for each call, 
+(** Conversion from lazy. Note that the result is directly a linear (one-shot) thunk because of the lazyness.
+    However, the tool [linearize] still remains interesting for this kind of thunks.
+    Actually, if the lazy value raises an exception, the resulting thunk raises this exception for each call,
     while the linearized one raises this exception only once. *)
 let of_lazy l = fun () -> Lazy.force l

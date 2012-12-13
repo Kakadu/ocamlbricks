@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-   
+
 (** High-level interface for client-server programming. *)
 
 exception Accepting of exn
@@ -252,7 +252,7 @@ val stream_inet_client :
 
 val dgram_unix_server :
   ?max_pending_requests:int ->
-  ?max_input_size:int ->
+  ?stream_max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?socketfile:string ->
@@ -261,7 +261,7 @@ val dgram_unix_server :
   unit -> Thread.t * string
 
 val dgram_unix_client :
-  ?max_input_size:int ->
+  ?stream_max_input_size:int ->
   socketfile:string ->
   bootstrap:(stream_channel -> dgram_channel) ->
   protocol:(dgram_channel -> 'a) ->
@@ -271,7 +271,7 @@ val dgram_unix_client :
 
 val dgram_inet4_server :
   ?max_pending_requests:int ->
-  ?max_input_size:int ->
+  ?stream_max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?range4:string ->
@@ -283,7 +283,7 @@ val dgram_inet4_server :
 
 val dgram_inet6_server :
   ?max_pending_requests:int ->
-  ?max_input_size:int ->
+  ?stream_max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?range6:string ->
@@ -295,7 +295,7 @@ val dgram_inet6_server :
 
 val dgram_inet_server :
   ?max_pending_requests:int ->
-  ?max_input_size:int ->
+  ?stream_max_input_size:int ->
   ?tutor_behaviour:(pid:int -> unit) ->
   ?no_fork:unit ->
   ?range4:string ->
@@ -308,7 +308,7 @@ val dgram_inet_server :
   unit -> (Thread.t * string * int) * (Thread.t * string * int)
 
 val dgram_inet_client :
-  ?max_input_size:int ->
+  ?stream_max_input_size:int ->
   ipv4_or_v6:string ->
   port:int ->
   bootstrap:(stream_channel -> dgram_channel) ->
@@ -456,12 +456,19 @@ end
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Examples : sig
 
+  (* Set to 10 (chars). This setting is useful to observe the distinct semantics of the
+     server receive function according to the kind of socket (stream, dgram, seqpacket). *)
+  val server_max_input_size : int
+
   val simple_echo_server_protocol : < receive : unit -> string; send : string -> unit; .. > -> unit
   val simple_echo_client_protocol : < receive : unit -> string; send : string -> unit; .. > -> unit
 
+  (* Here the method #receive is redefined as #input_line, thus the parameter `max_input_size' is
+     meaningless in this case and the whole line is received by the server: *)
   val stream_unix_echo_server : ?no_fork:unit -> ?socketfile:string -> unit -> Thread.t * string
   val stream_unix_echo_client : socketfile:string -> unit -> (exn, unit) Either.t
 
+  (* Sending a message bigger than 10 characters, we receive a bad (trunked) echo: *)
   val seqpacket_unix_echo_server : ?no_fork:unit -> ?socketfile:string -> unit -> Thread.t * string
   val seqpacket_unix_echo_client : socketfile:string -> unit -> (exn, unit) Either.t
 
