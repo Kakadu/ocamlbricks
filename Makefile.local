@@ -141,3 +141,8 @@ LIBRARY_TO_TEST=_build/ocamlbricks.cma
 test: compile_for_testing rebuilding
 	@chmod +x Makefile.d/test.sh
 	@Makefile.d/test.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"
+
+# Test without installation with the utop toplevel
+test_with_utop: compile_for_testing rebuilding
+	@chmod +x Makefile.d/test_with_utop.sh
+	@Makefile.d/test_with_utop.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"
