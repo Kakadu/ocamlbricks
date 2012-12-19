@@ -53,7 +53,7 @@ and marshaller :
     method compare : < marshaller : marshaller; .. > -> int
     method equals  : < marshaller : marshaller; .. > -> bool
     method md5sum  : string
-    method hash32  : int (* 0..(2^31)-1 -- uniform and portable *)
+    method hash32  : int (* 0..(2^30)-1 -- uniform and portable *)
 
     (* Reload the object with himself in order to make its components as possible simplest
        (in other words remove the surplus of components attributes caused by some upcasting

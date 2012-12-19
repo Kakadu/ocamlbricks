@@ -457,7 +457,7 @@ class stream_channel ?max_input_size fd =
 end (* class stream_channel *)
 
 (** Useful for writing polymorphic protocols that refer only to method #send and #receive:.
-    Note that the parameter `max_input_size' became meaningless because the method #receive 
+    Note that the parameter `max_input_size' became meaningless because the method #receive
     is defined as ch#input_line that ignores this parameter. *)
 let line_oriented_channel_of_stream_channel (ch:stream_channel) =
   object

@@ -268,9 +268,9 @@ class comboTextTree = fun
 
   (**/**) (* STOP DOC *)
 
-  (* Proc�ure de connection de l'��ement changed d'un combo �un callback qui permet
-     de faire appel �un second callback (cbackfun), de type string->unit, sur la chaine
-     selectionn� dans le widget. *)
+  (* Procédure de connection de l'élement changed d'un combo à un callback qui permet
+     de faire appel à un second callback (cbackfun), de type string->unit, sur la chaine
+     selectionnée dans le widget. *)
   method changedAndGetActive (cbfun:string->unit) =
     let _ = self#box#connect#changed
         (fun () -> match self#box#active_iter with

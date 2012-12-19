@@ -77,12 +77,13 @@ let set_file_content ?perm ~filename content =
     (fun out_channel -> output_string out_channel content)
 ;;
 
-(* A simple (but portable) hash function generating natural numbers in the range [0..(2^31)-1]
+(* A simple (but portable) hash function generating natural numbers in the range [0..(2^30)-1]
    with a uniform distribution. Note that the limit is exactly the value of max_int on 32-bit
-   architectures, i.e. 2147483647 = (2^31)-1 *)
+   architectures, i.e. 1073741823 = (2^30)-1 *)
 let hash32 s =
+  let max_int32 = 1073741823 in
   let s = Digest.to_hex (Digest.string s) in
-  let max_int32_succ = Int64.of_int 2147483648 (* (2^31) *) in
+  let max_int32_succ = Int64.succ (Int64.of_int max_int32) (* (2^30) *) in
   let hash_portion portion =
     let length = 8 in
     let offset = portion * length in
