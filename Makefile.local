@@ -53,6 +53,8 @@ main-local: meta_ocamlbricks.ml
 meta_ocamlbricks.ml: meta.ml
 	cp $< meta_ocamlbricks.ml
 
+EXCLUDE_FROM_EDITING=meta_ocamlbricks.ml
+
 # include_type_definitions_p4
 
 _build/include_type_definitions_p4.cmi: CAMLP4/include_type_definitions_p4.mli

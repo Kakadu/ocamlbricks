@@ -209,7 +209,7 @@ PERFORM_MANUALLY_POST_ACTIONS = \
 
 # Edit all ml/mli files and Makefile.local with your $EDITOR
 edit:
-	test -n "$$EDITOR" && $$EDITOR Makefile.local $$(find . \( -wholename "./_build/*" -o -name "meta.ml" -o -name "meta_ocamlbricks.ml" -o -name "version.ml" -o -name "gui.ml" -o -name myocamlbuild.ml \) -prune -o -type f -a \( -name "*.ml" -o -name "*.mli" \) -print) &
+	test -n "$$EDITOR" && $$EDITOR Makefile.local $$(find . \( -wholename "./_build/*" -o -name "meta.ml" -o -name "$(EXCLUDE_FROM_EDITING)" -o -name "version.ml" -o -name "gui.ml" -o -name myocamlbuild.ml \) -prune -o -type f -a \( -name "*.ml" -o -name "*.mli" \) -print) &
 
 # Create the documentation
 documentation: world documentation-local
@@ -667,13 +667,15 @@ NATIVE_OR_BYTE = \
 	  exit -1; \
 	fi)
 
+PROCESSOR_NO = $(shell grep "^processor.*:" /proc/cpuinfo | sort | uniq | wc -l)
+
 # Return the proper command line for ocamlbuild, including an option
 # -byte-plugin if needed:
 OCAMLBUILD_COMMAND_LINE = \
 	(if [ $$( $(call NATIVE_OR_BYTE) ) == 'byte' ]; then \
-	  echo 'ocamlbuild -byte-plugin -verbose 2 -log _build/_log'; \
+	  echo 'ocamlbuild -j $(PROCESSOR_NO) -byte-plugin -verbose 2 -log _build/_log'; \
 	else \
-	  echo 'ocamlbuild -verbose 2 -log _build/_log'; \
+	  echo 'ocamlbuild -j $(PROCESSOR_NO) -verbose 2 -log _build/_log'; \
 	fi)
 
 # Macro extracting, via source, the value associated to some keys
