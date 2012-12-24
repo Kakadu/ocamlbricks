@@ -22,6 +22,8 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+type varname = string
+
 (** An alist is just a list of pairs: *)
 type 'a alist =
     (string * 'a) list;;
@@ -183,7 +185,6 @@ let merge_alists alists1 alists2 =
   ~file_names:["~luca/working/ocamlbricks/MYSETTINGS"; "~luca/working/ocamlbricks/MYSETTINGS2"]
   ~software_name:"marionnet"
   ~variables:["ZZZ"; "fortytwo";]
-  ~read_environment:true
   ();;
 
 Printf.printf ">%s<\n" (q#string "ZZZ");;
@@ -194,8 +195,9 @@ class configuration =
   fun ?software_name
       ?file_names
       ~variables
-      ?(read_environment=true)
+      ?(dont_read_environment:unit option)
       () ->
+let read_environment = (dont_read_environment = None) in
 let file_names =
   match file_names, software_name with
   | None, None ->
@@ -206,7 +208,8 @@ let file_names =
       [ Printf.sprintf "/etc/%s/%s.conf" software_name software_name;
         Printf.sprintf "~/.%s/%s.conf" software_name software_name ]
   | (Some _), (Some _) ->
-      failwith "you should pass exactly one of ~software_name and ~file_names" in
+      failwith "you should pass exactly one of ~software_name and ~file_names" 
+in
 object(self)
   (* Associative containers used for efficient access, after initialization: *)
   val string_hashmap = new Hashmap.hashmap ();
@@ -214,7 +217,7 @@ object(self)
   val float_hashmap = new Hashmap.hashmap ();
   val bool_hashmap = new Hashmap.hashmap ();
   val list_hashmap = new Hashmap.hashmap ();
-
+  
   initializer
     (* First execute all configuration files in the correct order, and merge the
        bindings: *)
@@ -239,6 +242,15 @@ object(self)
     bool_hashmap#add_list bool_alist;
     list_hashmap#add_list list_alist;
 
+  (* The list of variable is redefined now as set: *)  
+  val expected_variables = SetExtra.String_set.of_list variables
+  method check_expected_variable_or_raise_invalid_arg x =
+    if (SetExtra.String_set.mem x expected_variables) then () 
+    else invalid_arg (Printf.sprintf "Configuration_files: Unexpected variable name `%s'" x)
+
+  method expected_variable x =
+    (SetExtra.String_set.mem x expected_variables)
+    
   (** Lookup a variable of the type [string]. *)
   method string = string_hashmap#lookup
 
@@ -255,3 +267,338 @@ object(self)
   method list   = list_hashmap#lookup
 
 end;; (* class *)
+
+
+type t = configuration
+let make = new configuration
+
+
+module Polymorphic_functions = struct
+
+let extract_variable_or :
+  ?k:('a -> 'a) ->                                   (* An optional continuation *)
+  ?log_printf:(string -> unit) Log_builder.printf -> (* An optional Log.printf *)
+  ?ignore_undeclared:unit ->                         (* Do not fail, just warning if `log_printf' is provided *)
+  ?unsuitable_value:('a -> bool) ->                  (* Filter unsuitable values *)
+  to_string:('a -> string) ->                        (* String conversion for logging messages *)
+  default:'a ->                                      (* The default value, if the variable is undeclared or its value unsuitable *)
+  mthd:(varname -> 'a) ->                            (* The method of an instance of the class configuration. For instance `configuration#float' *)
+  varname ->                                         (* The name of the variable *)
+  t -> 'a                                      
+  =
+  fun
+  ?(k:('a -> 'a) option)
+  ?(log_printf:((string->unit) Log_builder.printf) option)
+  ?ignore_undeclared
+  ?(unsuitable_value=(fun y -> false)) (* values are suitable by default *)
+  ~(to_string:'a -> string)
+  ~(default:'a)
+  (* The method of an instance of the class configuration. For instance `configuration#float': *)
+  ~(mthd:varname -> 'a)
+  (varname:string)
+  (t:t)
+  ->
+  let () = 
+    if ignore_undeclared = None 
+      then t#check_expected_variable_or_raise_invalid_arg varname 
+      else ()
+  in
+  let log_printf =
+    match log_printf with
+    | None -> fun ?v ?force ?banner _ _ -> ()
+    | Some printf -> printf
+  in
+  let fallback e x =
+    if (t#expected_variable x) then () else log_printf "Warning: %s not declared.\n" x
+  in
+  let use_default () =
+    log_printf " - using default \"%s\"\n" (to_string default);
+    default
+  in
+  let use_found_value y =
+    log_printf " - found value \"%s\"\n" (to_string y);
+    y
+  in
+  let result =
+    log_printf "Searching for variable %s:\n" varname;
+    match Option.apply_or_catch ~fallback mthd varname
+    with
+    | None -> use_default ()
+    | Some y when (unsuitable_value y) -> use_default ()
+    | Some y -> use_found_value y
+   in
+   (* Launch the continuation on the result: *)
+   match k with None -> result | Some f -> (f result)
+ ;;
+
+let get_variable :
+  ?k:('a -> 'a option) ->                            (* An optional continuation (called with Option.bind) *)
+  ?log_printf:(string -> unit) Log_builder.printf -> (* An optional Log.printf *)
+  ?ignore_undeclared:unit ->                         (* Do not fail, just warning if `log_printf' is provided *)
+  ?unsuitable_value:('a -> bool) ->                  (* Filter unsuitable values *)
+  to_string:('a -> string) ->                        (* String conversion for logging messages *)
+  mthd:(varname -> 'a) ->                            (* The method of an instance of the class configuration. For instance `configuration#float' *)
+  varname ->                                         (* The name of the variable *)
+  t -> 'a option
+  =
+  fun
+  ?(k:('a -> 'a option) option)
+  ?(log_printf:((string->unit) Log_builder.printf) option)
+  ?ignore_undeclared
+  ?(unsuitable_value=(fun y -> false)) (* values are suitable by default *)
+  ~(to_string:'a -> string)
+  ~(mthd:varname -> 'a)
+  varname
+  t
+  ->
+  let () = 
+    if ignore_undeclared = None 
+      then t#check_expected_variable_or_raise_invalid_arg varname 
+      else ()
+  in
+  let log_printf =
+    match log_printf with
+    | None -> fun ?v ?force ?banner _ _ -> ()
+    | Some printf -> printf
+  in
+  let fallback e x =
+    if (t#expected_variable x) then () else log_printf "Warning: %s not declared.\n" x
+  in
+  let use_found_value y =
+    log_printf " - found value \"%s\"\n" (to_string y);
+    y
+  in
+  let result =
+    log_printf "Searching for variable %s:\n" varname;
+    match Option.apply_or_catch ~fallback mthd varname
+    with
+    | None -> None
+    | Some y when (unsuitable_value y) -> None
+    | Some y -> Some (use_found_value y)
+   in
+   (* Launch the continuation on the result: *)
+   match k with None -> result | Some f -> Option.bind result f
+ ;;
+
+end (* module Polymorphic_functions *)
+
+
+(* ============================================
+     Now starts the user interface section...
+   =========================================== *)
+
+(** The type of functions looking in the structure for a variable and
+    returning an optional result: *)
+type 'a get_variable =
+  ?k:('a -> 'a option) ->            (* An optional continuation (called with Option.bind) *)
+  ?unsuitable_value:('a -> bool) ->  (* Filter unsuitable values *)
+  varname ->                         (* The name of the variable *)
+  t -> 'a option
+
+(** The type of functions looking in the structure for a variable and
+    returning the value found or a default: *)
+type 'a extract_variable_or =
+  ?k:('a -> 'a) ->                   (* An optional continuation *)
+  ?unsuitable_value:('a -> bool) ->  (* Filter unsuitable values *)
+  default:'a ->                      (* The default value, if the variable is undeclared or its value unsuitable *)
+  varname ->                         (* The name of the variable *)
+  t -> 'a
+
+let get_bool_variable : bool get_variable =
+  fun ?k ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?unsuitable_value
+    ~to_string:(string_of_bool)
+    ~mthd:(t#bool)
+    varname t
+
+let get_float_variable : float get_variable =
+  fun ?k ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?unsuitable_value
+    ~to_string:(string_of_float)
+    ~mthd:(t#float)
+    varname t
+
+let get_int_variable : int get_variable =
+  fun ?k ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?unsuitable_value
+    ~to_string:(string_of_int)
+    ~mthd:(t#int)
+    varname t
+
+let add_constraint_not_empty_string ?unsuitable_value () : (string -> bool) =
+  let result = match unsuitable_value with
+  | None    -> ((=)"")
+  | Some f  -> (fun y -> (y="") || (f y))
+  in
+  result
+    
+let get_string_variable : string get_variable =
+  fun ?k ?unsuitable_value varname t ->
+  (* Empty strings are not considered as a result (=> None): *)
+  let f = add_constraint_not_empty_string ?unsuitable_value () in
+  Polymorphic_functions.get_variable ?k ~unsuitable_value:f
+    ~to_string:(fun x -> x)
+    ~mthd:(t#string)
+    varname t
+
+let get_string_list_variable : (string list) get_variable =
+  fun ?k ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?unsuitable_value
+    ~to_string:(String.concat " ")
+    ~mthd:(t#list)
+    varname t
+
+let extract_bool_variable_or : bool extract_variable_or =
+  fun ?k ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+    ~to_string:(string_of_bool)
+    ~default
+    ~mthd:(t#bool)
+    varname t
+
+let extract_float_variable_or : float extract_variable_or =
+  fun ?k ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+    ~to_string:(string_of_float)
+    ~default
+    ~mthd:(t#float)
+    varname t
+
+let extract_int_variable_or : int extract_variable_or =
+  fun ?k ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+    ~to_string:(string_of_int)
+    ~default
+    ~mthd:(t#int)
+    varname t
+
+let extract_string_variable_or : string extract_variable_or =
+  fun ?k ?unsuitable_value ~default varname t ->
+  (* Empty strings are not considered as a result (=> default): *)
+  let f = add_constraint_not_empty_string ?unsuitable_value () in
+  Polymorphic_functions.extract_variable_or ?k ~unsuitable_value:f
+    ~to_string:(fun x->x)
+    ~default
+    ~mthd:(t#string)
+    varname t
+
+let extract_string_list_variable_or : (string list) extract_variable_or =
+  fun ?k ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+    ~to_string:(String.concat " ")
+    ~default
+    ~mthd:(t#list)
+    varname t
+
+(* Versions with logging features: *)
+module Logging = struct
+
+  (** The type of (logged) functions looking in the structure for a variable and returning an optional result: *)
+  type 'a get_variable =
+    ?k:('a -> 'a option) ->                                (* An optional continuation (called with Option.bind) *)
+    ?log_printf:(string -> unit) Log_builder.printf ->     (* An optional Log.printf *)
+    ?ignore_undeclared:unit ->                             (* Do not fail, just warning (supposing that `log_printf' has been provided) *)
+    ?unsuitable_value:('a -> bool) ->                      (* Filter unsuitable values *)
+    varname ->                                             (* The name of the variable *)
+    t -> 'a option
+
+  (** The type of (logged) functions looking in the structure for a variable and returning the value found or a default: *)
+  type 'a extract_variable_or =
+    ?k:('a -> 'a) ->                                       (* An optional continuation *)
+    ?log_printf:(string -> unit) Log_builder.printf ->     (* An optional Log.printf *)
+    ?ignore_undeclared:unit ->                             (* Do not fail, just warning (supposing that `log_printf' has been provided) *)
+    ?unsuitable_value:('a -> bool) ->                      (* Filter unsuitable values *)
+    default:'a ->                                          (* The default value, if the variable is undeclared or its value unsuitable *)
+    varname ->                                             (* The name of the variable *)
+    t -> 'a
+
+  let get_bool_variable : bool get_variable =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
+    Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(string_of_bool)
+      ~mthd:(t#bool)
+      varname t
+
+  let get_float_variable : float get_variable =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
+    Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(string_of_float)
+      ~mthd:(t#float)
+      varname t
+
+  let get_int_variable : int get_variable =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
+    Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(string_of_int)
+      ~mthd:(t#int)
+      varname t
+
+  let get_string_variable : string get_variable =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
+    (* Empty strings are not considered as a result (=> default): *)
+    let f = add_constraint_not_empty_string ?unsuitable_value () in
+    Polymorphic_functions.get_variable ?k ?ignore_undeclared ~unsuitable_value:f
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(fun x -> x)
+      ~mthd:(t#string)
+      varname t
+
+  let get_string_list_variable : (string list) get_variable =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
+    Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(String.concat " ")
+      ~mthd:(t#list)
+      varname t
+
+  let extract_bool_variable_or : bool extract_variable_or =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
+    Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(string_of_bool)
+      ~default
+      ~mthd:(t#bool)
+      varname t
+
+  let extract_float_variable_or : float extract_variable_or =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
+    Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(string_of_float)
+      ~default
+      ~mthd:(t#float)
+      varname t
+
+  let extract_int_variable_or : int extract_variable_or =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
+    Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(string_of_int)
+      ~default
+      ~mthd:(t#int)
+      varname t
+
+  let extract_string_variable_or : string extract_variable_or =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
+    (* Empty strings are not considered as a result (=> default): *)
+    let f = add_constraint_not_empty_string ?unsuitable_value () in
+    Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ~unsuitable_value:f
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(fun x->x)
+      ~default
+      ~mthd:(t#string)
+      varname t
+
+  let extract_string_list_variable_or : (string list) extract_variable_or =
+    fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
+    Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~to_string:(String.concat " ")
+      ~default
+      ~mthd:(t#list)
+      varname t
+
+end (* Logging *)

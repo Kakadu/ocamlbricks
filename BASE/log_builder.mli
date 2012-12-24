@@ -56,6 +56,9 @@ Log2.printf "%s\n" value;   (* really printed when debug level >= 2 *)
 (** Data type representing the output channel where the messages will be written. *)
 type log_channel = [ `stdout | `stderr | `file of string ]
 
+(** The type of the `printf' resulting function. This naming is useful to define functions with a `log_printf' parameter. *)
+type 'a printf = ?v:int -> ?force:bool -> ?banner:bool -> ('a, out_channel, unit) format -> 'a
+
 (** The signature of the module resulting from functors' applications. *)
 module type Result = sig
   (**  The banner is a complement prepended to your message. It contains

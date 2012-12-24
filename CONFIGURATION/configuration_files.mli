@@ -1,5 +1,7 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2008 Luca Saiu
+   Copyright (C) 2008  Luca Saiu
+   Copyright (C) 2012  Jean-Vincent Loddo
+   Copyright (C) 2008 2012  Université Paris 13
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,16 +25,107 @@
     - The shell environment at application startup time.
 *)
 
-class configuration :
+(** {b Examples}:
+{[
+let t = Configuration_files.make ~file_names:["/etc/os-release"] ~variables:["NAME";"VERSION";"ID"] () ;;
+val t : Configuration_files.t = <abstr>
+
+let name = Configuration_files.get_string_variable "NAME" t ;;
+val name : string option = Some "Ubuntu"
+
+let version = Configuration_files.extract_string_variable_or ~default:"none" "VERSION" t ;;
+val version : string = "12.04.1 LTS, Precise Pangolin"
+
+let version = Configuration_files.extract_string_list_variable_or ~default:[] "VERSION" t ;;
+val version : string list = ["12.04.1"; "LTS,"; "Precise"; "Pangolin"]
+
+let version = Configuration_files.Logging.extract_string_list_variable_or ~default:[] "VERSION" t ;;
+[18821.0]: Searching for variable VERSION:
+[18821.0]:  - found value "12.04.1 LTS, Precise Pangolin"
+val version : string list = ["12.04.1"; "LTS,"; "Precise"; "Pangolin"]
+
+let version = Configuration_files.Logging.extract_string_list_variable_or ~default:[] "VERSION_BAD" t ;;
+[18821.0]: Searching for variable VERSION_BAD:
+[18821.0]: Warning: VERSION_BAD not declared.
+[18821.0]:  - using default ""
+val version : string list = []
+]}
+*)
+
+(** The abstract data type representing a configuration, make by reading file(s). *)
+type t
+
+type varname = string
+
+val make :
   ?software_name:string ->
   ?file_names:string list ->
-  variables:string list ->
-  ?read_environment:bool ->
-  unit ->
-  object
-    method bool   : string -> bool
-    method float  : string -> float
-    method int    : string -> int
-    method list   : string -> string list
-    method string : string -> string
-  end
+  variables:varname list ->
+  ?dont_read_environment:unit ->
+  unit -> t
+
+(** The type of functions looking in the structure for a variable and
+    returning an optional result: *)
+type 'a get_variable =
+  ?k:('a -> 'a option) ->            (** An optional continuation (called with Option.bind) *)
+  ?unsuitable_value:('a -> bool) ->  (** Filter unsuitable values *)
+  varname ->                         (** The name of the variable *)
+  t -> 'a option
+
+(** The type of functions looking in the structure for a variable and
+    returning the value found or a default: *)
+type 'a extract_variable_or =
+  ?k:('a -> 'a) ->                   (** An optional continuation *)
+  ?unsuitable_value:('a -> bool) ->  (** Filter unsuitable values *)
+  default:'a ->                      (** The default value, if the variable is undeclared or its value unsuitable *)
+  varname ->                         (** The name of the variable *)
+  t -> 'a
+
+val get_bool_variable               : bool   get_variable
+val get_float_variable              : float  get_variable
+val get_int_variable                : int    get_variable
+val get_string_variable             : string get_variable
+val get_string_list_variable        : (string list) get_variable
+
+val extract_bool_variable_or        : bool   extract_variable_or
+val extract_float_variable_or       : float  extract_variable_or
+val extract_int_variable_or         : int    extract_variable_or
+val extract_string_variable_or      : string extract_variable_or
+val extract_string_list_variable_or : (string list) extract_variable_or
+
+(** Versions with logging features: *)
+module Logging : sig
+
+  (** The type of (logged) functions looking in the structure for a variable and returning an optional result: *)
+  type 'a get_variable =
+    ?k:('a -> 'a option) ->                             (** An optional continuation (called with Option.bind) *)
+    ?log_printf:(string -> unit) Log_builder.printf ->  (** An optional Log.printf *)
+    ?ignore_undeclared:unit ->                          (** Do not fail, just warning if `log_printf' is provided *)
+    ?unsuitable_value:('a -> bool) ->                   (** Filter unsuitable values *)
+    varname ->                                          (** The name of the variable *)
+    t -> 'a option
+
+  (** The type of (logged) functions looking in the structure for a variable and returning the value found or a default: *)
+  type 'a extract_variable_or =
+    ?k:('a -> 'a) ->                                    (** An optional continuation *)
+    ?log_printf:(string -> unit) Log_builder.printf ->  (** An optional Log.printf *)
+    ?ignore_undeclared:unit ->                          (** Do not fail, just warning if `log_printf' is provided *)
+    ?unsuitable_value:('a -> bool) ->                   (** Filter unsuitable values *)
+    default:'a ->                                       (** The default value, if the variable is undeclared or its value unsuitable *)
+    varname ->                                          (** The name of the variable *)
+    t -> 'a
+
+  val get_bool_variable               : bool   get_variable
+  val get_float_variable              : float  get_variable
+  val get_int_variable                : int    get_variable
+  val get_string_variable             : string get_variable
+  val get_string_list_variable        : (string list) get_variable
+
+  val extract_bool_variable_or        : bool   extract_variable_or
+  val extract_float_variable_or       : float  extract_variable_or
+  val extract_int_variable_or         : int    extract_variable_or
+  val extract_string_variable_or      : string extract_variable_or
+  val extract_string_list_variable_or : (string list) extract_variable_or
+
+end (* Logging *)
+
