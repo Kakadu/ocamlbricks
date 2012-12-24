@@ -44,11 +44,12 @@ let version = Configuration_files.Logging.extract_string_list_variable_or ~defau
 [18821.0]:  - found value "12.04.1 LTS, Precise Pangolin"
 val version : string list = ["12.04.1"; "LTS,"; "Precise"; "Pangolin"]
 
-let version = Configuration_files.Logging.extract_string_list_variable_or ~default:[] "VERSION_BAD" t ;;
-[18821.0]: Searching for variable VERSION_BAD:
-[18821.0]: Warning: VERSION_BAD not declared.
-[18821.0]:  - using default ""
-val version : string list = []
+let foobar = Configuration_files.Logging.extract_string_list_variable_or ~default:[] "FOOBAR" t ;;
+Exception: Invalid_argument "Configuration_files: Unexpected variable name `FOOBAR'".                                                                
+
+let foobar = Configuration_files.Logging.extract_string_list_variable_or ~ignore_undeclared:() ~default:[] "FOOBAR" t ;;
+[18407.0]: Searching for variable FOOBAR:                                                                                                            [18407.0]: Warning: FOOBAR not declared.                                                                                                             [18407.0]:  - using default ""                                                                                                                       
+val foobar : string list = []
 ]}
 *)
 
@@ -68,6 +69,7 @@ val make :
     returning an optional result: *)
 type 'a get_variable =
   ?k:('a -> 'a option) ->            (** An optional continuation (called with Option.bind) *)
+  ?ignore_undeclared:unit ->         (** Do not fail when undeclared *)
   ?unsuitable_value:('a -> bool) ->  (** Filter unsuitable values *)
   varname ->                         (** The name of the variable *)
   t -> 'a option
@@ -76,6 +78,7 @@ type 'a get_variable =
     returning the value found or a default: *)
 type 'a extract_variable_or =
   ?k:('a -> 'a) ->                   (** An optional continuation *)
+  ?ignore_undeclared:unit ->         (** Do not fail when undeclared *)
   ?unsuitable_value:('a -> bool) ->  (** Filter unsuitable values *)
   default:'a ->                      (** The default value, if the variable is undeclared or its value unsuitable *)
   varname ->                         (** The name of the variable *)

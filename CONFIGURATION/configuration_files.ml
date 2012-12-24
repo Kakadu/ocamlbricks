@@ -391,6 +391,7 @@ end (* module Polymorphic_functions *)
     returning an optional result: *)
 type 'a get_variable =
   ?k:('a -> 'a option) ->            (* An optional continuation (called with Option.bind) *)
+  ?ignore_undeclared:unit ->         (* Do not fail when undeclared *)
   ?unsuitable_value:('a -> bool) ->  (* Filter unsuitable values *)
   varname ->                         (* The name of the variable *)
   t -> 'a option
@@ -399,28 +400,29 @@ type 'a get_variable =
     returning the value found or a default: *)
 type 'a extract_variable_or =
   ?k:('a -> 'a) ->                   (* An optional continuation *)
+  ?ignore_undeclared:unit ->         (* Do not fail when undeclared *)
   ?unsuitable_value:('a -> bool) ->  (* Filter unsuitable values *)
   default:'a ->                      (* The default value, if the variable is undeclared or its value unsuitable *)
   varname ->                         (* The name of the variable *)
   t -> 'a
 
 let get_bool_variable : bool get_variable =
-  fun ?k ?unsuitable_value varname t ->
-  Polymorphic_functions.get_variable ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(string_of_bool)
     ~mthd:(t#bool)
     varname t
 
 let get_float_variable : float get_variable =
-  fun ?k ?unsuitable_value varname t ->
-  Polymorphic_functions.get_variable ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(string_of_float)
     ~mthd:(t#float)
     varname t
 
 let get_int_variable : int get_variable =
-  fun ?k ?unsuitable_value varname t ->
-  Polymorphic_functions.get_variable ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(string_of_int)
     ~mthd:(t#int)
     varname t
@@ -433,58 +435,58 @@ let add_constraint_not_empty_string ?unsuitable_value () : (string -> bool) =
   result
     
 let get_string_variable : string get_variable =
-  fun ?k ?unsuitable_value varname t ->
+  fun ?k ?ignore_undeclared ?unsuitable_value varname t ->
   (* Empty strings are not considered as a result (=> None): *)
   let f = add_constraint_not_empty_string ?unsuitable_value () in
-  Polymorphic_functions.get_variable ?k ~unsuitable_value:f
+  Polymorphic_functions.get_variable ?k ?ignore_undeclared ~unsuitable_value:f
     ~to_string:(fun x -> x)
     ~mthd:(t#string)
     varname t
 
 let get_string_list_variable : (string list) get_variable =
-  fun ?k ?unsuitable_value varname t ->
-  Polymorphic_functions.get_variable ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value varname t ->
+  Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(String.concat " ")
     ~mthd:(t#list)
     varname t
 
 let extract_bool_variable_or : bool extract_variable_or =
-  fun ?k ?unsuitable_value ~default varname t ->
-  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(string_of_bool)
     ~default
     ~mthd:(t#bool)
     varname t
 
 let extract_float_variable_or : float extract_variable_or =
-  fun ?k ?unsuitable_value ~default varname t ->
-  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(string_of_float)
     ~default
     ~mthd:(t#float)
     varname t
 
 let extract_int_variable_or : int extract_variable_or =
-  fun ?k ?unsuitable_value ~default varname t ->
-  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(string_of_int)
     ~default
     ~mthd:(t#int)
     varname t
 
 let extract_string_variable_or : string extract_variable_or =
-  fun ?k ?unsuitable_value ~default varname t ->
+  fun ?k ?ignore_undeclared ?unsuitable_value ~default varname t ->
   (* Empty strings are not considered as a result (=> default): *)
   let f = add_constraint_not_empty_string ?unsuitable_value () in
-  Polymorphic_functions.extract_variable_or ?k ~unsuitable_value:f
+  Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ~unsuitable_value:f
     ~to_string:(fun x->x)
     ~default
     ~mthd:(t#string)
     varname t
 
 let extract_string_list_variable_or : (string list) extract_variable_or =
-  fun ?k ?unsuitable_value ~default varname t ->
-  Polymorphic_functions.extract_variable_or ?k ?unsuitable_value
+  fun ?k ?ignore_undeclared ?unsuitable_value ~default varname t ->
+  Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
     ~to_string:(String.concat " ")
     ~default
     ~mthd:(t#list)
