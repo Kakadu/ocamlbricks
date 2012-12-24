@@ -34,7 +34,6 @@ module type S =
       val substract   : 'a t -> key list -> 'a t
     end
 
-
 module Extend : functor (Map : Map.S) -> S with type key = Map.key
 module Make   : functor (Ord : Map.OrderedType) -> S with type key = Ord.t
 
@@ -77,8 +76,8 @@ module Destructive : sig
       val codomain    : ?reverse:bool -> 'a t -> 'a list
       val restrict    : 'a t -> key list -> unit
       val substract   : 'a t -> key list -> unit
-    end
 
+    end
 
   module Make : functor (Ord : Map.OrderedType) -> S with type key = Ord.t
 

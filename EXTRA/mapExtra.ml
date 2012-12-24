@@ -100,6 +100,7 @@ module Destructive = struct
       val codomain    : ?reverse:bool -> 'a t -> 'a list
       val restrict    : 'a t -> key list -> unit
       val substract   : 'a t -> key list -> unit
+
    end
 
  module Make (Ord : Map.OrderedType) = struct
