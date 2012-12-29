@@ -22,6 +22,7 @@ module type S =
 
       (* Extra functions: *)
 
+      val search      :  key -> 'a t -> 'a option
       val filter      : (key -> 'a -> bool) -> 'a t -> 'a t
       val filter_map  : (key -> 'a -> bool) -> ('a -> 'b) -> 'a t -> 'b t
       val filter_mapi : (key -> 'a -> bool) -> (key -> 'a -> 'b) -> 'a t -> 'b t
@@ -66,6 +67,7 @@ module Destructive : sig
 
       (* Extra functions: *)
 
+      val search      : key -> 'a t -> 'a option
       val copy        : 'a t -> 'a t
       val filter      : (key -> 'a -> bool) -> 'a t -> unit
       val filter_map  : (key -> 'a -> bool) -> ('a -> 'a) -> 'a t -> unit

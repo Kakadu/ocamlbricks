@@ -27,6 +27,9 @@ module Extend = functor (M:Map.S) -> struct
 
   (** Extra functions: *)
 
+  let search (k : key) (m : 'a t) : 'a option =
+    try Some (find k m) with Not_found -> None
+  
   let filter (p : key -> 'a -> bool) (m : 'a t) : 'a t =
     fold (fun k a m' -> if p k a then add k a m' else m') m empty
 
@@ -90,6 +93,7 @@ module Destructive = struct
 
       (* Extra functions: *)
 
+      val search      : key -> 'a t -> 'a option
       val copy        : 'a t -> 'a t
       val filter      : (key -> 'a -> bool) -> 'a t -> unit
       val filter_map  : (key -> 'a -> bool) -> ('a -> 'a) -> 'a t -> unit
@@ -121,6 +125,7 @@ module Destructive = struct
   let equal f t0 t1 = Persistent.equal f (!t0) (!t1)
 
     (* Extra functions: *)
+  let search k t = Persistent.search k (!t)  
   let copy t = ref (!t)
   let filter f t = (t := Persistent.filter f !t)
   let filter_map  p f t = (t := Persistent.filter_map  p f !t)
