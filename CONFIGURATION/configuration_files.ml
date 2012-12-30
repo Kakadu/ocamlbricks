@@ -1,5 +1,7 @@
 (* This file is part of our reusable OCaml BRICKS library
-   Copyright (C) 2008 Luca Saiu
+   Copyright (C) 2008  Luca Saiu
+   Copyright (C) 2012  Jean-Vincent Loddo
+   Copyright (C) 2008 2012  Université Paris 13
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +18,7 @@
 
 (* Authors:
  * - Luca Saiu: configuration_files.ml
- * - Jean-Vincent Loddo: minor changes (public interface and comments re-organization)
+ * - Jean-Vincent Loddo: refactoring
  *)
 
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
@@ -66,7 +68,7 @@ let output_of_file_name file_name variables =
         variables in
     let command_line = command_line ^ " true) 2> /dev/null" in
     (* Printf.printf "The command line is %s\n" command_line; *)
-    let (output, exit_code) = UnixExtra.run command_line in
+    let (output, exit_code) = UnixExtra.run ~shell:"bash" command_line in
     if not (exit_code = Unix.WEXITED 0) then
       failwith ("Failed when source'ing the configuration file " ^ file_name)
     else begin
