@@ -30,3 +30,8 @@ val temp_dir :
   unit -> string
 
 val to_absolute : ?parent:string -> string -> string
+
+val make_explicit : string -> string
+val remove_trailing_slashes_and_dots : ?make_explicit:unit -> string -> string
+val append_trailing_unique_slash     : ?make_explicit:unit -> string -> string
+

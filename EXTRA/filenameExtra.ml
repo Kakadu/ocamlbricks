@@ -92,3 +92,23 @@ let to_absolute ?parent x =
           else p
   in
   Filename.concat parent x
+
+(** Note that the empty string became "." *)
+let make_explicit x =
+  if Filename.is_implicit x then Filename.concat "./" x else x
+
+let remove_trailing_slashes_and_dots =
+  let make_explicit_alias = make_explicit in
+  fun ?make_explicit x ->
+    let y = if make_explicit=Some () then make_explicit_alias x else x in
+    let rec loop y =
+      if (y="/.") || (y="/") then "/" else
+      if Filename.check_suffix y "/." then loop (Filename.chop_suffix y "/.") else
+      if Filename.check_suffix y "/"  then loop (Filename.chop_suffix y "/")  else
+      y
+    in loop y
+
+let append_trailing_unique_slash ?make_explicit x =
+  let y = remove_trailing_slashes_and_dots ?make_explicit x in
+  if not (Filename.check_suffix y "/") then Filename.concat y "" else
+  y
