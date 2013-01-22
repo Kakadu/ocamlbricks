@@ -354,35 +354,43 @@ let rec waitpid_non_intr pid =
     | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
     | Unix.Unix_error (_, _, _) -> ()
 
-
-let tutor ?killable ?behaviour () =
+    
+let waitpid_thread 
+  ?killable 
+  ?(before_waiting=fun ~pid -> ()) 
+  ?(after_waiting=fun ~pid -> ()) 
+  ?do_not_kill_process_if_exit
+  () 
+  =
   let tutor_behaviour =
     let tutor_preamble pid =
-      Log.printf "Thread created for tutoring process %d\n" pid;
+      Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
+      if do_not_kill_process_if_exit = Some () then () else
       Exit_function.at_exit
 	(fun () ->
-	  Log.printf "Killing tutored process %d...\n" pid;
+	  Log.printf "Killing (SIGTERM) tutored process %d...\n" pid;
 	  Unix.kill pid 15);
       ()
     in
-    match behaviour with
-    | None   ->
-	(function pid ->
-	  tutor_preamble pid;
-	  waitpid_non_intr pid
-	  )
-    | Some behaviour ->
-	(function pid ->
-	  tutor_preamble pid;
-	  let () = behaviour ~pid in
-	  waitpid_non_intr pid
-	  )
+    fun pid ->
+      let () = tutor_preamble pid in
+      let () = before_waiting ~pid in
+      let () = waitpid_non_intr pid in
+      let () = after_waiting ~pid in
+      ()
   in
   fun ~pid -> create ?killable tutor_behaviour pid
-
-
-let fork ?killable ?behaviour f x =
-  let tutor = tutor ?killable ?behaviour () in
+  
+let fork_with_tutor
+  ?killable
+  ?before_waiting
+  ?after_waiting
+  ?do_not_kill_process_if_exit
+  f x
+  =
+  let tutor = 
+    waitpid_thread ?killable ?before_waiting ?after_waiting ?do_not_kill_process_if_exit ()
+  in
   let pid = Unix.getpid () in
   let id = Thread.id (Thread.self ()) in
   let thread =
@@ -402,11 +410,57 @@ let fork ?killable ?behaviour f x =
 	end
     | child_pid ->
 	(* The father here creates a process-tutor thread per child: *)
-(* 	create ?killable process_tutor child_pid *)
 	tutor child_pid
   in
   thread
 ;;
+
+module Easy_API = struct
+ 
+  (* Tutoring thread options: *)
+  type options = { 
+    mutable killable                    : unit option;
+    mutable before_waiting              : (pid:int -> unit) option; 
+    mutable after_waiting               : (pid:int -> unit) option; 
+    mutable do_not_kill_process_if_exit : unit option;
+    }
+  
+  let make_defaults () = {
+    killable = None;
+    before_waiting = None; 
+    after_waiting = None; 
+    do_not_kill_process_if_exit = None;
+    }
+  
+  let make_options ?enrich ?killable ?before_waiting ?after_waiting ?do_not_kill_process_if_exit () =
+    let t = match enrich with None -> make_defaults () | Some t -> t in
+    let () = t.killable <- killable in
+    let () = t.before_waiting <- before_waiting in
+    let () = t.after_waiting  <- after_waiting  in
+    let () = t.do_not_kill_process_if_exit <- do_not_kill_process_if_exit in
+    t
+    
+  let apply_with_options ?options 
+    (f:?killable:unit -> 
+       ?before_waiting:(pid:int->unit) -> 
+       ?after_waiting:(pid:int->unit) -> 
+       ?do_not_kill_process_if_exit:unit -> 'a -> 'b)
+    arg 
+    =
+    match options with
+    | None -> f arg
+    | Some t -> 
+       let killable = t.killable in
+       let before_waiting = t.before_waiting in
+       let after_waiting  = t.after_waiting  in
+       let do_not_kill_process_if_exit = t.do_not_kill_process_if_exit in
+       f ?killable ?before_waiting ?after_waiting ?do_not_kill_process_if_exit arg
+  
+  let waitpid_thread  ?options () = apply_with_options ?options (waitpid_thread) ()
+  let fork_with_tutor ?options f  = apply_with_options ?options (fork_with_tutor) f 
+    
+end (* Easy_API *)
+
 
 (** The standard Thread.delay may be interrupted by signals 17, 23 26 and 28 on a GNU/Linux.
     This version is not interrupted because the [select] with the timeout is called in a

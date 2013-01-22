@@ -24,6 +24,8 @@ exception Sending   of exn
 exception Closing   of exn
 exception Binding   of exn
 
+type tutoring_thread_behaviour = ThreadExtra.Easy_API.options
+
 let string_of_sockaddr = function
   | Unix.ADDR_UNIX x -> x
   | Unix.ADDR_INET (inet_addr, port) ->
@@ -158,7 +160,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
   in
   let process_forking_loop () =
     let connexion_no = ref 0 in
-    let tutor = ThreadExtra.tutor ?behaviour:tutor_behaviour () in
+    let tutor = ThreadExtra.Easy_API.waitpid_thread ?options:tutor_behaviour () in
     while true do
       Log.printf "Waiting for connection on %s\n" listen_socket_as_string;
       let (service_socket, _) = accepting_function listen_socket in

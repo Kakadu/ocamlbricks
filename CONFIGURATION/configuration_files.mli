@@ -45,10 +45,10 @@ let version = Configuration_files.Logging.extract_string_list_variable_or ~defau
 val version : string list = ["12.04.1"; "LTS,"; "Precise"; "Pangolin"]
 
 let foobar = Configuration_files.Logging.extract_string_list_variable_or ~default:[] "FOOBAR" t ;;
-Exception: Invalid_argument "Configuration_files: Unexpected variable name `FOOBAR'".                                                                
+Exception: Invalid_argument "Configuration_files: Unexpected variable name `FOOBAR'".
 
 let foobar = Configuration_files.Logging.extract_string_list_variable_or ~ignore_undeclared:() ~default:[] "FOOBAR" t ;;
-[18407.0]: Searching for variable FOOBAR:                                                                                                            [18407.0]: Warning: FOOBAR not declared.                                                                                                             [18407.0]:  - using default ""                                                                                                                       
+[18407.0]: Searching for variable FOOBAR:                                                                                                            [18407.0]: Warning: FOOBAR not declared.                                                                                                             [18407.0]:  - using default ""
 val foobar : string list = []
 ]}
 *)

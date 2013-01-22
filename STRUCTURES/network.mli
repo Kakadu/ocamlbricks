@@ -170,12 +170,16 @@ type 'a stream_protocol    = stream_channel    -> 'a
 type 'a seqpacket_protocol = seqpacket_channel -> 'a
 type 'a dgram_protocol     = (stream_channel -> dgram_channel) * (dgram_channel -> 'a)
 
+(** The behaviour of the thread tutoring a created process may be provided specifying 
+    what there is to do before and what to do after waiting the termination of the process. *)
+type tutoring_thread_behaviour = ThreadExtra.Easy_API.options
+
 (** {2 Seqpacket Unix Domain } *)
 
 val seqpacket_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?socketfile:string ->
   protocol:(seqpacket_channel -> unit) ->
@@ -192,7 +196,7 @@ val seqpacket_unix_client :
 val stream_unix_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?socketfile:string ->
   protocol:(stream_channel -> unit) ->
@@ -209,7 +213,7 @@ val stream_unix_client :
 val stream_inet4_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?range4:string ->
   ?ipv4:string ->
@@ -220,7 +224,7 @@ val stream_inet4_server :
 val stream_inet6_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?range6:string ->
   ?ipv6:string ->
@@ -231,7 +235,7 @@ val stream_inet6_server :
 val stream_inet_server :
   ?max_pending_requests:int ->
   ?max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?range4:string ->
   ?range6:string ->
@@ -253,7 +257,7 @@ val stream_inet_client :
 val dgram_unix_server :
   ?max_pending_requests:int ->
   ?stream_max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?socketfile:string ->
   bootstrap:(stream_channel -> dgram_channel) ->
@@ -272,7 +276,7 @@ val dgram_unix_client :
 val dgram_inet4_server :
   ?max_pending_requests:int ->
   ?stream_max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?range4:string ->
   ?ipv4:string ->
@@ -284,7 +288,7 @@ val dgram_inet4_server :
 val dgram_inet6_server :
   ?max_pending_requests:int ->
   ?stream_max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?range6:string ->
   ?ipv6:string ->
@@ -296,7 +300,7 @@ val dgram_inet6_server :
 val dgram_inet_server :
   ?max_pending_requests:int ->
   ?stream_max_input_size:int ->
-  ?tutor_behaviour:(pid:int -> unit) ->
+  ?tutor_behaviour:tutoring_thread_behaviour ->
   ?no_fork:unit ->
   ?range4:string ->
   ?range6:string ->
@@ -326,7 +330,7 @@ module Socat : sig
     (* inet4 server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?range4:string ->
     ?ipv4:string ->
@@ -341,7 +345,7 @@ module Socat : sig
     (* inet6 server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?range6:string ->
     ?ipv6:string ->
@@ -356,7 +360,7 @@ module Socat : sig
     (* inet4 and inet6 server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?range4:string ->
     ?range6:string ->
@@ -373,7 +377,7 @@ module Socat : sig
     (* unix server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?socketfile:string ->
     (* unix client parameters: *)
@@ -391,7 +395,7 @@ module Socat : sig
     (* unix server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?socketfile:string ->
     (* inet client parameters: *)
@@ -405,7 +409,7 @@ module Socat : sig
     (* inet4 server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?range4:string ->
     ?ipv4:string ->
@@ -421,7 +425,7 @@ module Socat : sig
     (* inet4 server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?range6:string ->
     ?ipv6:string ->
@@ -437,7 +441,7 @@ module Socat : sig
     (* inet4 server parameters: *)
     ?max_pending_requests:int ->
     ?max_input_size:int ->
-    ?tutor_behaviour:(pid:int -> unit) ->
+    ?tutor_behaviour:tutoring_thread_behaviour ->
     ?no_fork:unit ->
     ?range4:string ->
     ?range6:string ->

@@ -210,7 +210,7 @@ let file_names =
       [ Printf.sprintf "/etc/%s/%s.conf" software_name software_name;
         Printf.sprintf "~/.%s/%s.conf" software_name software_name ]
   | (Some _), (Some _) ->
-      failwith "you should pass exactly one of ~software_name and ~file_names" 
+      failwith "you should pass exactly one of ~software_name and ~file_names"
 in
 object(self)
   (* Associative containers used for efficient access, after initialization: *)
@@ -219,7 +219,7 @@ object(self)
   val float_hashmap = new Hashmap.hashmap ();
   val bool_hashmap = new Hashmap.hashmap ();
   val list_hashmap = new Hashmap.hashmap ();
-  
+
   initializer
     (* First execute all configuration files in the correct order, and merge the
        bindings: *)
@@ -244,15 +244,15 @@ object(self)
     bool_hashmap#add_list bool_alist;
     list_hashmap#add_list list_alist;
 
-  (* The list of variable is redefined now as set: *)  
+  (* The list of variable is redefined now as set: *)
   val expected_variables = SetExtra.String_set.of_list variables
   method check_expected_variable_or_raise_invalid_arg x =
-    if (SetExtra.String_set.mem x expected_variables) then () 
+    if (SetExtra.String_set.mem x expected_variables) then ()
     else invalid_arg (Printf.sprintf "Configuration_files: Unexpected variable name `%s'" x)
 
   method expected_variable x =
     (SetExtra.String_set.mem x expected_variables)
-    
+
   (** Lookup a variable of the type [string]. *)
   method string = string_hashmap#lookup
 
@@ -286,7 +286,7 @@ let extract_variable_or :
   default:'a ->                                      (* The default value, if the variable is undeclared or its value unsuitable *)
   mthd:(varname -> 'a) ->                            (* The method of an instance of the class configuration. For instance `configuration#float' *)
   varname ->                                         (* The name of the variable *)
-  t -> 'a                                      
+  t -> 'a
   =
   fun
   ?(k:('a -> 'a) option)
@@ -300,9 +300,9 @@ let extract_variable_or :
   (varname:string)
   (t:t)
   ->
-  let () = 
-    if ignore_undeclared = None 
-      then t#check_expected_variable_or_raise_invalid_arg varname 
+  let () =
+    if ignore_undeclared = None
+      then t#check_expected_variable_or_raise_invalid_arg varname
       else ()
   in
   let log_printf =
@@ -353,9 +353,9 @@ let get_variable :
   varname
   t
   ->
-  let () = 
-    if ignore_undeclared = None 
-      then t#check_expected_variable_or_raise_invalid_arg varname 
+  let () =
+    if ignore_undeclared = None
+      then t#check_expected_variable_or_raise_invalid_arg varname
       else ()
   in
   let log_printf =
@@ -435,7 +435,7 @@ let add_constraint_not_empty_string ?unsuitable_value () : (string -> bool) =
   | Some f  -> (fun y -> (y="") || (f y))
   in
   result
-    
+
 let get_string_variable : string get_variable =
   fun ?k ?ignore_undeclared ?unsuitable_value varname t ->
   (* Empty strings are not considered as a result (=> None): *)

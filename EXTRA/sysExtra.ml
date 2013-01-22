@@ -349,8 +349,8 @@ $ grep Received /tmp/test.log
 let log_signal_reception () =
   iter_on_signals begin fun i b ->
     let _ =
-      ThreadExtra.fork
-	~behaviour:(fun ~pid ->
+      ThreadExtra.fork_and_tutor
+	~before_waiting:(fun ~pid ->
 	  Log.printf "Trying to send the signal No. %d to %d\n" i pid;
           ThreadExtra.delay 0.5; (* cannot be interrupted by a signal *)
 	  Unix.kill pid i)
