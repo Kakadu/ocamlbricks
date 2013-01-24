@@ -20,6 +20,7 @@
 Argv
 ArrayExtra
 Configuration_files
+Container
 Counter
 Egg
 Either
@@ -48,6 +49,7 @@ Ocamlbricks_log
 Oomarshal
 Option
 PervasivesExtra
+QueueExtra
 Rev
 Semaphore
 Shell

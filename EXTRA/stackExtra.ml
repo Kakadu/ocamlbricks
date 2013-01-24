@@ -28,8 +28,16 @@ let pop s = match s.l with x::xs -> s.l <- xs; x | [] -> raise Empty
 let top s = match s.l with x::_  -> x            | [] -> raise Empty
 let is_empty s = (s.l = [])
 let length s = List.length s.l
-let iter f s = List.iter f s.l
+let iter   f s = List.iter f s.l
+let filter f s = (s.l <- List.filter f s.l)
+let map    f s = (s.l <- List.map f s.l)
+let fold   f x s = List.fold_left f x (s.l)
+let rev s = (s.l <- List.rev s.l)
+let rev_copy s = { l = List.rev s.l }
 
 (** O(1) list conversion. *)
 let to_list s = s.l
+let of_list xs = { l = xs }
 
+(* The push against nature (the appended element will be the last out): *)
+let copush s x = (s.l <- List.append s.l [x])

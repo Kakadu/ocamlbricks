@@ -23,6 +23,7 @@ Bit
 Cache
 Cloakroom
 Configuration_files
+Container
 Counter
 Default
 Dot
@@ -59,6 +60,7 @@ OoExtra
 Oomarshal
 Option
 PervasivesExtra
+QueueExtra
 Rev
 Semaphore
 Shell

@@ -14,7 +14,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
-(** Replacement for the standard module [Stack]. The unique difference with the standard [Stack]
+(** Replacement for the standard module [Stack]. The difference with the standard [Stack]
     is the function [to_list] that transforms the stack in a list in O(1). *)
 
 type 'a t
@@ -27,5 +27,18 @@ val pop      : 'a t -> 'a
 val top      : 'a t -> 'a
 val is_empty : 'a t -> bool
 val length   : 'a t -> int
+
 val iter     : ('a -> unit) -> 'a t -> unit
+val filter   : ('a -> bool) -> 'a t -> unit
+val map      : ('a -> 'a) -> 'a t -> unit
+val fold     : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b
+val rev      : 'a t -> unit
+val rev_copy : 'a t -> 'a t
+
+(* Note that, because of the LIFO discipline, we have the equation:
+   to_list (of_list xs) = xs *)
 val to_list  : 'a t -> 'a list
+val of_list  : 'a list -> 'a t
+
+(* The push against nature (the appended element will be the last out): *)
+val copush   : 'a t -> 'a -> unit
