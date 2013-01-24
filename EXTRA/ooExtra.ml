@@ -17,17 +17,17 @@
 
 (** Support for managing the component garbage. *)
 class virtual destroy_methods () =
- let mrproper = new Mrproper.obj () in
+ let mrproper = new Thunk.lifo_unit_protected_container () in
  object
 
   (* Accessor to the inner mrproper object: *)
   method mrproper = mrproper
 
   (* Automatically protected and considered as one-shot (linear) thunk: *)
-  method add_destroy_callback f = mrproper#register_lazy f
+  method add_destroy_callback f = ignore (mrproper#register_lazy f)
 
   (* Initially private, but may became public: *)
-  method private destroy = mrproper#force ()
+  method private destroy = mrproper#apply ()
 
  end (* destroy_methods *)
 

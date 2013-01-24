@@ -19,7 +19,7 @@ class virtual destroy_methods :
   object
     method add_destroy_callback : unit Lazy.t -> unit
     method private destroy : unit
-    method mrproper : Mrproper.obj
+    method mrproper : Thunk.lifo_unit_protected_container
   end
 
 module Gc_sync :

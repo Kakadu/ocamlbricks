@@ -1,5 +1,5 @@
 (* This file is part of ocamlbricks
-   Copyright (C) 2011 Jean-Vincent Loddo
+   Copyright (C) 2011 2012 2013  Jean-Vincent Loddo
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

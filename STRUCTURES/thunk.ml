@@ -17,28 +17,219 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
-type t = unit -> unit
+type 'a t = unit -> 'a
 
-(** Transform a thunk in a one-shot thunk, i.e. a thunk that cannot be executed more than once (the second call and subsequent calls return immediately with the token [()]) *)
+(** Transform a thunk in a one-shot thunk, i.e. a thunk that cannot be executed more than once (the second call and subsequent calls return immediately with the previous result (if the codomain is not unit,
+this function is a memoisation): *)
 let linearize thunk =
- let already_called = ref false in
+ let already_called = ref None in
  fun () ->
-   if !already_called then () else
-     begin
-       already_called := true;
-       thunk ()
-     end
+   match !already_called with
+   | Some y -> y
+   | None ->
+       begin
+         let y = thunk () in
+         already_called := Some y; (* memoise *)
+         y
+       end
+
+let one_shot = linearize
 
 (** The resulting thunk will be protected from exceptions.
     It will translate all exceptions in the output [()]. *)
-let protect thunk =
- (fun x -> try thunk x with _ -> ())
+let protect ~fallback thunk =
+ (fun () -> try thunk () with _ -> fallback ())
 
 (** Simply the application. *)
 let apply thunk = thunk ()
+
+
 
 (** Conversion from lazy. Note that the result is directly a linear (one-shot) thunk because of the lazyness.
     However, the tool [linearize] still remains interesting for this kind of thunks.
     Actually, if the lazy value raises an exception, the resulting thunk raises this exception for each call,
     while the linearized one raises this exception only once. *)
 let of_lazy l = fun () -> Lazy.force l
+
+type id = int
+type linear = bool
+
+module Make_class_with_discipline (M : Container.T_with_identifiers) = struct
+
+let dress_thunk ?fallback ?one_shot thunk =
+  let thunk =
+    match fallback with
+    | Some fallback -> protect ~fallback thunk
+    | None -> thunk
+  in
+  let result =
+    match one_shot with
+    | Some () -> ((linearize thunk), true) (* linearize is not really needed here *)
+    | None    -> (thunk, false)
+  in
+  result
+
+class ['a] container ?fallback ?folder () = 
+ let fallback_default = fallback in
+ let folder_default =
+   match folder with 
+   | None   -> (fun acc y -> y) (* get the last result *)
+   | Some f -> f
+ in
+ object (self)
+  val container = M.create ()
+  
+  method register_thunk 
+    : ?fallback:'a t -> ?one_shot:unit -> 'a t -> id 
+    = fun ?fallback ?one_shot thunk -> 
+      let fallback = if fallback=None then fallback_default else fallback in
+      M.push (dress_thunk ?fallback ?one_shot thunk) container
+
+  method register_lazy
+    : ?fallback:'a t -> 'a Lazy.t -> id 
+    = fun ?fallback lazy_action -> 
+      let fallback = if fallback=None then fallback_default else fallback in
+      let thunk = of_lazy lazy_action in
+      M.push (dress_thunk ?fallback ~one_shot:() thunk) container
+  
+  method apply
+    : ?folder:('a -> 'a -> 'a) -> acc:'a -> 'a
+    = fun ?(folder=folder_default) ~acc ->
+      (* Redefine the folder in order to apply the thunk, then the folder: *)
+      let folder acc (thunk, linear) = folder acc (thunk ()) in
+      let result = M.fold folder acc container in
+      let () = M.filter (fun (thunk, linear) -> not linear) container in
+      result
+
+  method remove id = M.remove_by_id id container
+  method get    id = fst (M.get_by_id id container)
+end (* class container *)
+
+(* A special that deserves a special interface: *)
+class unit_protected_container () = 
+ let fallback_default () = () in
+ object (self)
+  val container = M.create ()
+  
+  method register_thunk : ?unprotect:unit -> ?one_shot:unit -> 'a t -> id 
+    = fun ?unprotect ?one_shot thunk -> 
+      let fallback = if unprotect=None then (Some fallback_default) else None in
+      M.push (dress_thunk ?fallback ?one_shot thunk) container
+
+  method register_lazy : ?unprotect:unit -> 'a Lazy.t -> id 
+    = fun ?unprotect lazy_action -> 
+      let fallback = if unprotect=None then (Some fallback_default) else None in
+      let thunk = of_lazy lazy_action in
+      M.push (dress_thunk ?fallback ~one_shot:() thunk) container
+  
+  method apply : unit -> unit
+    = fun () ->
+      let () = M.iter   (fun (thunk, linear) -> thunk ()) container in
+      let () = M.filter (fun (thunk, linear) -> not linear) container in
+      ()
+
+  method remove id = M.remove_by_id id container
+  method get    id = fst (M.get_by_id id container)
+end (* class container *)
+
+
+end (* functor Make_class_with_discipline *)
+
+module FIFO_class_here = Make_class_with_discipline (Container.Queue_with_identifiers)
+module LIFO_class_here = Make_class_with_discipline (Container.Stack_with_identifiers)
+
+class ['a] fifo_container ?fallback ?folder () = 
+ object
+  inherit ['a] FIFO_class_here.container ?fallback ?folder ()
+  method as_queue = container
+end
+
+class ['a] lifo_container ?fallback ?folder () = 
+ object
+  inherit ['a] LIFO_class_here.container ?fallback ?folder ()
+  method as_stack = container
+end
+
+(** [unit] and protected thunks with a slightly different interface: *)
+class fifo_unit_protected_container () = 
+ object
+  inherit FIFO_class_here.unit_protected_container ()
+  method as_queue = container
+end
+
+(** [unit] and protected thunks with a slightly different interface: *)
+class lifo_unit_protected_container () = 
+ object
+  inherit LIFO_class_here.unit_protected_container ()
+  method as_stack = container
+end
+
+
+IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+module Test = struct
+
+(** {[
+Thunk.Test.go () ;;
+Applying `q' a first time:                                                                                                                                             ---                                                                                                                                                                    I'm the thunk no. 1 (linear:false)                                                                                                                                     
+I'm the thunk no. 2 (linear:true)
+I'm the thunk no. 3 (linear:false)
+I'm the thunk no. 4 (linear:false)
+Applying `s' a first time:
+---
+I'm the thunk no. 4 (linear:false)
+I'm the thunk no. 3 (linear:false)
+I'm the thunk no. 2 (linear:true)
+I'm the thunk no. 1 (linear:false)
+Applying `q' a second time:
+---
+I'm the thunk no. 1 (linear:false)
+I'm the thunk no. 3 (linear:false)
+I'm the thunk no. 4 (linear:false)
+Applying `s' a second time:
+---
+I'm the thunk no. 4 (linear:false)
+I'm the thunk no. 3 (linear:false)
+I'm the thunk no. 1 (linear:false)
+Applying `q' a third time:
+---
+I'm the thunk no. 1 (linear:false)
+I'm the thunk no. 4 (linear:false)
+Applying `s' a third time:
+---
+I'm the thunk no. 4 (linear:false)
+I'm the thunk no. 1 (linear:false)
+  : unit = ()
+]} *)
+let go () =
+  let make ?(linear=false) i =
+    let thunk () = Printf.printf "I'm the thunk no. %d (linear:%b)\n" i linear in
+    thunk
+  in
+  let q = new fifo_container () in
+  let () = ignore (q#register_thunk (make 1)) in 
+  let () = ignore (q#register_thunk ~one_shot:() (make ~linear:true 2)) in 
+  let i3 = q#register_thunk (make 3) in 
+  let () = ignore (q#register_thunk (make 4)) in
+  let s = new lifo_container () in
+  let () = ignore (s#register_thunk (make 1)) in 
+  let () = ignore (s#register_thunk ~one_shot:() (make ~linear:true 2)) in 
+  let j3 = s#register_thunk (make 3) in 
+  let () = ignore (s#register_thunk (make 4)) in
+  let () = Printf.printf "Applying `q' a first time:\n---\n" in
+  let () = q#apply () in
+  let () = Printf.printf "Applying `s' a first time:\n---\n" in
+  let () = s#apply () in
+  let () = Printf.printf "Applying `q' a second time:\n---\n" in
+  let () = q#apply () in
+  let () = Printf.printf "Applying `s' a second time:\n---\n" in
+  let () = s#apply () in
+  let () = q#remove i3 in
+  let () = s#remove j3 in
+  let () = Printf.printf "Applying `q' a third time:\n---\n" in
+  let () = q#apply () in
+  let () = Printf.printf "Applying `s' a third time:\n---\n" in
+  let () = s#apply () in
+  ()
+
+end (* module Test *)
+ENDIF

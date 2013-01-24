@@ -27,43 +27,21 @@ the program cleanly, as for instance:
  ...]}
 
 Note that actions are internally registered in a {b stack} and are thus performed in the reversed order
-with respect to the registration (insertion). You can switch to a fifo discipline with
-the function [set_fifo_discipline].
-*)
+with respect to the registration (insertion). *)
 
 (** Push a thunk into the global stack of thunks. *)
-val register_thunk : ?unprotected:unit -> ?one_shot:unit -> Thunk.t -> unit
+val register_thunk : ?unprotect:unit -> ?one_shot:unit -> unit Thunk.t -> Thunk.id
 
 (** Push a lazy action into the global stack of thunks.
     Lazy actions are forced to be one-shot: when unprotected, the
     thunk will not re-raise the same exception forcing the thunk execution twice. *)
-val register_lazy  : ?unprotected:unit -> unit Lazy.t -> unit
+val register_lazy  : ?unprotect:unit -> unit Lazy.t -> Thunk.id
 
 (** Exit the program performing all registered actions in the global stack.*)
 val exit  : int -> 'a
 
 (** Perform the list (stack) of registered actions. *)
-val force : unit -> unit
+val apply : unit -> unit
 
-(** Switch to a fifo discipline (instead of lifo as by default). *)
-val set_fifo_discipline : unit -> unit
-
-(** Make a {e local} object-oriented mrproper structure.
-    A typical use is to connect the method [force] to the destruction of
-    a temporary structure, as for instance a widget.
-
-    {b Example}:
-{[  let window = GWindow.window () in
-  let mrproper = new Mrproper.obj () in
-  ..
-  mrproper#register_lazy (lazy ...);
-  mrproper#register_lazy (lazy ...);
-  ..
-  let _ = window#connect#destroy ~callback:mrproper#force in
-  ..
-]}*)
-class obj : ?fifo:unit -> unit -> object
-  method register_thunk : ?unprotected:unit -> ?one_shot:unit -> Thunk.t -> unit
-  method register_lazy  : ?unprotected:unit -> unit Lazy.t -> unit
-  method force : unit -> unit
-end
+(** Low level access to the inner global stack: *)
+val as_stack : unit -> (unit Thunk.t * Thunk.linear) Container.Stack_with_identifiers.t
