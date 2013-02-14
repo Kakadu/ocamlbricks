@@ -119,7 +119,7 @@ let v ?(n=Array.make dim 1) t =
   with_mutex mutex (fun () ->
     begin
      (Array.iteri (fun i s -> s.counter <- s.counter + n.(i)) t);
-     (Condition.signal condition);
+     (Condition.broadcast condition);
     end)
 
 let p_nowait ?(n=Array.make dim 1) t =
@@ -195,7 +195,7 @@ let v ~i ~n t =
   with_mutex mutex (fun () ->
     begin
      (t.(i).counter <- t.(i).counter + n);
-     (Condition.signal condition);
+     (Condition.broadcast condition);
     end)
 
 let p_nowait ?(n=Array.make dim 1) t =
