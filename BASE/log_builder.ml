@@ -28,7 +28,7 @@ INCLUDE DEFINITIONS "../BASE/log_builder.mli"
 ;;
 
 (* We will use an extended version of Mutex: *)
-module Mutex = MutexExtra.Extend (Mutex)
+module Mutex = MutexExtra.Extended_Mutex
 
 (* The global structures are not created at loading time (except global_mutex)
    but only if needed, at the first functor application. *)

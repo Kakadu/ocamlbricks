@@ -24,37 +24,18 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
-module type Extended_signature =
- sig
-   type t
+#load "include_type_definitions_p4.cmo";;
+INCLUDE DEFINITIONS "../EXTRA/mutexExtra.mli"
 
-   val create   : unit -> t
-   val lock     : t -> unit
-   val unlock   : t -> unit
-   val try_lock : t -> bool
-
-   val status   : t -> bool
-
-   val with_mutex       : t -> (unit -> 'a) -> 'a
-   val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
- end
-
-(** Make extra definitions for Mutex. *)
-module Extend
- (Mutex : sig
-  type t
-  val create   : unit -> t
-  val lock     : t -> unit
-  val unlock   : t -> unit
-  val try_lock : t -> bool
- end) = struct
+(** Make the extra definitions for a module with a `Basic_signature': *)
+module Extend (Mutex : Basic_signature) = struct
 
  include Mutex
 
 (** Execute thunk in a synchronized block, and return the value returned
     by the thunk. If executing thunk raises an exception the same exception
     is propagated, after correctly unlocking the mutex. *)
- let with_mutex mutex thunk =
+ let with_mutex ?verbose mutex thunk =
   Mutex.lock mutex;
   try
     let result = thunk () in
@@ -62,16 +43,18 @@ module Extend
     result
   with e -> begin
     Mutex.unlock mutex;
-    (Printf.eprintf
-      "MutexExtra.Extend.with_mutex: exception %s raised in critical section. Unlocking and re-raising.\n"
-      (Printexc.to_string e));
+    if verbose = Some () then
+      (Printf.eprintf
+        "MutexExtra.Extend.with_mutex: exception %s raised in critical section. Unlocking and re-raising.\n"
+        (Printexc.to_string e))
+      else ();
     raise e;
   end
 
  (** Similar to [with_mutex]: the argument will be given to the function in a synchronized block. *)
- let apply_with_mutex mutex f x =
+ let apply_with_mutex ?verbose mutex f x =
   let thunk () = f x in
-  with_mutex mutex thunk
+  with_mutex ?verbose mutex thunk
 
  (** Similar to try_lock but the mutex is not locked (useful for monitoring). In this quick-and-easy
      implementation we call first try_lock, then unlock if necessary: *)
@@ -80,18 +63,57 @@ module Extend
   if result then unlock mutex else ();
   result
 
-end
+ let with_mutex_and_guard
+  ?(perform_in_critical_section_before_sleeping=fun () -> ())
+  ~(condition:Condition.t)
+  ~guard
+  mutex
+  action
+  =
+  with_mutex mutex
+    (fun () ->
+          if guard () then action () (* and nothing else *)
+          else begin
+	    perform_in_critical_section_before_sleeping ();
+	    Mutex.wait (condition) mutex;
+	    (* When someone signal (or broadcast) on `condition', test the condition again: *)
+	    while not (guard ()) do
+	      perform_in_critical_section_before_sleeping ();
+	      Mutex.wait (condition) mutex
+	    done;
+	    action ()
+	  end
+	  )
+
+ let apply_with_mutex_and_guard
+   ?perform_in_critical_section_before_sleeping
+   ~(condition:Condition.t)
+   ~guard
+   mutex f x
+   =
+   let thunk () = f x in
+   with_mutex_and_guard ?perform_in_critical_section_before_sleeping ~condition ~guard mutex thunk
+
+ let signal_with_mutex ~condition mutex =
+   with_mutex mutex
+     (fun () -> Condition.signal condition)
+
+ let broadcast_with_mutex ~condition mutex =
+   with_mutex mutex
+     (fun () -> Condition.broadcast condition)
+
+end (* module Extend *)
 
 
-(** Extended simple mutexes. *)
-module EMutex = Extend(Mutex)
+(** Extended standard mutexes. *)
+module EMutex = Extend(struct include Mutex let wait = Condition.wait end)
 
 (** A simple implementation of recursive mutexes inspired by Luca's version and by
     a (bugged?) version found in the project http://batteries.forge.ocamlcore.org/.
     In my opinion there's a bug in the batteries' version that I think fixed here
     using a condition variable instead of a second mutex -- Jean-Vincent.
     *)
-module Recursive_base = struct
+module Recursive_basic (*: Basic_signature *) = struct
 
 type owner = {
   thread_id       : int;   (** The thread identifier of the owner *)
@@ -164,6 +186,28 @@ let unlock t =
      | _ -> invalid_arg "Trying to unlock a not owned recursive mutex"
      )
 
+let wait (external_condition:Condition.t) t =
+  let id = Thread.id (Thread.self ()) in
+  EMutex.with_mutex t.owner_mutex
+    (fun () ->
+      match t.owner with
+      | Some x when x.thread_id = id ->
+          let previous_lock_no = x.lock_no in
+	  (* We simulate an unlock: *)
+	  t.owner <- None;
+	  (Condition.signal t.waiting_condition);
+	  (* Now wait on the external condition: *)
+          Condition.wait (external_condition) t.owner_mutex;
+	  (* Someone has signaled on `condition'.
+	     Now we simulate a lock with the previous lock_no: *)
+	  while not (t.owner = None) do
+	    Condition.wait t.waiting_condition t.owner_mutex
+	  done;
+	  t.owner <- Some {thread_id = id; lock_no = previous_lock_no};
+
+      | _ -> invalid_arg "Trying to suspend on a not owned recursive mutex"
+      )
+
 
 (* More efficient implementation (see comment above about Extend.status): *)
 let status t =
@@ -176,18 +220,20 @@ let status t =
       | Some x -> false
       )
 
-end (* Recursive_base *)
+end (* Recursive_basic *)
 
 
 (** Extended recursive mutexes. *)
 module RMutex = struct
- include Extend(Recursive_base)
+ include Extend(Recursive_basic)
 
  (* Redefined for efficiency: *)
- let status = Recursive_base.status
+ let status = Recursive_basic.status
 
 end
 
+(* Aliases: *)
+module Extended_Mutex = EMutex
 module Recursive = RMutex
 
 (** Usage: {[ include MutexExtra.RMutex.Just_give_me_an_apply_with_mutex (struct end) ]} *)

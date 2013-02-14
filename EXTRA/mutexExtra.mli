@@ -32,40 +32,56 @@ module Recursive_mutex = MutexExtra.Recursive ;;
 ]}
 *)
 
-module Extend : functor
-
-  (Mutex : sig
-     type t
-     val create   : unit -> t
-     val lock     : t -> unit
-     val unlock   : t -> unit
-     val try_lock : t -> bool
-  end) ->
+module type Mutex_signature =
   sig
-    type t = Mutex.t
-    val create : unit -> t
-    val status : t -> bool
-    val with_mutex       : t -> (unit -> 'a) -> 'a
-    val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
+    type t
+    val create   : unit -> t
+    val lock     : t -> unit
+    val unlock   : t -> unit
+    val try_lock : t -> bool
+  end
+
+module type Basic_signature =
+  sig
+    include Mutex_signature
+    val wait : Condition.t -> t -> unit
   end
 
 module type Extended_signature =
- sig
-   type t
+  sig
+    include Basic_signature
 
-   val create   : unit -> t
-   val lock     : t -> unit
-   val unlock   : t -> unit
-   val try_lock : t -> bool
-   val status   : t -> bool
+    val status   : t -> bool
 
-   val with_mutex       : t -> (unit -> 'a) -> 'a
-   val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
+    val with_mutex       : ?verbose:unit -> t -> (unit -> 'a) -> 'a
+    val apply_with_mutex : ?verbose:unit -> t -> ('a -> 'b) -> 'a -> 'b
 
- end
+    val with_mutex_and_guard :
+      ?perform_in_critical_section_before_sleeping:(unit -> unit) ->
+      condition:Condition.t ->
+      guard:(unit->bool) ->
+      t ->
+      (unit->'a) -> 'a
 
-module EMutex : Extended_signature   (* Extended mutexes *)
-module RMutex : Extended_signature   (* Recursive mutexes *)
+    val apply_with_mutex_and_guard :
+      ?perform_in_critical_section_before_sleeping:(unit -> unit) ->
+      condition:Condition.t ->
+      guard:(unit->bool) ->
+      t ->
+      ('a -> 'b) -> 'a -> 'b
+
+    val signal_with_mutex    : condition:Condition.t -> t -> unit
+    val broadcast_with_mutex : condition:Condition.t -> t -> unit
+  end
+
+
+module Extend : functor (M:Basic_signature) -> Extended_signature
+
+module EMutex : Extended_signature with type t = Mutex.t  (* Extended standard mutexes *)
+module RMutex : Extended_signature                        (* Extended recursive mutexes *)
+
+(* Just a more explicit alias for EMutex: *)
+module Extended_Mutex : Extended_signature with type t = Mutex.t
 
 (* Just a more explicit alias for RMutex: *)
 module Recursive : Extended_signature

@@ -38,8 +38,8 @@ module Test (R: sig
    val create : unit -> t
    val lock   : t -> unit
    val unlock : t -> unit
-   val with_mutex       : t -> (unit -> 'a) -> 'a
-   val apply_with_mutex : t -> ('a -> 'b) -> 'a -> 'b
+   val with_mutex       : ?verbose:unit -> t -> (unit -> 'a) -> 'a
+   val apply_with_mutex : ?verbose:unit -> t -> ('a -> 'b) -> 'a -> 'b
  end) = struct
 
 let () = Random.self_init ()
