@@ -22,7 +22,7 @@ val linearize : 'a t -> 'a t
 val protect   : fallback:(unit -> 'a) -> 'a t -> 'a t
 
 (** Alias for linearize: *)
-val one_shot  : 'a t -> 'a t 
+val one_shot  : 'a t -> 'a t
 
 val apply     : 'a t -> 'a
 val of_lazy   : 'a lazy_t -> 'a t
@@ -31,45 +31,48 @@ type id = int
 type linear = bool
 
 (** A queue of 'a thunks. Linear (one-shot) thunks are automatically
-   removed after each call of apply. Note that the first parameter 
-   of the folder is the accumulator (current state). *)  
-class ['a] fifo_container : 
-  (* Defaults for methods having these parameters: *)
-  ?fallback:'a t -> ?folder:('a -> 'a -> 'a) -> 
-  unit -> 
+   removed after each call of apply. Note that the first parameter
+   of the folder is the accumulator (current state). *)
+class ['a] fifo_container :
+  (* Default for methods having these parameters: *)
+  ?fallback:'a t ->
+  unit ->
   object
   method register_thunk : ?fallback:'a t -> ?one_shot:unit -> 'a t -> id
   method register_lazy  : ?fallback:'a t -> 'a Lazy.t -> id
-  method apply          : ?folder:('a -> 'a -> 'a) -> acc:'a -> 'a
   method remove         : id -> unit
   method get            : id -> 'a t
+  method revno          : int
+  method apply          : 'b. ?folder:('b -> 'a -> 'b) -> 'b -> 'b
   method as_queue       : ('a t * linear) Container.Queue_with_identifiers.t
 end
 
 (** A stack of 'a thunks. Linear (one-shot) thunks are automatically
-   removed after each call of apply. Note that the first parameter 
-   of the folder is the accumulator (current state). *)  
+   removed after each call of apply. Note that the first parameter
+   of the folder is the accumulator (current state). *)
 class ['a] lifo_container :
-  (* Defaults for methods having these parameters: *)
-  ?fallback:'a t -> ?folder:('a -> 'a -> 'a) -> 
-  unit -> 
+  (* Default for methods having these parameters: *)
+  ?fallback:'a t ->
+  unit ->
   object
   method register_thunk : ?fallback:'a t -> ?one_shot:unit -> 'a t -> id
   method register_lazy  : ?fallback:'a t -> 'a Lazy.t -> id
-  method apply          : ?folder:('a -> 'a -> 'a) -> acc:'a -> 'a
   method remove         : id -> unit
   method get            : id -> 'a t
+  method revno          : int
+  method apply          : 'b. ?folder:('b -> 'a -> 'b) -> 'b -> 'b
   method as_stack       : ('a t * linear) Container.Stack_with_identifiers.t
 end
 
-class fifo_unit_protected_container : 
+class fifo_unit_protected_container :
   unit ->
   object
   method register_thunk : ?unprotect:unit -> ?one_shot:unit -> unit t -> id
   method register_lazy  : ?unprotect:unit -> unit Lazy.t -> id
-  method apply          : unit -> unit
   method remove         : id -> unit
   method get            : id -> unit t
+  method revno          : int
+  method apply          : unit -> unit
   method as_queue       : (unit t * linear) Container.Queue_with_identifiers.t
 end
 
@@ -87,14 +90,15 @@ end
   let _ = window#connect#destroy ~callback:mrproper#apply in
   ..
 ]}*)
-class lifo_unit_protected_container : 
-  unit -> 
+class lifo_unit_protected_container :
+  unit ->
   object
   method register_thunk : ?unprotect:unit -> ?one_shot:unit -> unit t -> id
   method register_lazy  : ?unprotect:unit -> unit Lazy.t -> id
-  method apply          : unit -> unit
   method remove         : id -> unit
   method get            : id -> unit t
+  method revno          : int
+  method apply          : unit -> unit
   method as_stack       : (unit t * linear) Container.Stack_with_identifiers.t
 end
 
