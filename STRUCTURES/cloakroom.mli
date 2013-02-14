@@ -47,9 +47,9 @@ module Hetero : sig
  type t
  type id = int
  val create : ?size:int -> unit -> t
- val add : t -> 'a -> id
- val find : t -> id -> 'a
+ val add    : t -> 'a -> id
+ val find   : t -> id -> 'a
  val remove : t -> id -> bool
- val mem : t -> id -> bool
+ val mem    : t -> id -> bool
  val length : t -> int
 end

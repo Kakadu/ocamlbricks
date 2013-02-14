@@ -170,7 +170,7 @@ type 'a stream_protocol    = stream_channel    -> 'a
 type 'a seqpacket_protocol = seqpacket_channel -> 'a
 type 'a dgram_protocol     = (stream_channel -> dgram_channel) * (dgram_channel -> 'a)
 
-(** The behaviour of the thread tutoring a created process may be provided specifying 
+(** The behaviour of the thread tutoring a created process may be provided specifying
     what there is to do before and what to do after waiting the termination of the process. *)
 type tutoring_thread_behaviour = ThreadExtra.Easy_API.options
 

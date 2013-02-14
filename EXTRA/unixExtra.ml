@@ -537,7 +537,7 @@ let rec wait_child child_pid events =
  ?(stdout = Sink.Unix_descr   Unix.stdout)
  ?(stderr = Sink.Unix_descr   Unix.stderr)
  ?pseudo
- ?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm; Sys.sigcont])
+ ?(forward = [Sys.sigint; Sys.sigabrt; Sys.sigquit; Sys.sigterm])
  ?register_pid
  program arguments =
 
@@ -720,8 +720,8 @@ module Process = struct
 
  type wait_flag =
  | WNOHANG           (* do not block if no child has died yet, but immediately return with a pid equal to 0. *)
- | WUNTRACED         (*	report also the children that receive stop signals. *)
- | WCONTINUE         (*  report also if the children resume *)
+ | WUNTRACED         (* report also the children that receive stop signals. *)
+ | WCONTINUE         (* report also if the children resume *)
 
  external waitpid : wait_flag list -> int -> int * status = "waitpid_c"
 

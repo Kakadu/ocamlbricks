@@ -16,50 +16,59 @@
 
 
 (** Similar to [Thread.create] with two differences:
-    (1) you may create a killable thread (but only a limited number of threads 
+    (1) you may create a killable thread (but only a limited number of threads
         of your application may be killable at the same time)
-    (2) you are able to call [ThreadExtra.at_exit] in the function ('a -> 'b) 
+    (2) you are able to call [ThreadExtra.at_exit] in the function ('a -> 'b)
         that will be executed in the created thread. *)
 val create : ?killable:unit -> ('a -> 'b) -> 'a -> Thread.t
 
-(** Create a thread that waits for a process termination. By default the process is killed if 
-    the application terminates (by default we suppose that the application is the father and 
-    owner of this process). *)
-val waitpid_thread : 
-  ?killable:unit -> 
-  ?before_waiting:(pid:int->unit) -> 
-  ?after_waiting:(pid:int->unit) -> 
+(** Create a thread that waits for a process termination. By default the process is killed if
+    the application terminates (by default we suppose that the application is the father and
+    the owner of this process). *)
+val waitpid_thread :
+  ?killable:unit ->
+  ?before_waiting:(pid:int -> unit) ->
+  ?after_waiting:(pid:int -> Unix.process_status -> unit) ->
+  ?perform_when_suspended:(pid:int -> unit) ->
+  ?perform_when_resumed:(pid:int -> unit) ->
+  ?fallback:(pid:int -> exn -> unit) ->
   ?do_not_kill_process_if_exit:unit ->
   unit -> (pid:int -> Thread.t)
 
-(** Apply [Unix.fork] immediately creating a thread that waits for the termination of this fork. *)  
-val fork_with_tutor : 
-  ?killable:unit -> 
-  ?before_waiting:(pid:int->unit) -> 
-  ?after_waiting:(pid:int->unit) -> 
+(** Apply [Unix.fork] immediately creating a thread that waits for the termination of this fork. *)
+val fork_with_tutor :
+  ?killable:unit ->
+  ?before_waiting:(pid:int->unit) ->
+  ?after_waiting:(pid:int -> Unix.process_status -> unit) ->
+  ?perform_when_suspended:(pid:int -> unit) ->
+  ?perform_when_resumed:(pid:int -> unit) ->
+  ?fallback:(pid:int -> exn -> unit) ->
   ?do_not_kill_process_if_exit:unit ->
   ('a -> 'b) -> 'a -> Thread.t
 
 module Easy_API : sig
- 
+
   type options
-  
+
   val make_options :
     ?enrich:options ->
-    ?killable:unit -> 
-    ?before_waiting:(pid:int->unit) -> 
-    ?after_waiting:(pid:int->unit) -> 
-    ?do_not_kill_process_if_exit:unit -> 
+    ?killable:unit ->
+    ?before_waiting:(pid:int->unit) ->
+    ?after_waiting:(pid:int -> Unix.process_status -> unit) ->
+    ?perform_when_suspended:(pid:int -> unit) ->
+    ?perform_when_resumed:(pid:int -> unit) ->
+    ?fallback:(pid:int -> exn -> unit) ->
+    ?do_not_kill_process_if_exit:unit ->
     unit -> options
-    
-  val waitpid_thread : 
-    ?options:options -> 
+
+  val waitpid_thread :
+    ?options:options ->
     unit -> (pid:int -> Thread.t)
 
-  val fork_with_tutor : 
-    ?options:options -> 
+  val fork_with_tutor :
+    ?options:options ->
     ('a -> 'b) -> 'a -> Thread.t
-    
+
 end (* Easy_API *)
 
 val at_exit : (unit -> unit) -> unit

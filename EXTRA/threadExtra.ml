@@ -346,50 +346,181 @@ let create ?killable f x =
   | Some () -> create_killable f x
 
 
-(* Adapted from standard library unix.ml *)
-let rec waitpid_non_intr pid =
-  try
-    ignore (Unix.waitpid [] pid)
-  with
-    | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr pid
-    | Unix.Unix_error (_, _, _) -> ()
+module Waitpid_thread_standard_implementation = struct
 
-    
-let waitpid_thread 
-  ?killable 
-  ?(before_waiting=fun ~pid -> ()) 
-  ?(after_waiting=fun ~pid -> ()) 
+let rec waitpid_non_intr ?(wait_flags=[]) pid =
+  try
+    Either.Right (Unix.waitpid wait_flags pid)
+  with
+    | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr ~wait_flags pid
+    | e ->
+       begin
+         Log.printf "ThreadExtra.waitpid_non_intr: exception: %s\n" (Printexc.to_string e);
+         Either.Left e;
+       end
+
+let waitpid_thread
+  ?killable
+  ?(before_waiting=fun ~pid -> ())
+  ?(after_waiting=fun ~pid status -> ())
+  ?perform_when_suspended
+  ?(fallback=fun ~pid e -> ())
   ?do_not_kill_process_if_exit
-  () 
+  ()
   =
   let tutor_behaviour =
+    let process_alive = ref true in
     let tutor_preamble pid =
       Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
       if do_not_kill_process_if_exit = Some () then () else
       Exit_function.at_exit
 	(fun () ->
-	  Log.printf "Killing (SIGTERM) tutored process %d...\n" pid;
-	  Unix.kill pid 15);
+	  if !process_alive then begin
+	    Log.printf "Killing (SIGTERM) tutored process %d...\n" pid;
+	    Unix.kill pid 15;
+	    end);
       ()
+    in
+    let (perform_when_suspended, wait_flags) =
+      match perform_when_suspended with
+      | None   -> (fun ~pid -> ()), None
+      | Some f -> f, (Some [Unix.WUNTRACED])
     in
     fun pid ->
       let () = tutor_preamble pid in
-      let () = before_waiting ~pid in
-      let () = waitpid_non_intr pid in
-      let () = after_waiting ~pid in
-      ()
-  in
+      let rec loop () =
+	let () = before_waiting ~pid in
+	match (waitpid_non_intr ?wait_flags pid) with
+	| Either.Left e -> fallback ~pid e
+	| Either.Right (_, Unix.WSTOPPED _) ->
+   	    Log.printf "Tutored process %d stopped.\n" pid;
+	    let () = perform_when_suspended ~pid in
+            loop ()
+	| Either.Right (_, status) ->
+   	    Log.printf "Tutored process %d terminated.\n" pid;
+   	    let () = process_alive := false in
+	    let () = after_waiting ~pid status in
+	    ()
+      in
+      loop ()
+    in
   fun ~pid -> create ?killable tutor_behaviour pid
-  
+
+end (* module Waitpid_thread_standard_implementation *)
+
+
+module Waitpid_thread_catching_resume_event = struct
+
+module Process = UnixExtra.Process
+
+let rec waitpid_non_intr ?(wait_flags=[]) pid =
+  try
+    Either.Right (Process.waitpid wait_flags pid)
+  with
+    | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr ~wait_flags pid
+    | e ->
+       begin
+         Log.printf "ThreadExtra.waitpid_non_intr (catching resume): exception: %s\n" (Printexc.to_string e);
+         Either.Left e;
+       end
+
+let waitpid_thread
+  ?killable
+  ?(before_waiting=fun ~pid -> ())
+  ?(after_waiting=fun ~pid status -> ())
+  ?perform_when_suspended
+  ?perform_when_resumed
+  ?(fallback=fun ~pid e -> ())
+  ?do_not_kill_process_if_exit
+  ()
+  =
+  let tutor_behaviour =
+    let process_alive = ref true in
+    let tutor_preamble pid =
+      Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
+      if do_not_kill_process_if_exit = Some () then () else
+      Exit_function.at_exit
+	(fun () ->
+	  if !process_alive then begin
+	    Log.printf "Killing (SIGTERM) tutored process %d...\n" pid;
+	    Unix.kill pid 15;
+	    end);
+      ()
+    in
+    let (perform_when_suspended, wait_flags1) =
+      match perform_when_suspended with
+      | None   -> (fun ~pid -> ()), []
+      | Some f -> f, [Process.WUNTRACED]
+    in
+    let (perform_when_resumed, wait_flags2) =
+      match perform_when_resumed with
+      | None   -> (fun ~pid -> ()), []
+      | Some f -> f, [Process.WCONTINUE]
+    in
+    let wait_flags = List.append (wait_flags1) (wait_flags2) in
+    fun pid ->
+      let () = tutor_preamble pid in
+      let rec loop () =
+	let () = before_waiting ~pid in
+	match (waitpid_non_intr ~wait_flags pid) with
+	| Either.Left e -> fallback ~pid e
+	| Either.Right (_, Process.WSTOPPED _) ->
+   	    Log.printf "Tutored process %d stopped.\n" pid;
+	    let () = perform_when_suspended ~pid in
+            loop ()
+	| Either.Right (_, Process.WCONTINUED) ->
+   	    Log.printf "Tutored process %d resumed.\n" pid;
+	    let () = perform_when_resumed ~pid in
+            loop ()
+	| Either.Right (_, Process.WUNCHANGED) ->
+            loop ()
+	| Either.Right (_, Process.WEXITED i) ->
+   	    Log.printf "Tutored process %d terminated (exited).\n" pid;
+   	    let () = process_alive := false in
+	    let () = after_waiting ~pid (Unix.WEXITED i) in
+	    ()
+	| Either.Right (_, Process.WSIGNALED i) ->
+   	    Log.printf "Tutored process %d terminated (killed).\n" pid;
+   	    let () = process_alive := false in
+	    let () = after_waiting ~pid (Unix.WSIGNALED i) in
+	    ()
+      in
+      loop ()
+    in
+  fun ~pid -> create ?killable tutor_behaviour pid
+
+end (* module Waitpid_thread_catching_resume_event *)
+
+(* Switch between the two implementation, according to the need of
+   catching `resume' events: *)
+let waitpid_thread
+  ?killable ?before_waiting ?after_waiting ?perform_when_suspended ?perform_when_resumed
+  ?fallback ?do_not_kill_process_if_exit ()
+  =
+  match perform_when_resumed with
+  | None ->
+      Waitpid_thread_standard_implementation.waitpid_thread
+        ?killable ?before_waiting ?after_waiting ?perform_when_suspended
+        ?fallback ?do_not_kill_process_if_exit ()
+  | Some perform_when_resumed ->
+      Waitpid_thread_catching_resume_event.waitpid_thread
+        ?killable ?before_waiting ?after_waiting ?perform_when_suspended
+        ~perform_when_resumed
+        ?fallback ?do_not_kill_process_if_exit ()
+
+
 let fork_with_tutor
   ?killable
   ?before_waiting
   ?after_waiting
+  ?perform_when_suspended
+  ?perform_when_resumed
+  ?fallback
   ?do_not_kill_process_if_exit
   f x
   =
-  let tutor = 
-    waitpid_thread ?killable ?before_waiting ?after_waiting ?do_not_kill_process_if_exit ()
+  let tutor =
+    waitpid_thread ?killable ?before_waiting ?after_waiting ?perform_when_suspended ?perform_when_resumed ?fallback ?do_not_kill_process_if_exit ()
   in
   let pid = Unix.getpid () in
   let id = Thread.id (Thread.self ()) in
@@ -415,50 +546,71 @@ let fork_with_tutor
   thread
 ;;
 
+
+
 module Easy_API = struct
- 
+
   (* Tutoring thread options: *)
-  type options = { 
+  type options = {
     mutable killable                    : unit option;
-    mutable before_waiting              : (pid:int -> unit) option; 
-    mutable after_waiting               : (pid:int -> unit) option; 
+    mutable before_waiting              : (pid:int -> unit) option;
+    mutable after_waiting               : (pid:int -> Unix.process_status -> unit) option;
+    mutable perform_when_suspended      : (pid:int -> unit) option;
+    mutable perform_when_resumed        : (pid:int -> unit) option;
+    mutable fallback                    : (pid:int -> exn -> unit) option;
     mutable do_not_kill_process_if_exit : unit option;
     }
-  
+
   let make_defaults () = {
     killable = None;
-    before_waiting = None; 
-    after_waiting = None; 
+    before_waiting = None;
+    after_waiting = None;
+    perform_when_suspended = None;
+    perform_when_resumed = None;
+    fallback = None;
     do_not_kill_process_if_exit = None;
     }
-  
-  let make_options ?enrich ?killable ?before_waiting ?after_waiting ?do_not_kill_process_if_exit () =
+
+  let make_options
+    ?enrich ?killable ?before_waiting ?after_waiting ?perform_when_suspended ?perform_when_resumed
+    ?fallback ?do_not_kill_process_if_exit ()
+    =
     let t = match enrich with None -> make_defaults () | Some t -> t in
     let () = t.killable <- killable in
     let () = t.before_waiting <- before_waiting in
     let () = t.after_waiting  <- after_waiting  in
+    let () = t.perform_when_suspended <- perform_when_suspended in
+    let () = t.perform_when_resumed <- perform_when_resumed in
+    let () = t.fallback <- fallback in
     let () = t.do_not_kill_process_if_exit <- do_not_kill_process_if_exit in
     t
-    
-  let apply_with_options ?options 
-    (f:?killable:unit -> 
-       ?before_waiting:(pid:int->unit) -> 
-       ?after_waiting:(pid:int->unit) -> 
+
+  let apply_with_options ?options
+    (f:?killable:unit ->
+       ?before_waiting:(pid:int->unit) ->
+       ?after_waiting:(pid:int-> Unix.process_status -> unit) ->
+       ?perform_when_suspended:(pid:int -> unit) ->
+       ?perform_when_resumed:(pid:int -> unit) ->
+       ?fallback:(pid:int -> exn -> unit) ->
        ?do_not_kill_process_if_exit:unit -> 'a -> 'b)
-    arg 
+    arg
     =
     match options with
     | None -> f arg
-    | Some t -> 
+    | Some t ->
        let killable = t.killable in
        let before_waiting = t.before_waiting in
        let after_waiting  = t.after_waiting  in
+       let perform_when_suspended = t.perform_when_suspended in
+       let perform_when_resumed = t.perform_when_resumed in
+       let fallback = t.fallback in
        let do_not_kill_process_if_exit = t.do_not_kill_process_if_exit in
-       f ?killable ?before_waiting ?after_waiting ?do_not_kill_process_if_exit arg
-  
+       f ?killable ?before_waiting ?after_waiting ?perform_when_suspended ?perform_when_resumed
+         ?fallback ?do_not_kill_process_if_exit arg
+
   let waitpid_thread  ?options () = apply_with_options ?options (waitpid_thread) ()
-  let fork_with_tutor ?options f  = apply_with_options ?options (fork_with_tutor) f 
-    
+  let fork_with_tutor ?options f  = apply_with_options ?options (fork_with_tutor) f
+
 end (* Easy_API *)
 
 
