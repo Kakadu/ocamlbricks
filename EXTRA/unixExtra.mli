@@ -21,6 +21,7 @@ type foldername = string
 type content    = string
 
 val apply_ignoring_Unix_error : ('a -> unit) -> 'a -> unit
+val apply_catching_Unix_error : fallback:(Unix.error * string * string -> 'b) -> ('a -> 'b) -> 'a -> 'b
 
 (** {2 File permissions} *)
 
@@ -90,7 +91,30 @@ val file_kind_of_char : char -> Unix.file_kind option
 (** {2 Directories} *)
 
 val iter_dir : (string -> 'a) -> string -> unit
-val find : ?follow:bool -> ?maxdepth:int -> ?kind:char -> ?name:string -> string -> string list
+
+val find :
+  ?follow:unit ->
+  ?maxdepth:int ->
+  ?kind:char ->
+  ?basename:string ->
+  ?only_first:unit ->
+  string list -> string list * exn list
+
+val find_fold :
+  ?follow:unit ->
+  ?maxdepth:int ->
+  ?kind:char ->
+  ?basename:string ->
+  ?only_first:unit ->
+  ('a -> string * string list * exn list -> 'a) -> 'a -> string list -> 'a
+
+val find_first_and_map :
+  ?follow:unit ->
+  ?maxdepth:int ->
+  ?kind:char ->
+  ?basename:string ->
+  (string -> string -> 'a) ->
+  string list -> 'a option
 
 (** {2 Password} *)
 

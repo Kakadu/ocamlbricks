@@ -27,7 +27,11 @@ type foldername = string;;
 type content = string;;
 
 let apply_ignoring_Unix_error f x =
- try f x with Unix.Unix_error (_,_, _) -> ()
+ try f x with Unix.Unix_error (_,_,_) -> ()
+;;
+
+let apply_catching_Unix_error ~fallback f x =
+ try f x with Unix.Unix_error (e,b,c) -> fallback (e,b,c)
 ;;
 
 (** The {e user}, {e group} and {e other} permissions [(r,w,x),(r,w,x),(r,w,x)]. *)
@@ -327,15 +331,13 @@ module Findlib = struct
     let hide_exn f x = try f x with exn -> raise (Hidden exn);;
     let reveal_exn f x = try f x with Hidden exn -> raise exn;;
 
-    open Unix;;
-
     let find on_error on_path follow depth roots =
-      let rec find_rec depth visiting filename =
+      let rec loop depth visiting filename =
         try
-          let infos = (if follow then stat else lstat) filename in
+          let infos = (if follow then Unix.stat else Unix.lstat) filename in
           let continue = hide_exn (on_path filename) infos in
-          let id = infos.st_dev, infos.st_ino in
-          if infos.st_kind = S_DIR && depth > 0 && continue &&
+          let id = infos.Unix.st_dev, infos.Unix.st_ino in
+          if infos.Unix.st_kind = Unix.S_DIR && depth > 0 && continue &&
             (not follow || not (List.mem id visiting))
           then
             let process_child child =
@@ -344,10 +346,17 @@ module Findlib = struct
                 let child_name = Filename.concat filename child in
                 let visiting =
                   if follow then id :: visiting else visiting in
-                 find_rec (depth-1) visiting child_name in
-                 iter_dir process_child filename
-        with Unix_error (e, b, c) -> hide_exn on_error (e, b, c) in
-      reveal_exn (List.iter (find_rec depth [])) roots
+                 loop (depth-1) visiting child_name
+            in
+            iter_dir process_child filename
+        with
+        (* For a strange reason, exceptions are not matched by the
+           pattern `Unix.Unix_error (e, b, c)', even if they should!
+           | Unix.Unix_error (e, b, c) -> hide_exn on_error (e, b, c)
+           So, we have to manipulate exceptions instead of Unix errors: *)
+           | e -> hide_exn on_error e
+      in
+      reveal_exn (List.iter (loop depth [])) roots
 ;;
 
 end;; (* module Findlib *)
@@ -385,23 +394,76 @@ end;; (* module Findlib *)
 # find ~name:"moduli" "/etc/ssh/" ;;
   : string list = ["/etc/ssh/moduli"]
 ]} *)
-let find ?(follow=false) ?(maxdepth=1024) ?(kind='_') ?(name="") (root:string) : string list =
-      let result = ref [] in
-
-
-      let action = match (file_kind_of_char kind, name) with
-       | (None    , ""   ) -> fun p infos -> result := (p::!result)
-       | ((Some k), ""   ) -> fun p infos -> if (infos.Unix.st_kind = k)    then result := (p::!result);
-       | (None    , n    ) -> fun p infos -> if ((Filename.basename p) = n) then result := (p::!result)
-       | ((Some k), n    ) -> fun p infos -> if (infos.Unix.st_kind = k) && ((Filename.basename p) = n)
-					       then result := (p::!result); in
-
-      let action p infos = (action p infos; true) in
-
-      let on_error (e, b, c) = prerr_endline (c ^ ": " ^ Unix.error_message e) in
-        Unix.handle_unix_error (Findlib.find on_error action follow maxdepth) [root];
-        List.rev (!result)
+let find ?follow ?(maxdepth=1024) ?(kind='_') ?(basename="") ?only_first roots : string list * exn list =
+  let follow = (follow = Some ()) in
+  let result_paths = ref [] in
+  let result_exn   = ref [] in
+  let action =
+    let push_on_condition (condition) p =
+      if (condition) then result_paths := (p::!result_paths) else ()
+    in
+    match (file_kind_of_char kind, basename) with
+    | (None    , ""   ) -> fun p infos -> result_paths := (p::!result_paths)
+    | ((Some k), ""   ) -> fun p infos -> push_on_condition (infos.Unix.st_kind = k) p
+    | (None    , n    ) -> fun p infos -> push_on_condition ((Filename.basename p) = n) p
+    | ((Some k), n    ) -> fun p infos -> push_on_condition ((infos.Unix.st_kind = k) && ((Filename.basename p) = n)) p
+  in
+  let continue =
+    match only_first with
+    | None    -> fun () -> true
+    | Some () -> fun () -> !result_paths = []
+  in
+  let action p infos =
+    (action p infos; continue ())
+  in
+  let on_error exn =
+    (result_exn := exn::!result_exn)
+  in
+  let make_result () =
+    (List.rev (!result_paths), List.rev (!result_exn))
+  in
+  try
+    let () = Findlib.find on_error action follow maxdepth roots in
+    make_result ()
+  with
+    exn ->
+	let () = (result_exn := exn::!result_exn) in
+	make_result ()
 ;;
+
+(* For the same strange reason mentioned above, this redefinition doesn't run
+   correctly : the second part of the result (the list of errors) is each time the empty list...
+   However, outside the module UnixExtra the result may be kept and correctly matched. *)
+(*
+let find ?follow ?maxdepth ?kind ?basename ?only_first roots =
+  let (xs,es) = find ?follow ?maxdepth ?kind ?basename ?only_first roots in
+  let es2 =
+    lazy
+      let es1 = List.filter (function Unix.Unix_error (_,_,_) -> true | _ -> false) es in
+      List.map (function Unix.Unix_error (e,b,c) -> (e,b,c) | _ -> assert false) es1
+  in
+  (xs, es2)
+*)
+
+let find_fold ?follow ?maxdepth ?kind ?basename ?only_first (f:('a -> string * string list * exn list -> 'a)) acc roots : 'a =
+  List.fold_left
+    (fun acc root ->
+      let (xs,es) = find ?follow ?maxdepth ?kind ?basename ?only_first [root] in
+      f acc (root,xs,es))
+    acc
+    roots
+
+let find_first_and_map ?follow ?maxdepth ?kind ?basename (f:string -> string -> 'a) roots : 'a option =
+  List.fold_left
+    (fun acc root ->
+      if acc<>None then acc else
+      let (xs,es) = find ?follow ?maxdepth ?kind ?basename ~only_first:() [root] in
+      match xs with
+      | x::_ -> Some (f root x)
+      | [] -> None
+      )
+    None
+    roots
 
 
 (** Support for input passwords.
