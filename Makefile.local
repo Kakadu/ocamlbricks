@@ -23,8 +23,17 @@ LIBRARIES_TO_LINK = str unix threads lablgtk
 
 NATIVE_PROGRAMS += mutexExtra_test.native
 BYTE_PROGRAMS += mutexExtra_test.byte
-NATIVE_LIBRARIES = ocamlbricks.cmxa
-BYTE_LIBRARIES = ocamlbricks.cma
+
+NATIVE_LIBRARY_NAME = ocamlbricks.cmxa
+BYTE_LIBRARY_NAME = ocamlbricks.cma
+
+NATIVE_LIBRARIES = $(shell \
+  if which ocamlopt.opt &>/dev/null || which ocamlopt &>/dev/null;\
+  then echo $(NATIVE_LIBRARY_NAME); fi)
+
+BYTE_LIBRARIES = $(shell \
+  if which ocamlc.opt &>/dev/null || which ocamlc &>/dev/null;\
+  then echo $(BYTE_LIBRARY_NAME); fi)
 
 PP_OPTION = camlp4of
 GETTEXT=GETTEXT
