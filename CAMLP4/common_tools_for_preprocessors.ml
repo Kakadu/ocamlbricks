@@ -101,7 +101,7 @@ module Add_directive_syntax_extension (Unit : sig end) = struct
    let version = Sys.ocaml_version
  end
 
- module Make (Syntax : Sig.Camlp4Syntax) = struct
+ module Make (Syntax : Sig.Camlp4Syntax) : Sig.Camlp4Syntax = struct
   open Sig
   include Syntax
   EXTEND Gram GLOBAL: str_item sig_item;

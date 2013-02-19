@@ -154,7 +154,7 @@ class comboTextTree = fun
 
   (** The function to call to attach self somewhere. For instance :
       {[ packing = dialog#table#attach ~left:1 ~top:2 ~right:3 ]}
-      Every time the comboTextTree is rebuilded, the old box is destroyed, rebuilded and finally repackaged
+      Every time the comboTextTree is rebuilt, the old box is destroyed, rebuilt and finally repackaged
       with this packing function. *)
   method packing   : (GObj.widget -> unit) = match packing with None -> (fun x->()) | Some f -> f
 

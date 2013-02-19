@@ -38,7 +38,7 @@ module type S =
 module Extend : functor (Map : Map.S) -> S with type key = Map.key
 module Make   : functor (Ord : Map.OrderedType) -> S with type key = Ord.t
 
-(** {2 Pre-builded mappings} *)
+(** {2 Pre-built mappings} *)
 
 module String_map : S with type key = string
 module Int_map    : S with type key = int

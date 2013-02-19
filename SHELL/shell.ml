@@ -19,8 +19,7 @@
     {e Unix} tools ({b grep}, {b dd}, {b tar},..). *)
 
 open Sugar;;
-open UnixExtra;;
-open Wrapper;;
+module Treat = Wrapper.Treat
 
 (** A {e filename} is a string. *)
 type filename = string;;
@@ -31,6 +30,8 @@ type filexpr = string;;
 (** A {e foldername} is a string. *)
 type foldername = string;;
 
+type line = string
+type text = line list
 
 (** {2 Text filters} *)
 
@@ -40,7 +41,7 @@ type foldername = string;;
 {[# awk "{print $1}" ["Hello World";"Bye Bye"];;
   : string list = ["Hello"; "Bye"]
 ]}*)
-let awk ?(opt="") prog text = textfilter ~at:Treat.quote "awk" ~opt ~args:(Some(prog)) text ;;
+let awk ?(opt="") prog text = Wrapper.textfilter ~at:Treat.quote "awk" ~opt ~args:(Some(prog)) text ;;
 
 
 (** Wrapper for the {b cut} unix filter.
@@ -48,7 +49,7 @@ let awk ?(opt="") prog text = textfilter ~at:Treat.quote "awk" ~opt ~args:(Some(
 {[#  cut "-d: -f2,3" ["AA:BB:CC:DD:EE:FF"];;
   : string list = ["BB:CC"]
 ]}*)
-let cut args text = textfilter ~at:Treat.identity "cut" ~args:(Some(args)) text ;;
+let cut args text = Wrapper.textfilter ~at:Treat.identity "cut" ~args:(Some(args)) text ;;
 
 
 (** Wrapper for the {b head} unix filter. {b Examples}:
@@ -57,7 +58,7 @@ let cut args text = textfilter ~at:Treat.identity "cut" ~args:(Some(args)) text 
 
 # head ~opt:"-1" ["hello world"; "bye bye"];;
   : string list = ["hello world"]]}*)
-let head ?(opt="") text = textfilter "head" ~opt text ;;
+let head ?(opt="") text = Wrapper.textfilter "head" ~opt text ;;
 
 (** Wrapper for the {b grep} unix filter. {b Examples}:
 {[# grep "aa" ["aaa";"bbb";"caa";"ddd"];;
@@ -66,7 +67,7 @@ let head ?(opt="") text = textfilter "head" ~opt text ;;
 # grep ~opt:"-v" "aa" ["aaa";"bbb";"caa";"ddd"];;
   : string list = ["bbb"; "ddd"]
 ]}*)
-let grep ?(opt="") regexp text = textfilter ~at:Treat.quote "grep" ~opt ~args:(Some(regexp)) text ;;
+let grep ?(opt="") regexp text = Wrapper.textfilter ~at:Treat.quote "grep" ~opt ~args:(Some(regexp)) text ;;
 
 (** Wrapper for the {b nl} unix filter. {b Examples}:
 {[# nl ["first"; "second";"third"];;
@@ -75,14 +76,14 @@ let grep ?(opt="") regexp text = textfilter ~at:Treat.quote "grep" ~opt ~args:(S
 # nl ~opt:"-w 1" ["first"; "second";"third"];;
   : string list = ["1\tfirst"; "2\tsecond"; "3\tthird"]
 ]}*)
-let nl ?(opt="") text = textfilter "nl" ~opt text ;;
+let nl ?(opt="") text = Wrapper.textfilter "nl" ~opt text ;;
 
 
 (** Wrapper for the {b sed} unix filter. By default [~opt="-e"]. {b Example}:
 {[# sed "s/e/E/g" ["Hello World";"Bye Bye"];;
   : string list = ["HEllo World"; "ByE ByE"]
 ]}*)
-let sed ?(opt="-e") prog text = textfilter ~at:Treat.quote "sed" ~opt ~args:(Some(prog)) text ;;
+let sed ?(opt="-e") prog text = Wrapper.textfilter ~at:Treat.quote "sed" ~opt ~args:(Some(prog)) text ;;
 
 (** Wrapper for the {b sort} unix filter. {b Examples}:
 {[# sort  ["Hello";"Salut"; "Ciao" ];;
@@ -91,14 +92,14 @@ let sed ?(opt="-e") prog text = textfilter ~at:Treat.quote "sed" ~opt ~args:(Som
 # sort ~opt:"-r"  ["Hello";"Salut"; "Ciao" ];;
   : string list = ["Salut"; "Hello"; "Ciao"]
 ]}*)
-let sort ?(opt="") text = textfilter "sort" ~opt text ;;
+let sort ?(opt="") text = Wrapper.textfilter "sort" ~opt text ;;
 
 
 (** Wrapper for the {b tac} unix filter.  {b Example}:
 {[# tac   ["Hello";"Salut"; "Ciao" ];;
   : string list = ["Ciao"; "Salut"; "Hello"]
 ]}*)
-let tac ?(opt="") text = textfilter "tac" ~opt text ;;
+let tac ?(opt="") text = Wrapper.textfilter "tac" ~opt text ;;
 
 (** Wrapper for the {b tail} unix filter. {b Examples}:
 {[# tail   ["Hello";"Salut"; "Ciao" ];;
@@ -107,7 +108,7 @@ let tac ?(opt="") text = textfilter "tac" ~opt text ;;
 # tail ~opt:"-2"  ["Hello";"Salut"; "Ciao" ];;
   : string list = ["Salut"; "Ciao"]
 ]}*)
-let tail ?(opt="") text = textfilter "tail" ~opt text ;;
+let tail ?(opt="") text = Wrapper.textfilter "tail" ~opt text ;;
 
 (** Wrapper for the {b tee} unix filter.
     Filenames are quoted then merged with the blank separator.
@@ -121,7 +122,7 @@ let tail ?(opt="") text = textfilter "tail" ~opt text ;;
 let tee ?(opt="") (files:filename list) text =
   let args = List.map StringExtra.quote files in
   let args = String.concat " " args in
-  textfilter ~at:Treat.identity "tee" ~opt ~args:(Some args) text ;;
+  Wrapper.textfilter ~at:Treat.identity "tee" ~opt ~args:(Some args) text ;;
 
 
 (** Wrapper for the {b tr} unix filter. {b Example}:
@@ -132,13 +133,13 @@ let tr ?(opt="") c1 c2 text =
  let s1 = StringExtra.quote (Char.escaped c1) in
  let s2 = StringExtra.quote (Char.escaped c2) in
  let args = String.concat " " [s1;s2] in
-  textfilter ~at:Treat.identity "tr" ~opt ~args:(Some args) text ;;
+  Wrapper.textfilter ~at:Treat.identity "tr" ~opt ~args:(Some args) text ;;
 
 (** Wrapper for the {b uniq} unix filter. {b Example}:
 {[# uniq ["AA"; "BB"; "CC"; "CC"; "AA"];;
   : string list = ["AA"; "BB"; "CC"; "AA"]
 ]}*)
-let uniq ?(opt="") text = textfilter "uniq" ~opt text ;;
+let uniq ?(opt="") text = Wrapper.textfilter "uniq" ~opt text ;;
 
 (** {2 Text summary} *)
 
@@ -147,10 +148,11 @@ let uniq ?(opt="") text = textfilter "uniq" ~opt text ;;
   : int = 5
 ]}*)
 let wc text : int =
- make  ~it:(Some StringExtra.Text.to_string)
-       ~ot:(StringExtra.chop || int_of_string)
-       "wc -w"
-       ~input:(Some text) () ;;
+ Wrapper.make
+   ~it:(Some StringExtra.Text.to_string)
+   ~ot:(StringExtra.chop || int_of_string)
+   "wc -w"
+   ~input:(Some text) () ;;
 
 (** Wrapper for the {b wc -c} unix char counter. In a {e strict} sense, the newline
     characters added to strings in order to trasform them in lines (if needed)
@@ -167,10 +169,11 @@ let wc text : int =
 ]}*)
 let cc ?(strict=false) text : int =
  let it = Some(if strict then (String.concat "") else (StringExtra.Text.to_string)) in
- make  ~it
-       ~ot:(StringExtra.chop || int_of_string)
-       "wc -c"
-       ~input:(Some text) () ;;
+ Wrapper.make
+   ~it
+   ~ot:(StringExtra.chop || int_of_string)
+   "wc -c"
+   ~input:(Some text) () ;;
 
 
 (** {2 Filtering files} *)
@@ -187,7 +190,7 @@ module Files = struct
 let glob ?(null=false) (args:filexpr) =
   let shopt = ("shopt "^(if null then "-s" else "-u")^" nullglob\n") in
   let cmd = shopt^"for i in \"$@\"; do echo $i; done" in
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string cmd ~script:true ~args:(Some args) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string cmd ~script:true ~args:(Some args) ();;
 
 (** The following functions are wrappers of the homonymous unix command.
     The difference from the [Shell] versions is that they ignore their input
@@ -201,28 +204,28 @@ let glob ?(null=false) (args:filexpr) =
 # wc (Files.cat ~opt:"-n" "/etc/*tab");;
   : int = 1691]}*)
  let cat ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cat" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cat" ~opt ~args:(Some arg) ();;
 
  let cut  ?(opt="") (arg:filexpr) =
-   make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cut" ~opt ~args:(Some arg) ();;
+   Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "cut" ~opt ~args:(Some arg) ();;
 
  let head ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "head" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "head" ~opt ~args:(Some arg) ();;
 
  let nl ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "nl" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "nl" ~opt ~args:(Some arg) ();;
 
  let sort ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "sort" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "sort" ~opt ~args:(Some arg) ();;
 
  let tac  ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tac" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tac" ~opt ~args:(Some arg) ();;
 
  let tail ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tail" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "tail" ~opt ~args:(Some arg) ();;
 
  let uniq ?(opt="") (arg:filexpr) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "uniq" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "uniq" ~opt ~args:(Some arg) ();;
 
 
 end;;
@@ -237,7 +240,7 @@ end;;
   : string = "17-04-2007.21h06"
 ]}*)
 let date ?(opt="") ?(arg="") () =
-  make ~at:Treat.identity ~ot:StringExtra.chop "date" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.chop "date" ~opt ~args:(Some arg) ();;
 
 
 (** Wrapper for the {b id} unix command. {b Examples}:
@@ -248,7 +251,7 @@ let date ?(opt="") ?(arg="") () =
   : string = "1031"
 ]}*)
 let id ?(opt="") ?(arg="") () =
-  make ~at:Treat.identity ~ot:StringExtra.chop "id" ~opt ~args:(Some arg) ();;
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.chop "id" ~opt ~args:(Some arg) ();;
 
 (** Wrapper for the {b uname} unix command. {b Examples}:
 {[# uname ();;
@@ -257,13 +260,13 @@ let id ?(opt="") ?(arg="") () =
 # uname ~opt:"-r" ();;
   : string = "2.6.16.27-0.6-smp"
 ]}*)
-let uname ?(opt="") () = make ~ot:StringExtra.chop "uname" ~opt ();;
+let uname ?(opt="") () = Wrapper.make ~ot:StringExtra.chop "uname" ~opt ();;
 
 (** Wrapper for the {b whoami} unix command. {b Example}:
 {[# whoami ();;
  : string = "loddo"
 ]}*)
-let whoami () = make ~ot:StringExtra.chop "whoami" ();;
+let whoami () = Wrapper.make ~ot:StringExtra.chop "whoami" ();;
 
 
 (** {2 Stuff} *)
@@ -274,8 +277,8 @@ let whoami () = make ~ot:StringExtra.chop "whoami" ();;
 {[# find "/etc/*tab -name '*n*'";;
   : string list = ["/etc/crontab"; "/etc/inittab"]
 ]}*)
- let find (arg:arg) =
-  make ~at:Treat.identity ~ot:StringExtra.Text.of_string "find" ~args:(Some arg) ();;
+ let find (arg:string) =
+  Wrapper.make ~at:Treat.identity ~ot:StringExtra.Text.of_string "find" ~args:(Some arg) ();;
 
 
 (** {3 dd} *)
@@ -307,11 +310,10 @@ let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) 
  let skip = match skip  with (Some n) -> " skip=" ^ (string_of_int n) | _ -> "" in
  let seek = match seek  with (Some n) -> " seek=" ^ (string_of_int n) | _ -> "" in
  let count= match count with (Some n) -> " count="^ (string_of_int n) | _ -> "" in
- let conv = match conv  with (Some n) -> " conv=" ^ (string_of_int n) | _ -> "" in
-
+ let conv = match conv  with (Some n) -> " conv=" ^ (string_of_int n) | _ -> ""
+ in
  let arg = (iF^oF^ibs^obs^bs^cbs^skip^seek^count^conv) in
-
-  make ~at:Treat.identity ~ot:ignore "dd" ~args:(Some arg) ()
+ Wrapper.make ~at:Treat.identity ~ot:ignore "dd" ~args:(Some arg) ()
 ;;
 
 (** {3 tar} *)
@@ -323,7 +325,7 @@ let dd ?(ibs=None) ?(obs=None) ?(bs=None) ?(cbs=None) ?(skip=None) ?(seek=None) 
 ]}*)
 let tgz_create ?(opt="") (fname:filename) (files:filexpr) =
   let at (t,e) = ((StringExtra.quote t)^" "^e) in
-  make ~at:(Some at) ~ot:ignore ("tar "^opt^" -czf $@") ~script:true ~args:(Some (fname,files)) ()
+  Wrapper.make ~at:(Some at) ~ot:ignore ("tar "^opt^" -czf $@") ~script:true ~args:(Some (fname,files)) ()
 ;;
 
 
@@ -335,7 +337,7 @@ let tgz_create ?(opt="") (fname:filename) (files:filexpr) =
 ]}*)
 let tgz_extract ?(opt="") (fname:filename) (rep:foldername) =
   let at (t,r) = ((StringExtra.quote t)^" "^(StringExtra.quote r)) in
-  make ~at:(Some at) ~ot:ignore ("tar "^opt^" -C $2 -xzf $1") ~script:true ~args:(Some (fname,rep)) ()
+  Wrapper.make ~at:(Some at) ~ot:ignore ("tar "^opt^" -C $2 -xzf $1") ~script:true ~args:(Some (fname,rep)) ()
 ;;
 
 
@@ -352,7 +354,7 @@ let tgz_extract ?(opt="") (fname:filename) (rep:foldername) =
 module Check = struct
 
 let check cmd cmdname ?(nullglob=false) (patt:filexpr) =
-  let wrapper x = make ~at:Treat.quote ~ot:Treat.is_true cmd ~script:true ~args:(Some x) () in
+  let wrapper x = Wrapper.make ~at:Treat.quote ~ot:Treat.is_true cmd ~script:true ~args:(Some x) () in
   match (Files.glob ~null:nullglob patt) with
   | [] -> failwith (cmdname^": argument '"^patt^"' globs to nothing")
   | l  -> List.for_all wrapper l

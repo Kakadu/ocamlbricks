@@ -19,8 +19,10 @@
 # documentation should be generated:
 Argv
 ArrayExtra
+Cell
 Configuration_files
 Container
+Cortex
 Counter
 Egg
 Either
@@ -36,7 +38,6 @@ Hashmmap
 Hashset
 Ipv4
 Ipv6
-Ledgrid
 ListExtra
 Log
 MapExtra
