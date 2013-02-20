@@ -107,7 +107,7 @@ module ComboTextTree = struct
 
 (** {2 Class definition} *)
 
-(** A ComboTextTree is a combo with eventually some dependent {i childs} (or {i slaves}).
+(** A ComboTextTree is a combo with eventually some dependent {i children} (or {i slaves}).
     The choice list of a node in the tree depends on the father's selected value and on the
     ancestors's selected values. The list of choices of a node is given dynamically by a function
     called the {i generator} which is used to calculte or recalculate the choice list.
@@ -120,7 +120,7 @@ class comboTextTree = fun
   (* The first input for the generator. *)
   ~(msg:string Environment.string_env)
 
-  (* The key of the pair (key,value) send to its childs. *)
+  (* The key of the pair (key,value) send to its children. *)
   ~(key:string)
 
   (* An optional callback function, to call at any change *)
@@ -144,12 +144,12 @@ class comboTextTree = fun
       is not really dependent from its argument, but it is a simple costant function. *)
   method generator : (string Environment.string_env -> string list) = generator
 
-  (** The key of the pair (key,value) which this widget (node) eventually transmit to its childs (slaves). This field
+  (** The key of the pair (key,value) which this widget (node) eventually transmit to its children (slaves). This field
       is set at the creation. The value of the pair (key,value) will be the selected value of the widget, of course. *)
   method key : string = key
 
   (** A secondary function to call at any change of the selected item. This represent an additional callback.
-      The principal callback is the method [childs_rebuild] which propagate the selected value to all childs. *)
+      The principal callback is the method [children_rebuild] which propagate the selected value to all children. *)
   method callback  : (string -> unit) = match callback with None   -> (fun x->()) | Some f -> f
 
   (** The function to call to attach self somewhere. For instance :
@@ -162,7 +162,7 @@ class comboTextTree = fun
 
   (** This fields stores the environment used for the last generation of the choice list.
       This information is fundamental because if this widget has some ancestors and also some descendents,
-      for any alteration of its state, it must resend to its childs the last environment received
+      for any alteration of its state, it must resend to its children the last environment received
       from its ancestors enriched with the pair (key,value) representing its own state. In this way,
       every descendent know the state of all its ancestors (not only the state of its father). *)
   val mutable env     : (string Environment.string_env)     = msg
@@ -174,8 +174,8 @@ class comboTextTree = fun
   val mutable box     : #GEdit.combo_box  = initial_box
   val mutable col     : ('a GTree.column) = initial_col
 
-  (** The childs list of this widget. *)
-  val mutable childs  : comboTextTree list = []
+  (** The children list of this widget. *)
+  val mutable children  : comboTextTree list = []
 
   (** Accessors *)
 
@@ -183,18 +183,18 @@ class comboTextTree = fun
   method choices = choices
   method box     = box
   method col     = col
-  method childs  = childs
-  method child i = List.nth childs i
+  method children  = children
+  method child i = List.nth children i
 
   (** Convenient aliases *)
 
-  method slave   = List.nth childs 0
-  method slave0  = List.nth childs 0
-  method slave1  = List.nth childs 1
-  method slave2  = List.nth childs 2
-  method slave3  = List.nth childs 3
-  method slave4  = List.nth childs 4
-  method slave5  = List.nth childs 5
+  method slave   = List.nth children 0
+  method slave0  = List.nth children 0
+  method slave1  = List.nth children 1
+  method slave2  = List.nth children 2
+  method slave3  = List.nth children 3
+  method slave4  = List.nth children 4
+  method slave5  = List.nth children 5
 
   (** Fixing variable fields *)
 
@@ -202,8 +202,8 @@ class comboTextTree = fun
   method set_choices l = choices <- l
   method set_box     b = box     <- b
   method set_col     c = col     <- c
-  method set_childs  l = childs  <- l
-  method add_child   x = childs  <- childs @ [x]
+  method set_children  l = children  <- l
+  method add_child   x = children  <- children @ [x]
 
   (** Selected item *)
 
@@ -220,21 +220,21 @@ class comboTextTree = fun
     try
       let i = Option.extract (ListExtra.indexOf v self#choices) in
       self#box#set_active i ;
-      self#childs_rebuild ()
+      self#children_rebuild ()
     with _ -> ()
 
 
-  (** Rebuilding self and childs *)
+  (** Rebuilding self and children *)
 
-  (** Demands to all childs to rebuild theirself and their childs and so on.
-      This procedure is performed sending to all childs the ancestor environment (method [env]) enriched by
+  (** Demands to all children to rebuild theirself and their children and so on.
+      This procedure is performed sending to all children the ancestor environment (method [env]) enriched by
       the pair (key,value), where value is the current selected item of this node. *)
-  method childs_rebuild () =
+  method children_rebuild () =
     let msg = Environment.make_string_env (self#env#to_list @ [(self#key,self#selected)]) in  (* x = self#selected *)
-    List.iter (fun w -> w#rebuild msg) self#childs
+    List.iter (fun w -> w#rebuild msg) self#children
 
 
-  (** Rebuild this widget, and its eventually all childs, with the new given environment. *)
+  (** Rebuild this widget, and its eventually all children, with the new given environment. *)
   method rebuild (msg : string Environment.string_env) =
     begin
       (* Save the current selected choice. We will try to reset it. *)
@@ -260,8 +260,8 @@ class comboTextTree = fun
       let i = ((ListExtra.indexOf previous self#choices) |=> 0) in
       (self#box#set_active i) ;
 
-      (* Propagate to its childs. *)
-      self#childs_rebuild () ;
+      (* Propagate to its children. *)
+      self#children_rebuild () ;
 
       ()
     end
@@ -286,7 +286,7 @@ class comboTextTree = fun
   (* This method must be called by a constructor after the bootstrap.
      These action cannot be placed in the boostrap of the instance. *)
   method initialize_callbacks =
-    let _ = self#changedAndGetActive (fun x -> self#childs_rebuild ()) in  (** First connect the standard callback. *)
+    let _ = self#changedAndGetActive (fun x -> self#children_rebuild ()) in  (** First connect the standard callback. *)
     let _ = self#changedAndGetActive self#callback in ()    (** Second connect the given callback. *)
 
 end;; (* class comboTextTree *)
@@ -307,7 +307,7 @@ let make
 
   ~(generator: (string Environment.string_env)->(string list)) (** The option generator. May be a constant function as particular case. *)
   ~(msg:string Environment.string_env)                         (** The input for the generator. *)
-  ~(key:string)                                      (** The key of the pair (key,value) send to its childs. *)
+  ~(key:string)                                      (** The key of the pair (key,value) send to its children. *)
   ~(callback:(choice->unit) option)                  (** An optional callback function, to call at any change *)
   ~(packing:(GObj.widget -> unit) option)            (** The packing function. *)
 
@@ -316,8 +316,8 @@ let make
 ;;
 
 
-(** Make a simple combo text with no childs.
-     You can specify a [key] (if you plan to affect some childs to this widget) and an additional [callback]
+(** Make a simple combo text with no children.
+     You can specify a [key] (if you plan to affect some children to this widget) and an additional [callback]
      fonction of type [choice -> unit], which will be called every time the user will modify its selection.
      You also can specify a packing function. Examples:
 
@@ -451,7 +451,7 @@ let fromListWithSlaveWithSlaveWithSlave
        slave0   slave1
 v} } *)
 
-(** Make a simple tree with 3 nodes: a root combo with two combos (dependent) childs (which can be accessed with the handlers
+(** Make a simple tree with 3 nodes: a root combo with two combos (dependent) children (which can be accessed with the handlers
     [master#slave0] and [master#slave1]). This function is in this API as an exemple. See the code in order to easily
     define your own comboTextTree. *)
 let fromListWithTwoSlaves

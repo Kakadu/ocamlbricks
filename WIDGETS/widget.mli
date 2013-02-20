@@ -51,8 +51,8 @@ module ComboTextTree :
         method callback : string -> unit
         method changedAndGetActive : (string -> unit) -> unit
         method child : int -> comboTextTree
-        method childs : comboTextTree list
-        method childs_rebuild : unit -> unit
+        method children : comboTextTree list
+        method children_rebuild : unit -> unit
         method choices : string list
         method col : string GTree.column
         method env : string Environment.string_env
@@ -64,7 +64,7 @@ module ComboTextTree :
         method selected : string
         method set_active_value : string -> unit
         method set_box : GEdit.combo_box -> unit
-        method set_childs : comboTextTree list -> unit
+        method set_children : comboTextTree list -> unit
         method set_choices : string list -> unit
         method set_col : string GTree.column -> unit
         method set_env : string Environment.string_env -> unit

@@ -25,8 +25,8 @@
 
 type 'a t
 
-type 'a tree = 'a * 'a t (** a tree is a root with the forest of its childs *)
-type 'a leaf = 'a        (** a leaf is a tree without childs *)
+type 'a tree = 'a * 'a t (** a tree is a root with the forest of its children *)
+type 'a leaf = 'a        (** a leaf is a tree without children *)
 
 val empty : 'a t
 

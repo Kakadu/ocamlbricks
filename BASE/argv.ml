@@ -580,7 +580,7 @@ let get_options_spec_list () =
   Arg.align (List.rev !options_register)
 
 let get_arguments_spec_list () =
-  (* Tagging the last list allows to offer a more comprehensible error message to the user.
+  (* Tagging the last list allows us to offer a more comprehensible error message to the user.
      Indeed, instead of having error messages in the form "unexpected argument", we will have
      the error message raised by the last executed test (associated to the last list). *)
   let xs =

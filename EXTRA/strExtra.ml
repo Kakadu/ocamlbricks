@@ -196,7 +196,7 @@ module Global = struct
   : result list = [("12", (3, 4), []);  ("345", (8, 10), []);  ("6", (14, 14), []);  ("7890", (18, 21), [])]
 ]}
 
-The optional parameter [overlap] allows to match substrings that overlapped each other. This behaviour concerns only regular expressions {b with groups}: when a matching occurs, the next will be searched immediately after the first matched group, not after the whole matched substring.
+The optional parameter [overlap] allows the user to match substrings that overlapped each other. This behaviour concerns only regular expressions {b with groups}: when a matching occurs, the next will be searched immediately after the first matched group, not after the whole matched substring.
 {b Example}:
 {[# Global.matching (Str.regexp "[0-9]+ [0-9]+") "111 222 333 aaa 444" ;;
   : result list = [("111 222", (0, 6), [])]

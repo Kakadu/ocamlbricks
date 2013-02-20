@@ -58,7 +58,8 @@ let make (l:('a*'b) list) = let e=(new env ()) in (e#add_list l); e;;
  * **************************************** *)
 
 (** {2 String environments }
-    The special (and quite common) case where keys are strings allows to better trace get failures. *)
+    The special (and quite common) case where keys are strings allows the user
+    to better trace failures of the `get' method. *)
 
 exception Undefined_identifier of string
 class ['b] string_env () = object (self)

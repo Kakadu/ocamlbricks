@@ -32,22 +32,22 @@ type 'a t =
              *  ('a t)  (** first tree subtrees *)
              *  ('a t)  (** other nodes         *)
 
-type 'a tree = 'a * 'a t (** a tree is a root with the forest of its childs *)
-type 'a leaf = 'a        (** a leaf is a tree without childs *)
+type 'a tree = 'a * 'a t (** a tree is a root with the forest of its children *)
+type 'a leaf = 'a        (** a leaf is a tree without children *)
 
 let empty = Empty
 
 (** Add a tree to a forest. *)
-let add_tree ((x,childs):'a tree) t = NonEmpty (x,childs,t)
+let add_tree ((x,children):'a tree) t = NonEmpty (x,children,t)
 
 (** Add to a forest a tree which is a leaf. *)
 let add_leaf (x:'a) t = NonEmpty (x,Empty,t)
 
 (** Make a forest with a single tree. *)
-let of_tree ((x,childs):'a tree) = NonEmpty (x,childs,Empty)
+let of_tree ((x,children):'a tree) = NonEmpty (x,children,Empty)
 
 let to_tree = function
-| NonEmpty(root, childs, Empty) -> (root, childs)
+| NonEmpty(root, children, Empty) -> (root, children)
 | _ -> invalid_arg "Forest.to_tree: the forest is not a singleton"
 
 (** Make a forest with a single tree which is a leaf. *)
@@ -303,7 +303,7 @@ let add_tree_to_forest predicate tree_root tree_subtrees forest =
 
 (** Has the forest the form of a tree (i.e. a forest of length 1)? *)
 let is_tree = function
-| NonEmpty (root,childs,Empty) -> true
+| NonEmpty (root,children,Empty) -> true
 | _ -> false
 
 
@@ -317,7 +317,7 @@ let is_leaf = function
 let rec to_treelist (forest:'a t) : ('a tree list) =
 match forest with
 | Empty -> []
-| NonEmpty (root,childs,rest) -> (root,childs)::(to_treelist rest)
+| NonEmpty (root,children,rest) -> (root,children)::(to_treelist rest)
 
 
 (** A list of forests may be viewed as a single big forest.
@@ -325,7 +325,7 @@ match forest with
 let rec of_forestlist (l:'a t list) = match l with
 | []                             -> Empty
 | Empty::l'                      -> of_forestlist l'
-| (NonEmpty (x,childs,rest))::l' -> NonEmpty (x,childs, (concat rest (of_forestlist l')))
+| (NonEmpty (x,children,rest))::l' -> NonEmpty (x,children, (concat rest (of_forestlist l')))
 ;;
 
 (** A list of trees may be recompacted into a single forest. This function
@@ -335,12 +335,12 @@ let rec of_forestlist (l:'a t list) = match l with
     flexibility). *)
 (*let rec of_treelist (l:'a t list) = match l with
 | []                              -> Empty
-| (NonEmpty (x,childs,Empty))::l' -> NonEmpty (x,childs, (of_treelist l'))
+| (NonEmpty (x,children,Empty))::l' -> NonEmpty (x,children, (of_treelist l'))
 | _ -> failwith "of_nodelist" (* A run-time type checking *)*)
 
 let rec of_treelist (l:'a tree list) = match l with
 | []             -> Empty
-| (x,childs)::l' -> NonEmpty (x,childs, (of_treelist l'))
+| (x,children)::l' -> NonEmpty (x,children, (of_treelist l'))
 
 (** Convert a list of unstructured elements into a forest of leafs. *)
 let of_list (l:'a list) = of_forestlist (List.map of_leaf l)
