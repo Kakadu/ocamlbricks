@@ -759,7 +759,7 @@ SOURCE_SUBDIRECTORIES = \
 		fi; \
 	done; \
 	echo $$sourcedirectories
-	
+
 # Set the shell variable $(1) as the string obtained by prefixing each token
 # in $(2) with the prefix $(3): for example if the shell variable
 # 'sourcedirectories' is set to './A ./B' then
