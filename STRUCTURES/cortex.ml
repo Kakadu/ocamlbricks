@@ -14,6 +14,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(* Do not remove the following comment: it's an ocamldoc workaround. *)
+(** *)
+
+module Mutex = MutexExtra.Recursive 
 
 module Mutex_group = struct
 
@@ -89,14 +93,26 @@ module Mutex_group = struct
       end
 
   let wait alert = function
-  | Single m -> Condition.wait alert m
+  | Single m -> Mutex.wait alert m
   | Group (frame, ms, ws) ->
       begin
         List.iter Mutex.unlock ws;
-        Condition.wait alert frame;
+        Mutex.wait alert frame;
         List.iter Mutex.lock ms;
       end
 
+  let apply_with_mutex (t:t) f x =
+   lock t;
+   try
+     let result = f x in
+     unlock t;
+     result
+   with e -> begin
+     unlock t;
+     raise e;
+   end
+ 
+  (* let with_mutex (t:t) thunk = apply_with_mutex t thunk () *)
   let with_mutex (t:t) thunk =
    lock t;
    try
@@ -107,14 +123,13 @@ module Mutex_group = struct
      unlock t;
      raise e;
    end
+   
+ end (* module Mutex_group *)
 
- end (* Mutex_group *)
+module Open = struct
 
-
-(* Mutexes and related conditions are ordered by mutexes simply with Pervasives.compare.
-   The inner evaluation is unprotected. *)
+(* The structure of open cortex: *)
 type 'state t = {
- mutexes            : Mutex_group.t;
  alert_on_commit    : Condition.t;
  get_content        : unit -> 'state;
  propose_content    : 'state -> 'state * bool;
@@ -129,12 +144,8 @@ type 'state t = {
 }
 ;;
 
-let copy_but_already_protected_by ~mutexes t =
-{ t with mutexes = mutexes; }
-;;
-
+(* Open.make *)
 let make
- ?mutexes
  ?(equality:('state -> 'state -> bool) option)
  ?(on_proposal:('state -> 'state -> 'state) option)
  ~(get_content:(unit -> 'state))
@@ -143,11 +154,6 @@ let make
  ()
  : 'state t
  =
- let mutexes =
-   match mutexes with
-   | None         -> Mutex_group.single ()
-   | Some mutexes -> mutexes
- in
  let equality =
    match equality with
    | None -> fun s s' -> (s == s' || s = s')
@@ -193,8 +199,7 @@ let make
       then (accepted, false)
       else (accepted, true)
   in
-  { mutexes           = mutexes;
-    alert_on_commit   = alert_on_commit;
+  { alert_on_commit   = alert_on_commit;
     get_content       = get_content;
     propose_content   = propose_content;
     revno             = ref 0;
@@ -209,11 +214,32 @@ let make
  in
  self
 
-
+(* May be also called `unit' or `create': 'a -> 'a t *)
+let return
+ ?(equality:('state -> 'state -> bool) option)
+ ?(on_proposal:('state -> 'state -> 'state) option)
+ (content:'state)
+ =
+ let cell = ref content in
+ let get_content () = !cell in
+ let set_content v = (cell := v) in
+ make ?equality ?on_proposal ~get_content ~set_content ()
+ 
+let of_object
+ ?(equality:('state -> 'state -> bool) option)
+ ?(on_proposal:('state -> 'state -> 'state) option)
+ (x:< get:'state; set:'state -> unit; >)
+ =
+ let get_content () = x#get in
+ let set_content v = x#set v in
+ make ?equality ?on_proposal ~get_content ~set_content ()
+ 
+(* Open.revno_equality *) 
 let revno_equality x =
   let r = x.revno in
   (fun x' -> x==x' && x'.revno = r)
 
+(* Open.revno_or_content_equality *) 
 let revno_or_content_equality : 'a t -> 'a t -> bool =
   fun x1 ->
     let r = x1.revno in
@@ -223,9 +249,8 @@ let revno_or_content_equality : 'a t -> 'a t -> bool =
        let v2 = x2.get_content () in
        (x1.equality v1 v2) && (x2.equality v2 v1))
 
-
-(* The universal method (unprotected and without guards): *)
-let unprotected_eval : 'a 'b. ('state -> 'a -> 'state * ('state -> 'b)) -> 'a -> 'state t -> 'b * bool =
+(* The universal method Open.eval (unprotected and without guards): *)
+let eval : 'a 'b. ('state -> 'a -> 'state * ('state -> 'b)) -> 'a -> 'state t -> 'b * bool =
   fun f a t ->
     let current = t.get_content () in
     let equals_to_current = !(t.equals_to_current) in
@@ -233,6 +258,10 @@ let unprotected_eval : 'a 'b. ('state -> 'a -> 'state * ('state -> 'b)) -> 'a ->
       (* Apply the update-proposal `f' *)
       f current a
     in
+    (* This test is useful for thread waiting for a commit of a member
+       which is no longer in use. This test is redundant because the thread
+       should be stopped by the condition ~membership (see below): *)
+    if !(t.no_longer_in_use) then ((b_of_state current), false) else
     if (equals_to_current first_proposal) && (t.on_proposal_container_unchanged ())
       then
 	(* No changes => no callbacks *)
@@ -272,30 +301,187 @@ let unprotected_eval : 'a 'b. ('state -> 'a -> 'state * ('state -> 'b)) -> 'a ->
 	  end (* A change should be observed *)
       end (* A fixed proposal has been calculated *)
 
-(* The `propose' specific case: *)
-let unprotected_eval_propose : 'state -> 'state t -> 'state * bool =
-  fun s1 t -> unprotected_eval (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t
+(* The `propose' specific case (useful for grouping): *)
+let eval_propose : 'state -> 'state t -> 'state * bool =
+  fun s1 t -> eval (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t
+
+(* Mutexes must be provided for waiting. Note that the evaluation starts
+   immediately if the guard is verified. *)
+let guarded_eval
+  : 'a 'b.
+       guard:('state -> bool) ->
+       mutexes:Mutex_group.t ->
+       ('state -> 'a -> 'state * ('state -> 'b)) -> 'a -> 'state t -> 'b * bool
+  =
+  fun ~guard ~mutexes f a t ->
+  if guard (t.get_content ())
+    then eval f a t
+    else begin
+      incr (t.waiting_no);
+      Mutex_group.wait (t.alert_on_commit) mutexes;
+      while not (guard (t.get_content ())) do
+	incr (t.waiting_no);
+	Mutex_group.wait (t.alert_on_commit) mutexes
+      done;
+      eval f a t
+    end
+
+exception Membership_failure
+
+(* Mutexes must be provided for waiting. The cortex that commits is not necessarely
+   the same that will be evaluated (even if by default is the same), but we suppose
+   that the provided mutexes lock *both* cortex. 
+   Note also tha we start waiting anyway: the evaluation will be executed after
+   at least one commit. *)
+let eval_after_commit
+  : ?monitored:('member t) -> (* the cortex that we are waiting for *)
+    ?membership:(unit -> bool) ->
+    ?guard:('state -> bool) ->
+     mutexes:Mutex_group.t ->
+    ('state -> 'a -> 'state * ('state -> 'b)) -> 
+    (* Arguments are flipped for efficiency: *)
+    'state t -> 'a -> ('b * bool) option
+  =
+  fun ?monitored ?(membership=(fun () -> true)) ?guard ~mutexes f t ->
+    let (alert_on_commit, waiting_no) = 
+      match monitored with 
+      | None   -> (t.alert_on_commit, t.waiting_no)
+      | Some m -> (m.alert_on_commit, m.waiting_no)
+    in
+    let eval_without_guard a =
+      begin
+	(* Start waiting anyway: *)
+	incr (waiting_no);
+	Mutex_group.wait (alert_on_commit) mutexes;
+        (* Eval after a commit (if the membership is still valid): *)
+	if membership () then Some (eval f a t) else None
+      end
+    in
+    let eval_with_guard guard a =
+      begin
+        try
+	  (* Start waiting anyway: *)
+	  incr (waiting_no);
+	  Mutex_group.wait (alert_on_commit) mutexes;
+	  (if not (membership ()) then raise Membership_failure);
+	  while not (guard (t.get_content ())) do
+	    incr (waiting_no);
+	    Mutex_group.wait (alert_on_commit) mutexes;
+	    (if not (membership ()) then raise Membership_failure);
+	  done;
+	  (* Eval after at least one commit: *)
+	  Some (eval f a t)
+	with
+	  Membership_failure -> None
+      end
+    in
+    match guard with
+    | None       -> eval_without_guard
+    | Some guard -> eval_with_guard guard
+
+
+let repeat_eval_after_commit
+  : ?monitored:('member t) -> (* the cortex that we are waiting for *)
+    ?membership:(unit -> bool) ->
+    ?guard:('state -> bool) ->
+    mutexes:Mutex_group.t ->
+    ('state -> 'a -> 'state * ('state -> 'b)) -> 
+    'state t -> 
+    (* the boolean result of `folder' denotes the `break' condition: *)
+    folder:('c -> ('b * bool) -> 'c * bool) ->
+    'a -> 'c -> 'c
+  =
+  fun ?monitored ?membership ?guard ~mutexes f t ->
+  let eval = eval_after_commit ?monitored ?membership ?guard ~mutexes f t in
+  fun ~folder a c ->
+  let rec loop c =
+    match eval a with
+    | None -> c (* A membership failure => break *)
+    | Some result -> 
+        let (c', break) = folder c result in
+        if break then c' else loop c'
+  in
+  loop c
+      
+end (* module Open *)
+
+(* Mutexes and related conditions are ordered by mutexes simply with Pervasives.compare.
+   The inner evaluation is unprotected. *)
+type 'state t = Mutex_group.t * 'state Open.t
+(* Recursive cortex?  
+type 'a r = ('Mutex_group.t t) * 'a Open.t
+*)
+
+(*let copy_but_already_protected_by ~mutexes t =
+ (mutexes, snd t)
+;;*)
+
+let make
+ ?mutexes
+ ?(equality:('state -> 'state -> bool) option)
+ ?(on_proposal:('state -> 'state -> 'state) option)
+ ~(get_content:(unit -> 'state))
+ ?(set_content:('state -> unit) option)
+ ?(propose_content:('state -> 'state * bool) option)
+ ()
+ : 'state t
+ =
+ let mutexes =
+   match mutexes with
+   | None         -> Mutex_group.single ()
+   | Some mutexes -> mutexes
+ in
+ let u = Open.make ?equality ?on_proposal ~get_content ?set_content ?propose_content () in
+ (mutexes, u)
+
 
 (* The universal method (protected and guarded version): *)
-let eval : 'a 'b. ?guard:('state -> bool) -> ('state -> 'a -> 'state * ('state -> 'b)) -> 'a -> 'state t -> 'b * bool =
-  fun ?guard f a t ->
+let eval 
+  : ?guard:('state -> bool) -> 
+    ('state -> 'a -> 'state * ('state -> 'b)) -> 'a -> 'state t -> 'b * bool 
+  =
+  fun ?guard f a (t_mutexes, t) ->
     match guard with
-    | None -> Mutex_group.with_mutex t.mutexes (fun () -> unprotected_eval f a t)
+    | None ->
+        Mutex_group.apply_with_mutex t_mutexes (Open.eval f a) t
     | Some guard ->
-	Mutex_group.with_mutex t.mutexes
-	  (fun ()  ->
-	    if guard (t.get_content ())
-	      then unprotected_eval f a t
-	      else begin
-		incr (t.waiting_no);
-		Mutex_group.wait (t.alert_on_commit) t.mutexes;
-		while not (guard (t.get_content ())) do
-		  incr (t.waiting_no);
-		  Mutex_group.wait (t.alert_on_commit) t.mutexes
-		done;
-		unprotected_eval f a t
-	      end)
+	Mutex_group.apply_with_mutex t_mutexes (Open.guarded_eval ~guard ~mutexes:t_mutexes f a) t
 
+(* Note that in the protected version the arguments are flipped with respect
+   to the unprotected one. Warning: the monitored cortex, if provided, must be 
+   also locked by the mutexes of t. *)
+let eval_after_commit 
+  : ?monitored:('c t) ->         (* the cortex that we are waiting for *)
+    ?membership:(unit -> bool) ->
+    ?guard:('state -> bool) ->
+    ('state -> 'a -> 'state * ('state -> 'b)) -> 
+    'a -> 'state t -> ('b * bool) option
+  = 
+  fun ?monitored ?membership ?guard f a t ->
+  let monitored = Option.map snd monitored in
+  let (mutexes, u) = t in
+  Mutex_group.apply_with_mutex mutexes
+    (Open.eval_after_commit ?monitored ?membership ?guard ~mutexes f u) a
+
+
+(* Note that in the protected version the arguments are flipped with respect
+   to the unprotected one. Warning: the monitored cortex, if provided, must be 
+   also locked by the mutexes of t. *)
+let repeat_eval_after_commit 
+  : ?monitored:('m t) ->         (* the cortex that we are waiting for *)
+    ?membership:(unit -> bool) ->
+    ?guard:('state -> bool) ->
+    folder:('c -> ('b * bool) -> 'c * bool) ->
+    ('state -> 'a -> 'state * ('state -> 'b)) -> 
+    'a -> 'state t -> 'c -> 'c
+  = 
+  fun ?monitored ?membership ?guard ~folder f a t c ->
+  let monitored = Option.map snd monitored in
+  let (mutexes, u) = t in
+  Mutex_group.apply_with_mutex mutexes
+    (Open.repeat_eval_after_commit ?monitored ?membership ?guard ~mutexes f u ~folder a) c
+
+    
 let eval_get ?guard t = fst (eval ?guard (fun s () -> s, (fun s -> s)) () t)
 let eval_set ?guard s1 t = ignore (eval ?guard (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t)
 let eval_propose ?guard s1 t = eval ?guard (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t
@@ -306,8 +492,22 @@ let get ?guard t = fst (eval ?guard (fun s () -> s, (fun s -> s)) () t)
 let set ?guard t s1 = ignore (eval ?guard (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t)
 let propose ?guard t s1 = eval ?guard (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t
 let move ?guard t f = eval ?guard (fun s0 () -> (f s0), (fun s2 -> s2)) () t
-let apply ?guard t f b = fst (eval ?guard (fun s b -> s, (fun s -> f s b)) b t)
+let apply ?guard t f = fst (eval ?guard (fun s () -> s, (fun s -> f s)) () t)
 
+let on_proposal_append (t_mutexes, t) thunk =
+  Mutex_group.with_mutex t_mutexes
+    (fun () ->
+       t.Open.on_proposal#register_thunk (fun () -> thunk))
+
+let on_proposal_remove (t_mutexes, t) id =
+  Mutex_group.with_mutex t_mutexes
+    (fun () ->
+       t.Open.on_proposal#remove id)
+
+let on_proposal_clear (t_mutexes, t) =
+  Mutex_group.with_mutex t_mutexes
+    (fun () ->
+       Container.Queue_with_identifiers.clear (t.Open.on_proposal#as_queue))
 
 (* Flipped and asynchronous versions: *)
 module Async = struct
@@ -320,14 +520,16 @@ module Async = struct
 
 end (* module Async *)
 
-let eval_propose_on_sub_cortex_commit : (unit -> 'state) -> 'sub_state t -> 'state t -> 'state * bool =
-  fun set sub t ->
-    let f = (fun s0 s1 -> s1, (fun s2 -> s2)) in
-    Mutex_group.with_mutex t.mutexes
-      (fun () ->
-         incr sub.waiting_no;
-         Mutex_group.wait (sub.alert_on_commit) t.mutexes;
-         unprotected_eval f (set ()) t)
+let return_with_mutexes
+ ~mutexes
+ ?(equality:('state -> 'state -> bool) option)
+ ?(on_proposal:('state -> 'state -> 'state) option)
+ (content:'state)
+ =
+ let cell = ref content in
+ let get_content () = !cell in
+ let set_content v = (cell := v) in
+ make ~mutexes ?equality ?on_proposal ~get_content ~set_content ()
 
 (* May be also called `unit' or `create': 'a -> 'a t *)
 let return
@@ -339,7 +541,7 @@ let return
  let get_content () = !cell in
  let set_content v = (cell := v) in
  make ?equality ?on_proposal ~get_content ~set_content ()
-
+ 
 let of_object
  ?(equality:('state -> 'state -> bool) option)
  ?(on_proposal:('state -> 'state -> 'state) option)
@@ -350,291 +552,444 @@ let of_object
  make ?equality ?on_proposal ~get_content ~set_content ()
 
 
-(* Ci vogliono i mutex ricorsivi? Negli on_proposal vorrei utilizzare qualunque funzione protetta
-   sul cortex contenuto (per esempio Process.stop). A meno di poter creare un oggetto uguale a quello contenuto
-   ma non protetto: una specie di copia che in realtà non è una copia ma piuttosto una "vista" dell'originale.
-   La cosa potrebbe essere ottenuta trasformando i campi mutabili in ref, in modo da poter copiare i ref, tranne i mutex
-   che a questo punto potrebbero essere vuoti.
-   *)
-let duplicate ?on_proposal (x:'a t) : ('a t) t =
-  let external_mutex   = Mutex_group.single () in
-  let internal_mutexes = x.mutexes in
-  (* Must be recreated on content changes: *)
-  let mutexes =
-    Mutex_group.group (external_mutex) (internal_mutexes)
-  in
+
+(*let duplicate ?on_proposal (member : 'a t) : ('a t) t =
+  let (member_mutexes, member_u) = member in
+  let mutexes = ref !member_mutexes in
   let equality = revno_equality in
-  let content_copy = ref x in
-  let get_content () = !content_copy in
-  let get_up_to_date_content = get_content in
-  let set_content y = (content_copy := y) in
-  let result = make ~mutexes ~equality ?on_proposal ~get_content ~set_content () in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (result) in
-    if !(result.no_longer_in_use) then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _thd1 = Thread.create (trigger_on) x in
-  result
+  Mutex_group.with_mutex x_mutexes 
+    (fun () -> 
+      let content_copy = ref member in
+      let get_content () = !content_copy in
+      let proposal = get_content in
+      let set_content y = (content_copy := y; mutexes := !(fst y)) in
+      let result = make ~mutexes ~equality ?on_proposal ~get_content ~set_content () in
+      let trigger_on = make_trigger_on_member_commit ~proposal ~group:result in
+      let _thd1 = Thread.create (trigger_on) x in
+      result)*)
 
-let group_single ?on_proposal (x:'a t) : ('a) t =
-  let mutexes = x.mutexes in
-  let equality = x.equality in
-  let get_up_to_date_content () = x.get_content () in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content v =
-    begin
-      content_copy := v;
-      let (v', b) = unprotected_eval_propose v x in
-      if b
-        then unprotected_eval_propose v' (Lazy.force result)
-        else (v, false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
-  in
-  let result = (Lazy.force result) in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (result) in
-    if !(result.no_longer_in_use) then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _thd1 = Thread.create (trigger_on) x in
-  result
+(*
+let connection (f:'a -> 'b) (g: 'b -> 'a) (t: 'a t) : 'b t = 
+ {
+ alert_on_commit    = t.alert_on_commit;
+ get_content        = fun () -> f (t.get_content ());
+ propose_content    = fun b -> let (a,flag) = t.propose_content (g b) in ((f a), flag);
+ revno              = t.revno;
+ waiting_no         = t.waiting_no;
+ equality           = fun b -> let equals_b = t.equality (g b) in fun b' -> equals_b (g b');
+ on_proposal        : ('state -> 'state -> 'state) Thunk.fifo_container;
+ (* "Private methods": *)
+ on_proposal_container_unchanged : unit -> bool;
+ no_longer_in_use   : bool ref;
+ equals_to_current  : ('state -> bool) ref;
+ }
+;;
+*)      
+      
 
-(*let group_single_mutable ?on_proposal (x:'a t) : ('a t) t =
-  let equality = revno_equality in
-
-  let get_up_to_date_content () = x.get_content () in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content v =
-    begin
-      content_copy := v;
-      let (v', b) = unprotected_eval_propose v x in
-      if b
-        then unprotected_eval_propose v' (Lazy.force result)
-        else (v, false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+  
+let repeat_move_proposal_to_group_on_member_commit 
+  : ?membership:(unit -> bool) ->
+    ?guard:('state -> bool) -> 
+    ?action_and_break_decision_when_accepted:('state -> 'state -> 'state -> bool) ->
+    move_proposal:('state -> 'state) -> 
+    group:'state t -> 
+   'member t -> unit 
+  =
+  fun 
+    ?membership
+    ?guard 
+    ?(action_and_break_decision_when_accepted=fun _ _ _ -> false) 
+    ~move_proposal 
+    ~group 
+    member 
+  ->
+  let monitored = member in
+  (* The method is similar to `move' but the result is the triple
+     of states (before_transition, proposed, after_transition): *)
+  let mthd s0 () =
+    let s1 = move_proposal s0 in
+    (s1, (fun s2 -> (s0,s1,s2))) 
   in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (s,b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (Lazy.force result) in
-    if (Lazy.force result).no_longer_in_use then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
+  let folder () ((s0,s1,s2), changed) = 
+    let break = 
+      if changed 
+       then (action_and_break_decision_when_accepted s0 s1 s2) 
+       else false
+    in
+    ((), break) 
   in
-  let _thd1 = Thread.create (trigger_on) x in
-  Lazy.force result*)
+  repeat_eval_after_commit 
+    ~monitored ?membership ?guard ~folder mthd () group ()
 
-let group_pair ?unprotect ?on_proposal (x:'a t) (y:'b t) : ('a * 'b) t =
-  let mutexes = Mutex_group.group x.mutexes y.mutexes in
-(*   Mutex_group.with_mutex mutexes (fun () -> ....tutto il resto!!!! se unprotect=None ) *)
+let repeat_propose_to_group_on_member_commit 
+ ?membership ?guard ?action_and_break_decision_when_accepted
+ ~proposal ~group member 
+ = repeat_move_proposal_to_group_on_member_commit 
+     ?membership ?guard ?action_and_break_decision_when_accepted
+     ~move_proposal:(fun _ -> proposal ()) ~group member
+  
+let eval_propose ?guard s1 t = 
+  eval ?guard (fun s0 s1 -> s1, (fun s2 -> s2)) s1 t
+  
+let group_single ?on_proposal (member_x : 'a t) : 'a t =
+  let (x_mutexes, x) = member_x in
+  let mutexes = x_mutexes in
+  let equality = x.Open.equality in
+  let proposal = x.Open.get_content in
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content v =
+	begin
+	  content_copy := v;
+	  let (v', b) = Open.eval_propose v x in
+	  if b
+	    then Open.eval_propose v' (snd (Lazy.force result))
+	    else (v, false)
+	end
+      and
+	result : ('a t) Lazy.t =
+	  lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      (* end of recursive definition *)
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _thd1 = Thread.create (trigger_on) (member_x) in
+      group)
+
+(* La differenza con una view è che gli on_proposal sono distinti. *)
+let connection ?on_proposal (f:'a->'b) (g:'b -> 'a) (member_x : 'a t) : 'b t =
+  let (x_mutexes, x) = member_x in
+  let mutexes = x_mutexes in
+  let equality b = 
+    let equals_b = x.Open.equality (g b) in 
+    fun b' -> equals_b (g b')
+  in
+  let proposal () = f (x.Open.get_content ()) in
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content v =
+	begin
+	  content_copy := v;
+	  let (v', b) = Open.eval_propose (g v) x in
+	  if b
+	    then Open.eval_propose (f v') (snd (Lazy.force result))
+	    else (v, false)
+	end
+      and
+	result : ('b t) Lazy.t =
+	  lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      (* end of recursive definition *)
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _thd1 = Thread.create (trigger_on) (member_x) in
+      group)
+
+      
+let lift_equality_to_option : ('a -> 'b -> bool) -> ('a option -> 'b option -> bool) =
+fun p ->
+ function
+ | None   -> ((=)None)
+ | Some a -> (function None -> false | Some b -> (p a b))
+
+(* Note that the ~proposal may act on the member which has the same mutexes of the group 
+   => mutexes must be recursive! *) 
+let lifes 
+  ?on_proposal 
+  ~(creator : ?previous:'a -> unit -> 'a Open.t) 
+  ~(terminal : 'a -> bool) 
+  ()
+  : ('a option * 'a t) t 
+  =
+  let equality (ao, at) =
+    let au = snd at in
+    let equals_to_ao = lift_equality_to_option (au.Open.equality) (ao) in
+    let equals_to_at = 
+      let p = Open.revno_equality au in
+      fun at' -> p (snd at')
+    in 
+    fun (ao', at') -> (equals_to_ao ao') && (equals_to_at at')
+  in
+  let mutexes = Mutex_group.single () in
+  let new_member ?previous () = 
+    let member_u = creator ?previous () in
+    (mutexes, member_u) (* same mutexes of the group *)
+  in
+  let member = new_member () in
+  let (_, group_u) as group = 
+    return_with_mutexes ~mutexes ~equality ?on_proposal (None, member) 
+  in
+  let membership_of member () =
+    let (_, member') = group_u.Open.get_content () in
+    member' == member
+  in
+  let rec 
+    (* A new member is proposed when the previous reaches a terminal state: *)
+    guard (_, member) = 
+      let (member_m, member_u) = member in
+      let member_state = member_u.Open.get_content () in
+      terminal (member_state) 
+   and
+    move_proposal (_, member) = 
+      let old_member_state = (snd member).Open.get_content () in
+      let member' = new_member ~previous:old_member_state () in
+      ((Some old_member_state), member')
+   and 
+    (* The current thread must be stopped if we are working now on another member.
+       These parameter is redundant because of the usage of ~membership: *)
+    action_and_break_decision_when_accepted s0 s1 s2 = 
+      (* s0, s1, s2  =  before, proposed, after *)
+      let break = 
+        let (_, member0),(_, member2) = s0, s2 in
+        member0 != member2
+      in 
+      break
+   and
+    trigger_on (member) = 
+      repeat_move_proposal_to_group_on_member_commit 
+        ~membership:(membership_of member)
+        ~guard
+        ~action_and_break_decision_when_accepted
+        ~move_proposal
+        ~group
+        (member)
+
+  in (* end of recursive definition *)
+  (* Now we start the first thread monitoring the current member: *)
+  let _thd1 = Thread.create (trigger_on) member in
+  (* And we define a callback preventing to set the group with a member already terminated.
+     The `set' operation applied to a group could be very unsafe if we are not sure that  
+     the mutexes of the member are contained in the mutexes of the group. We prevent 
+     this problem using exclusively the `creator' function to build members. *)
+  let _thunk_id = 
+    let mutexes_and_members_are_the_same (_, member0) (_, member1) : bool * bool =
+      let (member0_mutexes, member0_open) = member0 in
+      let (member1_mutexes, member1_open) = member1 in
+      (member0_mutexes = member1_mutexes), (member0_open == member1_open)
+    in      
+    on_proposal_append (group) 
+    (fun s0 s1 -> 
+       let s2 = if guard s1 then move_proposal s1 else s1 in
+       let same_mutexes, same_members = mutexes_and_members_are_the_same s0 s2 in
+       (* Proposal with distinct mutexes are forbidden: *)
+       if not (same_mutexes) then s0 else 
+       (* Start a monitoring thread if a new member replace the previous: *)
+       let () = 
+         if same_members then () 
+         else begin
+           let member' = snd s2 in
+           let _thd = Thread.create (trigger_on) member' in
+           ()
+           end
+       in
+       s2) 
+  in
+  group
+  
+  
+let group_pair ?on_proposal (member_x : 'a t) (member_y : 'b t) : ('a * 'b) t =
+  let (x_mutexes, x) = member_x in
+  let (y_mutexes, y) = member_y in
+  let mutexes = Mutex_group.group x_mutexes y_mutexes in
   let equality (a,b) =
-    let equals_a = (x.equality a) in
-    let equals_b = (y.equality b) in
+    let equals_a = (x.Open.equality a) in
+    let equals_b = (y.Open.equality b) in
     fun (a',b') -> (equals_a a') && (equals_b b')
   in
-  let get_up_to_date_content () = (x.get_content (), y.get_content ()) in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content (v1,v2) =
-    begin
-      content_copy := (v1,v2);
-      let (v1', b1) = unprotected_eval_propose v1 x in
-      let (v2', b2) = unprotected_eval_propose v2 y in
-      if b1 || b2
-        then unprotected_eval_propose (v1',v2') (Lazy.force result)
-        else ((v1,v2), false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
-  in
-  let result = (Lazy.force result) in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (result) in
-    if !(result.no_longer_in_use) then (Printf.kfprintf flush stderr "trigger_on: no_longer_in_use!\n"; ()) else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _thd1 = Thread.create (trigger_on) x in
-  let _thd2 = Thread.create (trigger_on) y in
-  result
+  let proposal () = (x.Open.get_content (), y.Open.get_content ()) in
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content (v1,v2) =
+	begin
+	  content_copy := (v1,v2);
+	  let (v1', b1) = Open.eval_propose v1 x in
+	  let (v2', b2) = Open.eval_propose v2 y in
+	  if b1 || b2
+	    then Open.eval_propose (v1',v2') (snd (Lazy.force result))
+	    else ((v1,v2), false)
+	end
+      and
+	result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _thd1 = Thread.create (trigger_on) (member_x) in
+      let _thd2 = Thread.create (trigger_on) (member_y) in
+      group)
 
 
-let ungroup : ?unprotect:unit -> 'generic t -> unit =
-  fun ?unprotect t ->
-    let action () =
-      t.no_longer_in_use := false;
-      Container.Queue_with_identifiers.clear (t.on_proposal#as_queue)
-    in
-    if unprotect=Some ()
-     then action ()
-     else Mutex_group.with_mutex t.mutexes (action)
+let ungroup : 'a t -> unit =
+  fun (t_mutexes, t) ->
+    Mutex_group.with_mutex t_mutexes 
+      (fun () -> 
+         t.Open.no_longer_in_use := true;
+         Container.Queue_with_identifiers.clear (t.Open.on_proposal#as_queue))
 
-
-let group_triple ?on_proposal (x1:'a t) (x2:'b t) (x3:'c t) : ('a * 'b * 'c) t =
-  let mutexes = Mutex_group.group_from_list1 (x1.mutexes,[x2.mutexes; x3.mutexes]) in
+     
+let group_triple ?on_proposal (member_x1:'a t) (member_x2:'b t) (member_x3:'c t) : ('a * 'b * 'c) t =
+  let (x1_mutexes, x1) = member_x1 in
+  let (x2_mutexes, x2) = member_x2 in
+  let (x3_mutexes, x3) = member_x3 in
+  let mutexes = Mutex_group.group_from_list1 (x1_mutexes,[x2_mutexes; x3_mutexes]) in
   let equality (a,b,c) =
-    let equals_a = (x1.equality a) in
-    let equals_b = (x2.equality b) in
-    let equals_c = (x3.equality c) in
+    let equals_a = (x1.Open.equality a) in
+    let equals_b = (x2.Open.equality b) in
+    let equals_c = (x3.Open.equality c) in
     fun (a',b',c') -> (equals_a a') && (equals_b b') && (equals_c c')
   in
-  let get_up_to_date_content () = (x1.get_content (), x2.get_content (), x3.get_content ()) in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content (v1,v2,v3) =
-    begin
-      content_copy := (v1,v2,v3);
-      let (v1', b1) = unprotected_eval_propose v1 x1 in
-      let (v2', b2) = unprotected_eval_propose v2 x2 in
-      let (v3', b3) = unprotected_eval_propose v3 x3 in
-      if b1 || b2 || b3
-        then unprotected_eval_propose (v1',v2', v3') (Lazy.force result)
-        else ((v1,v2,v3), false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+  let proposal () =
+    (x1.Open.get_content (), x2.Open.get_content (), x3.Open.get_content ())
   in
-  let result = (Lazy.force result) in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (result) in
-    if !(result.no_longer_in_use) then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _thd1 = Thread.create (trigger_on) x1 in
-  let _thd2 = Thread.create (trigger_on) x2 in
-  let _thd3 = Thread.create (trigger_on) x3 in
-  result
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content (v1,v2,v3) =
+	begin
+	  content_copy := (v1,v2,v3);
+	  let (v1', b1) = Open.eval_propose v1 x1 in
+	  let (v2', b2) = Open.eval_propose v2 x2 in
+	  let (v3', b3) = Open.eval_propose v3 x3 in
+	  if b1 || b2 || b3
+	    then Open.eval_propose (v1',v2', v3') (snd (Lazy.force result))
+	    else ((v1,v2,v3), false)
+	end
+      and
+	result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _thd1 = Thread.create (trigger_on) (member_x1) in
+      let _thd2 = Thread.create (trigger_on) (member_x2) in
+      let _thd3 = Thread.create (trigger_on) (member_x3) in
+      group)
 
 
-let group_quadruple ?on_proposal (x1:'a t) (x2:'b t) (x3:'c t) (x4:'d t) : ('a * 'b * 'c * 'd) t =
-  let mutexes = Mutex_group.group_from_list1 (x1.mutexes,[x2.mutexes; x3.mutexes; x4.mutexes]) in
+let group_quadruple ?on_proposal
+  (member_x1:'a t) (member_x2:'b t) (member_x3:'c t) (member_x4:'d t)
+  : ('a * 'b * 'c * 'd) t
+  =
+  let (x1_mutexes, x1) = member_x1 in
+  let (x2_mutexes, x2) = member_x2 in
+  let (x3_mutexes, x3) = member_x3 in
+  let (x4_mutexes, x4) = member_x4 in
+  let mutexes = Mutex_group.group_from_list1 (x1_mutexes,[x2_mutexes; x3_mutexes; x4_mutexes]) in
   let equality (a,b,c,d) =
-    let equals_a = (x1.equality a) in
-    let equals_b = (x2.equality b) in
-    let equals_c = (x3.equality c) in
-    let equals_d = (x4.equality d) in
+    let equals_a = (x1.Open.equality a) in
+    let equals_b = (x2.Open.equality b) in
+    let equals_c = (x3.Open.equality c) in
+    let equals_d = (x4.Open.equality d) in
     fun (a',b',c',d') -> (equals_a a') && (equals_b b') && (equals_c c') && (equals_d d')
   in
-  let get_up_to_date_content () = (x1.get_content (), x2.get_content (), x3.get_content (), x4.get_content ()) in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content (v1,v2,v3,v4) =
-    begin
-      content_copy := (v1,v2,v3,v4);
-      let (v1', b1) = unprotected_eval_propose v1 x1 in
-      let (v2', b2) = unprotected_eval_propose v2 x2 in
-      let (v3', b3) = unprotected_eval_propose v3 x3 in
-      let (v4', b4) = unprotected_eval_propose v4 x4 in
-      if b1 || b2 || b3 || b4
-        then unprotected_eval_propose (v1',v2',v3',v4') (Lazy.force result)
-        else ((v1,v2,v3,v4), false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+  let proposal () =
+    (x1.Open.get_content (), x2.Open.get_content (), x3.Open.get_content (), x4.Open.get_content ())
   in
-  let result = (Lazy.force result) in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) result in
-    if !(result.no_longer_in_use) then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _thd1 = Thread.create (trigger_on) x1 in
-  let _thd2 = Thread.create (trigger_on) x2 in
-  let _thd3 = Thread.create (trigger_on) x3 in
-  let _thd4 = Thread.create (trigger_on) x4 in
-  result
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content (v1,v2,v3,v4) =
+	begin
+	  content_copy := (v1,v2,v3,v4);
+	  let (v1', b1) = Open.eval_propose v1 x1 in
+	  let (v2', b2) = Open.eval_propose v2 x2 in
+	  let (v3', b3) = Open.eval_propose v3 x3 in
+	  let (v4', b4) = Open.eval_propose v4 x4 in
+	  if b1 || b2 || b3 || b4
+	    then Open.eval_propose (v1',v2',v3',v4') (snd (Lazy.force result))
+	    else ((v1,v2,v3,v4), false)
+	end
+      and
+	result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _thd1 = Thread.create (trigger_on) (member_x1) in
+      let _thd2 = Thread.create (trigger_on) (member_x2) in
+      let _thd3 = Thread.create (trigger_on) (member_x3) in
+      let _thd4 = Thread.create (trigger_on) (member_x4) in
+      group)
 
-let group_quintuple ?on_proposal (x1:'a t) (x2:'b t) (x3:'c t) (x4:'d t) (x5:'e t) : ('a * 'b * 'c * 'd * 'e) t =
-  let mutexes = Mutex_group.group_from_list1 (x1.mutexes,[x2.mutexes; x3.mutexes; x4.mutexes; x5.mutexes]) in
+
+let group_quintuple ?on_proposal
+  (member_x1:'a t) (member_x2:'b t) (member_x3:'c t) (member_x4:'d t) (member_x5:'e t)
+  : ('a * 'b * 'c * 'd * 'e) t
+  =
+  let (x1_mutexes, x1) = member_x1 in
+  let (x2_mutexes, x2) = member_x2 in
+  let (x3_mutexes, x3) = member_x3 in
+  let (x4_mutexes, x4) = member_x4 in
+  let (x5_mutexes, x5) = member_x5 in
+  let mutexes =
+    Mutex_group.group_from_list1 (x1_mutexes,[x2_mutexes; x3_mutexes; x4_mutexes; x5_mutexes])
+  in
   let equality (a,b,c,d,e) =
-    let equals_a = (x1.equality a) in
-    let equals_b = (x2.equality b) in
-    let equals_c = (x3.equality c) in
-    let equals_d = (x4.equality d) in
-    let equals_e = (x5.equality e) in
+    let equals_a = (x1.Open.equality a) in
+    let equals_b = (x2.Open.equality b) in
+    let equals_c = (x3.Open.equality c) in
+    let equals_d = (x4.Open.equality d) in
+    let equals_e = (x5.Open.equality e) in
     fun (a',b',c',d',e') -> (equals_a a') && (equals_b b') && (equals_c c') && (equals_d d') && (equals_e e')
   in
-  let get_up_to_date_content () = (x1.get_content (), x2.get_content (), x3.get_content (), x4.get_content (), x5.get_content ()) in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content (v1,v2,v3,v4,v5) =
-    begin
-      content_copy := (v1,v2,v3,v4,v5);
-      let (v1', b1) = unprotected_eval_propose v1 x1 in
-      let (v2', b2) = unprotected_eval_propose v2 x2 in
-      let (v3', b3) = unprotected_eval_propose v3 x3 in
-      let (v4', b4) = unprotected_eval_propose v4 x4 in
-      let (v5', b5) = unprotected_eval_propose v5 x5 in
-      if b1 || b2 || b3 || b4 || b5
-        then unprotected_eval_propose (v1',v2',v3',v4',v5') (Lazy.force result)
-        else ((v1,v2,v3,v4,v5), false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+  let proposal () =
+    (x1.Open.get_content (), x2.Open.get_content (), x3.Open.get_content (),
+     x4.Open.get_content (), x5.Open.get_content ())
   in
-  let result = (Lazy.force result) in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (result) in
-    if !(result.no_longer_in_use) then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _thd1 = Thread.create (trigger_on) x1 in
-  let _thd2 = Thread.create (trigger_on) x2 in
-  let _thd3 = Thread.create (trigger_on) x3 in
-  let _thd4 = Thread.create (trigger_on) x4 in
-  let _thd5 = Thread.create (trigger_on) x5 in
-  result
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content (v1,v2,v3,v4,v5) =
+	begin
+	  content_copy := (v1,v2,v3,v4,v5);
+	  let (v1', b1) = Open.eval_propose v1 x1 in
+	  let (v2', b2) = Open.eval_propose v2 x2 in
+	  let (v3', b3) = Open.eval_propose v3 x3 in
+	  let (v4', b4) = Open.eval_propose v4 x4 in
+	  let (v5', b5) = Open.eval_propose v5 x5 in
+	  if b1 || b2 || b3 || b4 || b5
+	    then Open.eval_propose (v1',v2',v3',v4',v5') (snd (Lazy.force result))
+	    else ((v1,v2,v3,v4,v5), false)
+	end
+      and
+	result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _thd1 = Thread.create (trigger_on) (member_x1) in
+      let _thd2 = Thread.create (trigger_on) (member_x2) in
+      let _thd3 = Thread.create (trigger_on) (member_x3) in
+      let _thd4 = Thread.create (trigger_on) (member_x4) in
+      let _thd5 = Thread.create (trigger_on) (member_x5) in
+      group)
 
 
-let on_proposal_append t thunk =
-  Mutex_group.with_mutex t.mutexes
-    (fun () ->
-       t.on_proposal#register_thunk (fun () -> thunk))
 
-let on_proposal_remove t id =
-  Mutex_group.with_mutex t.mutexes
-    (fun () ->
-       t.on_proposal#remove id)
-
-let on_proposal_clear t =
-  Mutex_group.with_mutex t.mutexes
-    (fun () ->
-       Container.Queue_with_identifiers.clear (t.on_proposal#as_queue))
-
-
-let group_array ?on_proposal (xs:('a t) array) : ('a array) t =
-  let size = Array.length xs in
+let group_array ?on_proposal (members : ('a t) array) : ('a array) t =
+  let size = Array.length members in
   if size = 0 then invalid_arg "Cortex.group_array: empty array" else
-  let xl = Array.to_list xs in
+  let member_list = Array.to_list members in
+  let (mutex_list, xs) =
+    let (ms, xs) = List.split member_list in
+    (ms, Array.of_list xs)
+  in
   let mutexes =
-    let head = List.hd xl in
-    let tail = List.tl xl in
-    Mutex_group.group_from_list1
-      (head.mutexes, (List.map (fun x->x.mutexes) tail))
+    let head = List.hd (mutex_list) in
+    let tail = List.tl (mutex_list) in
+    Mutex_group.group_from_list1 (head, tail)
   in
   (* Utility for folding boolean results with the logical operator (&&): *)
   let and_foldi f vs =
@@ -654,36 +1009,31 @@ let group_array ?on_proposal (xs:('a t) array) : ('a array) t =
     in loop 0
   in
   let equality vs =
-    let equals_v = Array.mapi (fun i v -> xs.(i).equality v) vs in
+    let equals_v = Array.mapi (fun i v -> xs.(i).Open.equality v) vs in
     and_foldi (fun i v' -> equals_v.(i) v')
   in
-  let get_up_to_date_content () = Array.map (fun x -> x.get_content ()) xs in
-  let content_copy = ref (get_up_to_date_content ()) in
-  let get_content () = !content_copy in
-  let rec propose_content vs =
-    begin
-      content_copy := vs;
-      let v'bs = Array.mapi (fun i v -> unprotected_eval_propose v xs.(i)) vs in
-      let someone_changed = or_foldi (fun i (v',b) -> b) v'bs in
-      if someone_changed
-        then unprotected_eval_propose (Array.map fst v'bs) (Lazy.force result)
-        else (vs, false)
-    end
-  and
-    result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
-  in
-  let result = (Lazy.force result) in
-  (* Will be protected: *)
-  let rec trigger_on (sub_cortex) =
-    let (_s,_b) = eval_propose_on_sub_cortex_commit (get_up_to_date_content) (sub_cortex) (result) in
-    if !(result.no_longer_in_use) then () else begin
-    IFDEF DOCUMENTATION_OR_DEBUGGING THEN (assert (equality _s !content_copy)) ENDIF;
-    trigger_on (sub_cortex);
-    end
-  in
-  let _threads = Array.map (fun x -> Thread.create (trigger_on) x) xs in
-  result
-
+  let proposal () = Array.map (fun x -> x.Open.get_content ()) xs in
+  Mutex_group.with_mutex mutexes 
+    (fun () -> 
+      let content_copy = ref (proposal ()) in
+      let get_content () = !content_copy in
+      let rec propose_content vs =
+	begin
+	  content_copy := vs;
+	  let v'bs = Array.mapi (fun i v -> Open.eval_propose v xs.(i)) vs in
+	  let someone_changed = or_foldi (fun i (v',b) -> b) v'bs in
+	  if someone_changed
+	    then Open.eval_propose (Array.map fst v'bs) (snd (Lazy.force result))
+	    else (vs, false)
+	end
+      and
+	result = lazy (make ~mutexes ~equality ?on_proposal ~get_content ~propose_content ())
+      in
+      let (_, group_u) as group = (Lazy.force result) in
+      let membership () = not !(group_u.Open.no_longer_in_use) in
+      let trigger_on (member) = repeat_propose_to_group_on_member_commit ~membership ~proposal ~group (member) in
+      let _threads = Array.map (fun x -> Thread.create (trigger_on) x) members in
+      group)
 
 
 class type ['a] public_interface = object
@@ -801,7 +1151,7 @@ let group3 ?on_proposal (x1:'a t) (x2:'b t) (x3:'c t) : ('a * 'b * 'c) t =
 let group_array : ('a t array) -> ('a array) t*)
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
-module Example = struct
+module Example1 = struct
 
 let x = return 42 ;;
 let y = return 10 ;;
@@ -809,39 +1159,113 @@ let z = group_pair x y ;;
 eval_propose 5 x ;;
 
 (* x must be odd *)
-x.on_proposal#register_thunk
-  (fun () _x0 x1 -> if x1 mod 2 = 0 then x1+1 else x1) ;;
+on_proposal_append x 
+  (fun _x0 x1 -> if x1 mod 2 = 0 then x1+1 else x1) ;;
 
 (* y must be even *)
-y.on_proposal#register_thunk
-  (fun () _y0 y1 -> if y1 mod 2 = 0 then y1 else y1+1) ;;
+on_proposal_append y
+  (fun _y0 y1 -> if y1 mod 2 = 0 then y1 else y1+1) ;;
 
 (* y must be the double of x: *)
-z.on_proposal#register_thunk
-  (fun () (x0,y0) (x1,y1) ->
+on_proposal_append z
+  (fun (x0,y0) (x1,y1) ->
      if x1<>x0 then (x1, x1*2) else (y1/2, y1)) ;;
 (*
 get z ;;
  : int * int = (5, 10)
 
-propose 50 x ;;
+propose x 50 ;;
  : int * bool = (51, true)
 
 get z ;;
  : int * int = (51, 102)
 
-propose 52 x ;;
+propose x 52 ;;
  : int * bool = (53, true)
 
 get z ;;
  : int * int = (53, 106)
 
-propose 107 y ;;
+propose y 107 ;;
  : int * bool = (108, true)
 
 get z ;;
  : int * int = (55, 110)
 *)
 
-end (* module Example *)
+end (* module Example1 *)
+
+module Example2 = struct
+
+let x = lifes ~creator:(fun ?previous () -> Open.return 42) ~terminal:((>=)0) () ;;
+(* val x : (int option * int Cortex.t) Cortex.t = <abstr> *)
+
+let look x = get (snd (get x)) ;;
+(* val look : ('a * 'b Cortex.t) Cortex.t -> 'b = <fun> *)
+
+let member x = snd (get x) ;;
+(* val member : ('a * 'b Cortex.t) Cortex.t -> 'b Cortex.t = <fun> *)
+
+let y = member x ;;
+(* val y : int Cortex.t = <abstr> *)
+
+get y ;;
+(* - : int = 42 *)
+
+set y 10;; 
+(* - : unit = () *)
+
+look x ;;
+(* - : int = 10 *)
+
+set y 20;;
+(* - : unit = () *)
+
+look x ;; 
+(* - : int = 20 *)
+
+set y 0;;
+(* - : unit = () *)
+
+look x ;;
+(* - : int = 42 *)
+
+get x ;;
+(* - : int option * int Cortex.t = (Some 0, <abstr>) *)
+
+set y (-11);;
+(* - : unit = () *)
+
+get x ;;
+(* - : int option * int Cortex.t = (Some 0, <abstr>) *)
+
+look x ;;
+(* - : int = 42 *)
+
+let z = return 33 ;;
+(* val z : int Cortex.t = <abstr> *)
+
+propose x (None, z) ;;
+(* - : (int option * int Cortex.t) * bool = ((Some 0, <abstr>), false) *)
+
+propose x (None, y) ;;
+(* - : (int option * int Cortex.t) * bool = ((Some (-11), <abstr>), true) *)
+
+look x;;
+(* - : int = 42 *)
+
+set y 11 ;;
+(* - : unit = () *)
+
+propose x (None, y) ;;
+(* - : (int option * int Cortex.t) * bool = ((None, <abstr>), true) *)
+
+look x;;
+(* - : int = 11 *)
+
+set y (-11) ;;
+
+look x;;
+(* - : int = 42 *)
+end
 ENDIF

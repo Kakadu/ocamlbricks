@@ -15,6 +15,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
 
+(** Generic and compositional data structure for safe threads interactions.
+    Cortex stands for (CO)mpositional (R)eactive au(T)omata in mutual (EX)clusion. *)
+
 type 'a t
 
 val return :
@@ -42,19 +45,24 @@ val get     : ?guard:('a -> bool) -> 'a t -> 'a
 val set     : ?guard:('a -> bool) -> 'a t -> 'a -> unit
 val propose : ?guard:('a -> bool) -> 'a t -> 'a -> 'a * bool
 val move    : ?guard:('a -> bool) -> 'a t -> ('a -> 'a) -> 'a * bool
-val apply   : ?guard:('a -> bool) -> 'a t -> ('a -> 'b -> 'c) -> 'b -> 'c
+val apply   : ?guard:('a -> bool) -> 'a t -> ('a -> 'b) -> 'b
 
 module Async : sig
   val set  : ?guard:('a -> bool) -> 'a t -> 'a -> unit
   val move : ?guard:('a -> bool) -> 'a t -> ('a -> 'a) -> unit
 end
 
+val connection :
+  ?on_proposal:('b -> 'b -> 'b) ->
+  ('a -> 'b) ->
+  ('b -> 'a) ->
+  'a t -> 'b t
+ 
 val group_single :
   ?on_proposal:('a -> 'a -> 'a) ->
   'a t -> 'a t
 
 val group_pair :
-  ?unprotect:unit ->
   ?on_proposal:('a * 'b -> 'a * 'b -> 'a * 'b) ->
   'a t ->
   'b t -> ('a * 'b) t
@@ -75,13 +83,33 @@ val group_array :
   ?on_proposal:('a array -> 'a array -> 'a array) ->
   ('a t) array -> ('a array) t
 
-val ungroup :
- ?unprotect:unit ->
- 'a t -> unit
+val ungroup : 'a t -> unit
 
-val revno_equality : 'a t -> 'a t -> bool
-val revno_or_content_equality : 'a t -> 'a t -> bool
+module Open : sig
+ 
+ type 'a t
 
+ val return :
+  ?equality:('a -> 'a -> bool) ->
+  ?on_proposal:('a -> 'a -> 'a) ->
+  'a -> 'a t
+
+ val of_object :
+  ?equality:('a -> 'a -> bool) ->
+  ?on_proposal:('a -> 'a -> 'a) ->
+  < get : 'a; set : 'a -> unit > -> 'a t
+
+  val revno_equality : 'a t -> 'a t -> bool
+  val revno_or_content_equality : 'a t -> 'a t -> bool
+  
+end (* Open *)
+
+val lifes :
+  ?on_proposal:(('a option * 'a t) -> ('a option * 'a t) -> ('a option * 'a t)) ->
+  creator:(?previous:'a -> unit -> 'a Open.t) ->
+  terminal:('a -> bool) ->
+  unit -> ('a option * 'a t) t 
+ 
 (* Conversion to objects: *)
 
 class type ['a] public_interface = object
@@ -115,6 +143,13 @@ val to_object_with_public_interface  : 'a t -> 'a public_interface
 val to_object_with_private_interface : 'a t -> 'a private_interface
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
-module Example : sig val x : int t val y : int t val z : (int * int) t end
+module Example1 : sig val x : int t val y : int t val z : (int * int) t end
+module Example2 : sig 
+  val x : (int option * int t) t  
+  val y : int t 
+  val z : int t 
+  val look : ('a * 'b t) t -> 'b
+  val member : ('a * 'b t) t -> 'b t
+  end
 ENDIF
 
