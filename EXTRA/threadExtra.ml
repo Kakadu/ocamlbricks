@@ -576,13 +576,13 @@ module Easy_API = struct
     ?fallback ?do_not_kill_process_if_exit ()
     =
     let t = match enrich with None -> make_defaults () | Some t -> t in
-    let () = t.killable <- killable in
-    let () = t.before_waiting <- before_waiting in
-    let () = t.after_waiting  <- after_waiting  in
-    let () = t.perform_when_suspended <- perform_when_suspended in
-    let () = t.perform_when_resumed <- perform_when_resumed in
-    let () = t.fallback <- fallback in
-    let () = t.do_not_kill_process_if_exit <- do_not_kill_process_if_exit in
+    Option.iter (fun x -> t.killable <- Some x) killable;
+    Option.iter (fun x -> t.before_waiting <- Some x) before_waiting;
+    Option.iter (fun x -> t.after_waiting <- Some x) after_waiting;
+    Option.iter (fun x -> t.perform_when_suspended <- Some x) perform_when_suspended;
+    Option.iter (fun x -> t.perform_when_resumed <- Some x) perform_when_resumed;
+    Option.iter (fun x -> t.fallback <- Some x) fallback;
+    Option.iter (fun x -> t.do_not_kill_process_if_exit <- Some x) do_not_kill_process_if_exit;
     t
 
   let apply_with_options ?options
