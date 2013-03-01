@@ -16,25 +16,49 @@
 
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
-   
-type program = string 
-type arguments = string list
-type pseudo = string 
 
 module Process = struct
+
+  type program = string
+  type arguments = string list
 
   type pid = int
   type exit_code = int
   type signal_name = string
-  
+
   type running_state =
     | Running
     | Suspended
 
   type mrproper = unit -> unit (* to close channels *)
 
+  (* Process options: *)
+  type options = {
+    mutable stdin  : Endpoint.Source.t;
+    mutable stdout : Endpoint.Sink.t;
+    mutable stderr : Endpoint.Sink.t;
+    mutable pseudo : string option;
+    }
+
+  let make_defaults () = {
+    stdin  = Endpoint.Source.Empty;
+    stdout = Endpoint.Sink.Trash;
+    stderr = Endpoint.Sink.Trash;
+    pseudo = None;
+    }
+
+  let make_options ?enrich ?stdin ?stdout ?stderr ?pseudo () =
+    let t = match enrich with None -> make_defaults () | Some t -> t in
+    Option.iter (fun x -> t.stdin  <- x) stdin;
+    Option.iter (fun x -> t.stdout <- x) stdout;
+    Option.iter (fun x -> t.stderr <- x) stderr;
+    Option.iter (fun x -> t.pseudo <- Some x) pseudo;
+    t
+
+  type tuning = unit -> options
+
   type state =
-  | Planned    of Endpoint.Source.t * Endpoint.Sink.t * Endpoint.Sink.t * (pseudo option) * program * arguments
+  | Planned    of tuning * program * arguments
   | Started    of pid * mrproper * running_state
   | Terminated of pid * (signal_name, exit_code) Either.t
 
@@ -44,10 +68,12 @@ module Process = struct
     match (x,y) with
     | Started (p,_,r), Started (p',_,r') -> (p=p') && (r=r')
     | Started (_,_,_), _ | _, Started (_,_,_) -> false
+    (* tuning is also a pain: *)
+    | Planned (t,p,a) , Planned (t',p',a') -> (t==t') && (p=p) && (a=a')
     | x,y -> x=y
 
   let is_planned = function
-    | Planned (_,_,_,_,_,_) -> true
+    | Planned (_,_,_) -> true
     | _ -> false
 
   let is_started = function
@@ -73,51 +99,50 @@ module Process = struct
   type t = state Cortex.t
   type u = state Cortex.Open.t
 
+
   let plan
-    ?(stdin=Endpoint.Source.Empty)
-    ?(stdout=Endpoint.Sink.Trash)
-    ?(stderr=Endpoint.Sink.Trash)
-    ?pseudo
+    ?(tuning = fun () -> make_options ())
     (program:string)
-    (arguments:string list) : t
+    (arguments:string list)
+    : t
     =
     (* Set some transitions as forbidden (for instance, when terminal states are reached): *)
     let on_proposal s0 s1 =
       match (s0,s1) with
       | Terminated (_,_)   , _ -> s0
-      | Started (_, _,_) , Planned (_,_,_,_,_,_) -> s0
+      | Started (_, _,_) , Planned (_,_,_) -> s0
       | _, _ -> s1
     in
-    Cortex.return ~equality:state_equality ~on_proposal (Planned (stdin, stdout, stderr, pseudo, program, arguments))
+    Cortex.return ~equality:state_equality ~on_proposal (Planned (tuning, program, arguments))
 
-  module Open = struct  
-    let plan
-      ?(stdin=Endpoint.Source.Empty)
-      ?(stdout=Endpoint.Sink.Trash)
-      ?(stderr=Endpoint.Sink.Trash)
-      ?pseudo
-      (program:string)
-      (arguments:string list) : u
-      =
+
+  module Open = struct
+  let plan
+    ?(tuning = fun () -> make_options ())
+    (program:string)
+    (arguments:string list)
+    : u
+    =
       (* Set some transitions as forbidden (for instance, when terminal states are reached): *)
       let on_proposal s0 s1 =
 	match (s0,s1) with
 	| Terminated (_,_)   , _ -> s0
-	| Started (_, _,_) , Planned (_,_,_,_,_,_) -> s0
+	| Started (_, _,_) , Planned (_,_,_) -> s0
 	| _, _ -> s1
       in
-      Cortex.Open.return ~equality:state_equality ~on_proposal (Planned (stdin, stdout, stderr, pseudo, program, arguments))
+      Cortex.Open.return ~equality:state_equality ~on_proposal (Planned (tuning, program, arguments))
    end (* module Open *)
-    
+
   (* Is a cortex evaluation, so it propose a transition that may be accepted or not,
      as may be observable by the caller in the result: *)
   let start t : (state * bool) =
     let transition = function
-    | Planned (stdin, stdout, stderr, pseudo, program, arguments) ->
-	let (stdin,  stdin_must_be_closed ) = Endpoint.Source.to_file_descr stdin in
-	let (stdout, stdout_must_be_closed) = Endpoint.Sink.to_file_descr stdout  in
-	let (stderr, stderr_must_be_closed) = Endpoint.Sink.to_file_descr stderr  in
-	let name = match pseudo with None -> program | Some name -> name in
+    | Planned (tuning, program, arguments) ->
+        let t = tuning () in
+	let (stdin,  stdin_must_be_closed ) = Endpoint.Source.to_file_descr t.stdin in
+	let (stdout, stdout_must_be_closed) = Endpoint.Sink.to_file_descr t.stdout  in
+	let (stderr, stderr_must_be_closed) = Endpoint.Sink.to_file_descr t.stderr  in
+	let name = match t.pseudo with None -> program | Some name -> name in
 	let argv = (Array.of_list (name :: arguments)) in
 	(* Channels' treatment: *)
         let mrproper () =
@@ -215,20 +240,41 @@ module Process = struct
   (* Redefinition: *)
   let terminate ?nohang t = terminate ?nohang ?sigkill:None t
 
+  class c
+    ?tuning
+    (program:string)
+    (arguments:string list)
+    =
+    let t = plan ?tuning program arguments in
+    object
+      inherit [state] Cortex.to_object_with_private_interface t
+      method start     : unit -> state * bool =
+        fun () -> start t
+
+      method suspend : ?nohang:unit -> unit -> state * bool =
+        fun ?nohang () -> suspend ?nohang t
+
+      method resume : ?nohang:unit -> unit -> state * bool =
+        fun ?nohang () -> resume ?nohang t
+
+      method terminate : ?nohang:unit -> unit -> state * bool =
+        fun ?nohang () -> terminate ?nohang t
+    end
+
 end (* module Process *)
 
 
 module Service = struct
 
   type t = ((Process.state option) * Process.t) Cortex.t
-  
-  let plan ?stdin ?stdout ?stderr ?pseudo program arguments : t =
+
+  let plan ?tuning (program:string) (arguments:string list) : t =
     let creator ?previous () =
-      Process.Open.plan ?stdin ?stdout ?stderr ?pseudo program arguments 
+      Process.Open.plan ?tuning program arguments
     in
     let terminal = Process.is_terminated in
     Cortex.lifes ~creator ~terminal ()
-    
+
   let start (t:t) : (Process.state * bool) =
     Cortex.apply t (fun (_,p) -> Process.start p)
 
@@ -240,7 +286,7 @@ module Service = struct
 
   let status (t:t) : Process.state =
     Cortex.apply t (fun (_,p) -> Cortex.get p)
-  
+
   let stop ?nohang (t:t) : (Process.state * bool) =
     Cortex.apply t (fun (_,p) -> Process.terminate ?nohang p)
 
@@ -250,19 +296,53 @@ module Service = struct
   let resume ?nohang (t:t) : (Process.state * bool) =
     Cortex.apply t (fun (_,p) -> Process.resume ?nohang p)
 
-  (* Supposing recursive mutexes here (start t) in the critical section: *)
-  let restart ?nohang (t:t) : (Process.state * bool) =
-    Cortex.apply t 
-      (fun (_,p) -> 
-         let (_, changed) as stop_result = Process.terminate ?nohang p in
-         if not changed then stop_result else start t)
+(*  (* Supposing recursive mutexes here (start t) in the critical section: *)
+  let restart (t:t) : (Process.state * bool) =
+    Cortex.apply t
+      (fun (_,p) ->
+         let (_, changed) as stop_result = Process.terminate p in
+         if not changed then stop_result else start t)*)
 
-(*  (* Without recursive mutexes we can break the critical section but it's
-     not the same because another thread may start the service... *) 
+ (* Without recursive mutexes we can break the critical section but it's
+     not the same because another thread may start the service... *)
   let restart (t:t) : (Process.state * bool) =
     let (_, changed) as stop_result = stop t in
     if not changed then stop_result else
-    start t*)
-         
+    start t
+
+  class c
+    ?tuning
+    (program:string)
+    (arguments:string list)
+    =
+    let t = plan ?tuning program arguments in
+    object
+      inherit
+        [Process.state option * Process.state Cortex.t]
+           Cortex.to_object_with_private_interface t
+
+      method start : unit -> Process.state * bool =
+        fun () -> start t
+
+      method previous_status : unit -> Process.state option =
+        fun () -> previous_status t
+
+      method status : unit -> Process.state =
+        fun () -> status t
+
+      method suspend : unit -> Process.state * bool =
+        fun () -> suspend t
+
+      method resume : ?nohang:unit -> unit -> Process.state * bool =
+        fun ?nohang () -> resume ?nohang t
+
+      method stop : ?nohang:unit -> unit -> Process.state * bool =
+        fun ?nohang () -> stop ?nohang t
+
+      method restart : unit -> Process.state * bool =
+        fun () -> restart t
+
+    end
+
 
 end (* module Service *)

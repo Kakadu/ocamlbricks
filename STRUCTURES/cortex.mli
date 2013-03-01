@@ -57,7 +57,7 @@ val connection :
   ('a -> 'b) ->
   ('b -> 'a) ->
   'a t -> 'b t
- 
+
 val group_single :
   ?on_proposal:('a -> 'a -> 'a) ->
   'a t -> 'a t
@@ -86,7 +86,7 @@ val group_array :
 val ungroup : 'a t -> unit
 
 module Open : sig
- 
+
  type 'a t
 
  val return :
@@ -101,36 +101,40 @@ module Open : sig
 
   val revno_equality : 'a t -> 'a t -> bool
   val revno_or_content_equality : 'a t -> 'a t -> bool
-  
+
 end (* Open *)
 
 val lifes :
   ?on_proposal:(('a option * 'a t) -> ('a option * 'a t) -> ('a option * 'a t)) ->
   creator:(?previous:'a -> unit -> 'a Open.t) ->
   terminal:('a -> bool) ->
-  unit -> ('a option * 'a t) t 
- 
+  unit -> ('a option * 'a t) t
+
 (* Conversion to objects: *)
 
 class type ['a] public_interface = object
-  method eval    : 'b 'c. ?guard:('a -> bool) -> ('a -> 'b -> 'a * ('a -> 'c)) -> 'b -> 'c * bool
-  method get     : ?guard:('a -> bool) -> unit -> 'a
-  method set     : ?guard:('a -> bool) -> 'a -> unit
-  method propose : ?guard:('a -> bool) -> 'a -> 'a * bool
-  method move    : ?guard:('a -> bool) -> ('a -> 'a) -> 'a * bool
-  method async   : <
+  method cortex_t : 'a t
+  method cortex_u : 'a Open.t
+  method eval     : 'b 'c. ?guard:('a -> bool) -> ('a -> 'b -> 'a * ('a -> 'c)) -> 'b -> 'c * bool
+  method get      : ?guard:('a -> bool) -> unit -> 'a
+  method set      : ?guard:('a -> bool) -> 'a -> unit
+  method propose  : ?guard:('a -> bool) -> 'a -> 'a * bool
+  method move     : ?guard:('a -> bool) -> ('a -> 'a) -> 'a * bool
+  method async    : <
     set  : ?guard:('a -> bool) -> 'a -> unit;
     move : ?guard:('a -> bool) -> ('a -> 'a) -> unit;
     >
 end
 
 class type ['a] private_interface = object
-  method private eval    : 'b 'c. ?guard:('a -> bool) -> ('a -> 'b -> 'a * ('a -> 'c)) -> 'b -> 'c * bool
-  method private get     : ?guard:('a -> bool) -> unit -> 'a
-  method private set     : ?guard:('a -> bool) -> 'a -> unit
-  method private propose : ?guard:('a -> bool) -> 'a -> 'a * bool
-  method private move    : ?guard:('a -> bool) -> ('a -> 'a) -> 'a * bool
-  method private async   : <
+  method private cortex_t : 'a t
+  method private cortex_u : 'a Open.t
+  method private eval     : 'b 'c. ?guard:('a -> bool) -> ('a -> 'b -> 'a * ('a -> 'c)) -> 'b -> 'c * bool
+  method private get      : ?guard:('a -> bool) -> unit -> 'a
+  method private set      : ?guard:('a -> bool) -> 'a -> unit
+  method private propose  : ?guard:('a -> bool) -> 'a -> 'a * bool
+  method private move     : ?guard:('a -> bool) -> ('a -> 'a) -> 'a * bool
+  method private async    : <
     set  : ?guard:('a -> bool) -> 'a -> unit;
     move : ?guard:('a -> bool) -> ('a -> 'a) -> unit;
     >
@@ -144,10 +148,10 @@ val to_object_with_private_interface : 'a t -> 'a private_interface
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Example1 : sig val x : int t val y : int t val z : (int * int) t end
-module Example2 : sig 
-  val x : (int option * int t) t  
-  val y : int t 
-  val z : int t 
+module Example2 : sig
+  val x : (int option * int t) t
+  val y : int t
+  val z : int t
   val look : ('a * 'b t) t -> 'b
   val member : ('a * 'b t) t -> 'b t
   end
