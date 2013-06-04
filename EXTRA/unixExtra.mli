@@ -129,8 +129,15 @@ val string_of_process_status : Unix.process_status -> string
 type command = string
 type program = string
 
-(* val is_executable_in_PATH : program -> bool *)
-val is_executable_in_PATH : program -> string option
+val path_of_implicit : program -> string option
+
+(** Version working in the both cases implicit/explicit program
+    reference as a shell interpreter. *)
+val is_executable : program -> bool
+
+(** Version working in the both cases implicit/explicit program
+    reference as a shell interpreter. *)
+val resolve_executable : ?realpath:unit -> program -> string option
 
 val system_or_fail : ?hide_output:bool -> ?hide_errors:bool -> command -> unit
 

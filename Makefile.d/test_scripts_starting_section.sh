@@ -47,7 +47,7 @@ for i in $LIST; do
  INCLUDE_LIBS+=" -I +$i"
 done
 
-INCLUDES=$(cd _build ; find -type d -printf "-I %p\n")
+INCLUDES=$(builtin cd _build &>/dev/null; find -type d -printf "-I %p\n")
 
 ################################
 #         Preamble             #

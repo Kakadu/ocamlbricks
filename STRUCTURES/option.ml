@@ -32,6 +32,10 @@ let bind x f = match x with None -> None | Some x -> (f x)
 let return x = Some x
 let iter f = function None -> () | Some x -> (f x)
 
+(* Monadic definition: *)
+let map2 f m1 m2  = bind m1 (function x1 -> map (f x1) m2)
+let bind2 m1 m2 f = bind m1 (function x1 -> bind m2 (f x1))
+
 let filter p x = bind x (fun x -> if p x then Some x else None)
 
 let of_fallible_application ?(fallback=fun _ _ -> ()) f x =

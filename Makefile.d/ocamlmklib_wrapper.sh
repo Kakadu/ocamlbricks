@@ -20,6 +20,7 @@
 # ocamlmklib_wrapper $(OTHER_LIBRARY_FILES_TO_INSTALL)"
 
 set -e
+set -x
 
 # Check script dependencies
 type ocamlobjinfo
@@ -33,7 +34,7 @@ function usage {
 }
 
 OBJECTS=$(for i in "$@"; do echo $i.o; done)
-INCLUDES=$(cd _build ; find -type d -printf "-I %p\n")
+INCLUDES=$(builtin cd _build &>/dev/null; find -type d -printf "-I %p\n")
 CMO=$(ocamlobjinfo _build/ocamlbricks.cma | awk '/Unit name/{x=tolower(substr($3,1,1)); r=substr($3,2); printf("%s%s.cmo\n",x,r);}')
 CMX=$(ocamlobjinfo _build/ocamlbricks.cma | awk '/Unit name/{x=tolower(substr($3,1,1)); r=substr($3,2); printf("%s%s.cmx\n",x,r);}')
 

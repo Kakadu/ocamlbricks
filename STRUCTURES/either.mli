@@ -19,16 +19,20 @@
 type ('a,'b) t = Left of 'a | Right of 'b
 type ('a,'b) either = ('a,'b) t
 
-(** Extract the encapsulated value. If the argument is [Left a], the optional [?fallback] is called on the value [a]. By default [fallback] is set to
-[fun _ -> failwith "Either.extract"].*)
+(** Extract the encapsulated value. If the argument is [Left a], the optional [?fallback] is called on the value [a].
+    By default [fallback] is set to [fun _ -> failwith "Either.extract"].*)
 val extract : ?failwith_msg:string -> ?fallback:('a -> 'b) -> ('a,'b) t -> 'b
 val extract_or        : ('a,'b) t -> 'b -> 'b
 val extract_or_force  : ('a,'b) t-> 'b Lazy.t -> 'b
 val extract_from_list : ?acc:'b list -> ('a,'b) t list -> 'b list
 
 (* Raise Invalid_argument *)
-val right : ('a,'b) t -> 'b
-val left  : ('a,'b) t -> 'a
+val get_left  : ('a,'b) t -> 'a
+val get_right : ('a,'b) t -> 'b
+
+(* Injections: *)
+val left  : 'a -> ('a,'b) t
+val right : 'b -> ('a,'b) t
 
 val iter : ('b -> unit) -> ('a,'b) t -> unit
 val map  : ('b -> 'c) -> ('a,'b) t -> ('a,'c) t

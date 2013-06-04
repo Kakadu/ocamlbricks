@@ -23,12 +23,10 @@ module Process = struct
   type arguments = string list
 
   type pid = int
+  type birthtime = float (* since 00:00:00 GMT, Jan. 1, 1970, in seconds *)
+  type age = float (* duration, in seconds *)
   type exit_code = int
   type signal_name = string
-
-  type running_state =
-    | Running
-    | Suspended
 
   type mrproper = unit -> unit (* to close channels *)
 
@@ -57,87 +55,106 @@ module Process = struct
 
   type tuning = unit -> options
 
-  type state =
-  | Planned    of tuning * program * arguments
-  | Started    of pid * mrproper * running_state
-  | Terminated of pid * (signal_name, exit_code) Either.t
+  module State = struct
 
-  (* Mrproper is a pain, the standard equality will raise an exception (functional value),
-     so it must be redefined: *)
-  let state_equality x y =
-    match (x,y) with
-    | Started (p,_,r), Started (p',_,r') -> (p=p') && (r=r')
-    | Started (_,_,_), _ | _, Started (_,_,_) -> false
-    (* tuning is also a pain: *)
-    | Planned (t,p,a) , Planned (t',p',a') -> (t==t') && (p=p) && (a=a')
-    | x,y -> x=y
+    type running_state =
+    | Running
+    | Suspended
 
-  let is_planned = function
-    | Planned (_,_,_) -> true
-    | _ -> false
+    type t =
+    | Planned    of tuning * program * arguments
+    | Started    of program * birthtime * pid * mrproper * running_state
+    | Terminated of program * age * pid * (signal_name, exit_code) Either.t
 
-  let is_started = function
-    | Started (_,_,_) -> true
-    | _ -> false
+    (* Mrproper is a pain, the standard equality will raise
+       an exception (functional value), so it must be redefined: *)
+    let equality x y =
+      match (x,y) with
+      | Started (n,d,p,_,r), Started (n',d',p',_,r') -> (n=n') && (d=d') && (p=p') && (r=r')
+      | Started (_,_,_,_,_), _ | _, Started (_,_,_,_,_) -> false
+      (* tuning is also a pain: *)
+      | Planned (t,n,a) , Planned (t',n',a') -> (t==t') && (n=n') && (a=a')
+      | x,y -> x=y
 
-  let is_suspended = function
-    | Started (_,_, Suspended) -> true
-    | _ -> false
+    let is_planned = function
+      | Planned (_,_,_) -> true
+      | _ -> false
 
-  let is_not_suspended = function
-    | Started (_,_, Suspended) -> false
-    | _ -> true
+    let is_started = function
+      | Started (_,_,_,_,_) -> true
+      | _ -> false
 
-  let is_running = function
-    | Started (_,_, Running) -> true
-    | _ -> false
+    let is_suspended = function
+      | Started (_,_,_,_, Suspended) -> true
+      | _ -> false
 
-  let is_terminated = function
-    | Terminated (_,_) -> true
-    | _ -> false
+    let is_not_suspended = function
+      | Started (_,_,_,_, Suspended) -> false
+      | _ -> true
 
-  type t = state Cortex.t
-  type u = state Cortex.Open.t
+    let is_running = function
+      | Started (_,_,_,_, Running) -> true
+      | _ -> false
 
+    let is_terminated = function
+      | Terminated (_,_,_,_) -> true
+      | _ -> false
 
-  let plan
-    ?(tuning = fun () -> make_options ())
-    (program:string)
-    (arguments:string list)
-    : t
-    =
-    (* Set some transitions as forbidden (for instance, when terminal states are reached): *)
-    let on_proposal s0 s1 =
-      match (s0,s1) with
-      | Terminated (_,_)   , _ -> s0
-      | Started (_, _,_) , Planned (_,_,_) -> s0
-      | _, _ -> s1
-    in
-    Cortex.return ~equality:state_equality ~on_proposal (Planned (tuning, program, arguments))
+    let is_terminated_and_has_been_really_executed = function
+      | Terminated (program, _, pid, Either.Right (127))
+          when not (UnixExtra.is_executable program) -> false
+      | Terminated (_,_,_,_) -> true
+      | _ -> false
 
+    let is_terminated_aged_at_least ~seconds =
+      if seconds < 0. then invalid_arg "Process.State.is_terminated_aged_at_least: negative age" else
+      function
+      | Terminated (_, age, _,_) -> (age >= seconds)
+      | _ -> false
+
+    let birthtime = function
+      | Started (_,birthtime,_,_,_) -> Some birthtime
+      | _ -> None
+
+    let age = function
+      | Terminated (_, age, _,_) -> Some age
+      | _ -> None
+
+  end (* Process.State *)
+
+  type t = State.t Cortex.t
+  type u = State.t Cortex.u
 
   module Open = struct
-  let plan
-    ?(tuning = fun () -> make_options ())
-    (program:string)
-    (arguments:string list)
-    : u
-    =
-      (* Set some transitions as forbidden (for instance, when terminal states are reached): *)
-      let on_proposal s0 s1 =
-	match (s0,s1) with
-	| Terminated (_,_)   , _ -> s0
-	| Started (_, _,_) , Planned (_,_,_) -> s0
-	| _, _ -> s1
-      in
-      Cortex.Open.return ~equality:state_equality ~on_proposal (Planned (tuning, program, arguments))
+
+    let plan
+      ?(tuning = fun () -> make_options ())
+      (program:string)
+      (arguments:string list)
+      : u
+      =
+	(* Set some transitions as forbidden (for instance, when terminal states are reached): *)
+	let on_proposal s0 s1 =
+	  match (s0,s1) with
+	  | State.Terminated (_,_,_,_)   , _ -> s0
+	  | State.Started (_,_,_,_,_) , State.Planned (_,_,_) -> s0
+	  | _, _ -> s1
+	in
+	Cortex.Open.return
+	  ~equality:State.equality
+	  ~on_proposal
+	  (State.Planned (tuning, program, arguments))
+
    end (* module Open *)
+
+  let plan ?tuning program arguments : t =
+    Cortex.Open.close (Open.plan ?tuning program arguments)
 
   (* Is a cortex evaluation, so it propose a transition that may be accepted or not,
      as may be observable by the caller in the result: *)
-  let start t : (state * bool) =
+  let start t : (State.t * bool) =
     let transition = function
-    | Planned (tuning, program, arguments) ->
+    | State.Planned (tuning, program, arguments) ->
         let t = tuning () in
 	let (stdin,  stdin_must_be_closed ) = Endpoint.Source.to_file_descr t.stdin in
 	let (stdout, stdout_must_be_closed) = Endpoint.Sink.to_file_descr t.stdout  in
@@ -152,8 +169,9 @@ module Process = struct
 	    (if stderr_must_be_closed then try Unix.close stderr with _ -> ());
 	  end
 	in
+	let birthtime = Unix.time () in
         let pid = Unix.create_process program argv stdin stdout stderr in
-	Started (pid, mrproper, Running)
+	State.Started (program, birthtime, pid, mrproper, State.Running)
     | state -> state
     in (* end of transition() *)
     (* main of start() *)
@@ -161,13 +179,18 @@ module Process = struct
     let () =
       if not changed then () else
       match state' with
-      | Started (pid, mrproper, Running) ->
+      | State.Started (program, birthtime, pid, mrproper, State.Running) ->
 	  let _thread =
 	    ThreadExtra.waitpid_thread
+	      (* --- *)
 	      ~perform_when_suspended:
-	        (fun ~pid -> Cortex.set t (Started (pid, mrproper, Suspended)))
+	        (fun ~pid ->
+	           Cortex.set t (State.Started (program, birthtime, pid, mrproper, State.Suspended)))
+	      (* --- *)
 	      ~perform_when_resumed:
-	        (fun ~pid -> Cortex.set t (Started (pid, mrproper, Running)))
+	        (fun ~pid ->
+	           Cortex.set t (State.Started (program, birthtime, pid, mrproper, State.Running)))
+	      (* --- *)
 	      ~after_waiting:
 		(fun ~pid status ->
 		    let () = mrproper () in
@@ -177,7 +200,9 @@ module Process = struct
 		      | Unix.WEXITED code     -> Either.Right code
 		      | _ -> assert false
 		    in
-		    Cortex.set t (Terminated (pid, exiting_info)))
+		    let age = (Unix.time ()) -. birthtime in
+		    Cortex.set t (State.Terminated (program, age, pid, exiting_info)))
+	      (* --- *)
 	      ()
 	      ~pid
 	  in
@@ -186,44 +211,44 @@ module Process = struct
     in
     (state', changed)
 
-  let suspend ?nohang t : (state * bool) =
-    let transition = function
-    | Started (pid,_, Running) as state -> (Unix.kill pid Sys.sigstop; state)
+  let suspend ?nohang t : (State.t * bool) =
+    let action = function
+    | State.Started (_,_,pid,_, State.Running) as state -> (Unix.kill pid Sys.sigstop; state)
     | state -> state
     in
-    let (state, changed) = Cortex.move t transition in
+    let state = Cortex.apply t action in
     (* Now wait until the pause will be observed: *)
     let (state, changed) =
-      match (is_running state) && (nohang = None) with
-      | true  -> (Cortex.get ~guard:is_suspended t, true)
-      | false -> (state, changed)
+      match (State.is_running state) && (nohang = None) with
+      | true  -> (Cortex.get ~guard:State.is_suspended t, true)
+      | false -> (state, false)
     in
     (state, changed)
 
-  let resume ?nohang t : (state * bool) =
-    let transition = function
-    | Started (pid,_, Suspended) as state -> (Unix.kill pid Sys.sigcont; state)
+  let resume ?nohang t : (State.t * bool) =
+    let action = function
+    | State.Started (_,_,pid,_, State.Suspended) as state -> (Unix.kill pid Sys.sigcont; state)
     | state -> state
     in
-    let (state, changed) = Cortex.move t transition in
+    let state = Cortex.apply t action in
     (* Now wait until the pause will be observed: *)
     let (state, changed) =
-      match (is_suspended state) && (nohang = None) with
-      | true  -> (Cortex.get ~guard:is_not_suspended t, true)
-      | false -> (state, changed)
+      match (State.is_suspended state) && (nohang = None) with
+      | true  -> (Cortex.get ~guard:State.is_not_suspended t, true)
+      | false -> (state, false)
     in
     (state, changed)
 
-  let rec terminate ?nohang ?sigkill t : (state * bool) =
+  let rec terminate ?nohang ?sigkill t : (State.t * bool) =
     let term =
       if sigkill = Some () then Sys.sigkill else Sys.sigterm
     in
-    let transition = function
-    | Started (pid,_, Running) as state   -> (Unix.kill pid term; state)
-    | Started (pid,_, Suspended) as state -> (List.iter (Unix.kill pid) [term; Sys.sigcont]; state)
+    let action = function
+    | State.Started (_,_,pid,_, State.Running) as state   -> (Unix.kill pid term; state)
+    | State.Started (_,_,pid,_, State.Suspended) as state -> (List.iter (Unix.kill pid) [term; Sys.sigcont]; state)
     | state -> state
     in
-    let (state, changed) = Cortex.move t transition in
+    let state = Cortex.apply t action in
     let () =
       if sigkill = None
        then ignore (Thread.create (fun () -> Thread.delay 0.5; terminate ~sigkill:() t) ())
@@ -231,9 +256,9 @@ module Process = struct
     in
     (* Now wait until the pause will be observed: *)
     let (state, changed) =
-      match (is_started state) && (nohang = None) with
-      | true  -> (Cortex.get ~guard:is_terminated t, true)
-      | false -> (state, changed)
+      match (State.is_started state) && (nohang = None) with
+      | true  -> (Cortex.get ~guard:State.is_terminated t, true)
+      | false -> (state, false)
     in
     (state, changed)
 
@@ -247,17 +272,17 @@ module Process = struct
     =
     let t = plan ?tuning program arguments in
     object
-      inherit [state] Cortex.to_object_with_private_interface t
-      method start     : unit -> state * bool =
+      inherit [State.t] Cortex.Object.with_private_interface t
+      method start : unit -> State.t * bool =
         fun () -> start t
 
-      method suspend : ?nohang:unit -> unit -> state * bool =
+      method suspend : ?nohang:unit -> unit -> State.t * bool =
         fun ?nohang () -> suspend ?nohang t
 
-      method resume : ?nohang:unit -> unit -> state * bool =
+      method resume : ?nohang:unit -> unit -> State.t * bool =
         fun ?nohang () -> resume ?nohang t
 
-      method terminate : ?nohang:unit -> unit -> state * bool =
+      method terminate : ?nohang:unit -> unit -> State.t * bool =
         fun ?nohang () -> terminate ?nohang t
     end
 
@@ -266,38 +291,58 @@ end (* module Process *)
 
 module Service = struct
 
-  type t = ((Process.state option) * Process.t) Cortex.t
+  type t = ((Process.State.t option) * Process.t) Cortex.t
 
   let plan ?tuning (program:string) (arguments:string list) : t =
     let creator ?previous () =
       Process.Open.plan ?tuning program arguments
     in
-    let terminal = Process.is_terminated in
+    let terminal = Process.State.is_terminated in
     Cortex.lifes ~creator ~terminal ()
 
-  let start (t:t) : (Process.state * bool) =
+  let start (t:t) : (Process.State.t * bool) =
     Cortex.apply t (fun (_,p) -> Process.start p)
 
-  let status (t:t) : Process.state =
+  let status (t:t) : Process.State.t =
     Cortex.apply t (fun (_,p) -> Cortex.get p)
 
-  let previous_status (t:t) : Process.state option =
+  let previous_status (t:t) : Process.State.t option =
     Cortex.apply t (fun (s,_) -> s)
 
-  let status (t:t) : Process.state =
+  let previous_really_executed (t:t) : bool =
+    Cortex.apply t
+      (fun (s,_) ->
+         match s with
+         | None -> false
+         | Some state -> Process.State.is_terminated_and_has_been_really_executed state
+         )
+
+  let previous_aged_at_least ~seconds (t:t) : bool =
+    Cortex.apply t
+      (fun (s,_) ->
+         match s with
+         | None -> false
+         | Some state -> Process.State.is_terminated_aged_at_least ~seconds state
+         )
+
+  let previous_age (t:t) : float option =
+    Cortex.apply t
+      (fun (s,_) -> Option.bind s (Process.State.age))
+
+  let status (t:t) : Process.State.t =
     Cortex.apply t (fun (_,p) -> Cortex.get p)
 
-  let stop ?nohang (t:t) : (Process.state * bool) =
+  let stop ?nohang (t:t) : (Process.State.t * bool) =
     Cortex.apply t (fun (_,p) -> Process.terminate ?nohang p)
 
-  let suspend (t:t) : (Process.state * bool) =
+  let suspend (t:t) : (Process.State.t * bool) =
     Cortex.apply t (fun (_,p) -> Process.suspend p)
 
-  let resume ?nohang (t:t) : (Process.state * bool) =
+  let resume ?nohang (t:t) : (Process.State.t * bool) =
     Cortex.apply t (fun (_,p) -> Process.resume ?nohang p)
 
 (*  (* Supposing recursive mutexes here (start t) in the critical section: *)
-  let restart (t:t) : (Process.state * bool) =
+  let restart (t:t) : (Process.State.t * bool) =
     Cortex.apply t
       (fun (_,p) ->
          let (_, changed) as stop_result = Process.terminate p in
@@ -305,7 +350,7 @@ module Service = struct
 
  (* Without recursive mutexes we can break the critical section but it's
      not the same because another thread may start the service... *)
-  let restart (t:t) : (Process.state * bool) =
+  let restart (t:t) : (Process.State.t * bool) =
     let (_, changed) as stop_result = stop t in
     if not changed then stop_result else
     start t
@@ -318,28 +363,37 @@ module Service = struct
     let t = plan ?tuning program arguments in
     object
       inherit
-        [Process.state option * Process.state Cortex.t]
-           Cortex.to_object_with_private_interface t
+        [Process.State.t option * Process.t]
+           Cortex.Object.with_private_interface t
 
-      method start : unit -> Process.state * bool =
+      method start : unit -> Process.State.t * bool =
         fun () -> start t
 
-      method previous_status : unit -> Process.state option =
+      method previous_status : unit -> Process.State.t option =
         fun () -> previous_status t
 
-      method status : unit -> Process.state =
+      method previous_really_executed : unit -> bool =
+        fun () -> previous_really_executed t
+
+      method previous_aged_at_least : seconds:float -> bool =
+        fun ~seconds -> previous_aged_at_least ~seconds t
+
+      method previous_age : unit -> float option =
+        fun () -> previous_age t
+
+      method status : unit -> Process.State.t =
         fun () -> status t
 
-      method suspend : unit -> Process.state * bool =
+      method suspend : unit -> Process.State.t * bool =
         fun () -> suspend t
 
-      method resume : ?nohang:unit -> unit -> Process.state * bool =
+      method resume : ?nohang:unit -> unit -> Process.State.t * bool =
         fun ?nohang () -> resume ?nohang t
 
-      method stop : ?nohang:unit -> unit -> Process.state * bool =
+      method stop : ?nohang:unit -> unit -> Process.State.t * bool =
         fun ?nohang () -> stop ?nohang t
 
-      method restart : unit -> Process.state * bool =
+      method restart : unit -> Process.State.t * bool =
         fun () -> restart t
 
     end

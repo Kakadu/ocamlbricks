@@ -17,15 +17,18 @@
 type ('a,'b) t = Left of 'a | Right of 'b
 type ('a,'b) either = ('a,'b) t
 
-let right =
+let get_right =
  function
   | Right b -> b
   | Left  _ -> invalid_arg "Either.right"
 
-let left =
+let get_left =
  function
   | Left  a -> a
   | Right _ -> invalid_arg "Either.left"
+
+let left x = Left x
+let right x = Right x
 
 let extract ?(failwith_msg="Either.extract") ?(fallback=(fun _ -> failwith failwith_msg)) =
  function

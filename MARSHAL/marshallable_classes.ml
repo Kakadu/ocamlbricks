@@ -1375,12 +1375,12 @@ let crash_test () =
   assert (x#marshaller#equals y);
 
   (* --- Test reusing with bifunctors (zip): *)
-  let oid1 = Oo.id (Either.right (y#get_field7)) in
+  let oid1 = Oo.id (Either.get_right (y#get_field7)) in
   load_y_with_x ();
-  let oid2 = Oo.id (Either.right (y#get_field7)) in
+  let oid2 = Oo.id (Either.get_right (y#get_field7)) in
   assert (oid1 <> oid2);
   load_y_with_x ~reuse:() ();
-  let oid3 = Oo.id (Either.right (y#get_field7)) in
+  let oid3 = Oo.id (Either.get_right (y#get_field7)) in
   assert (oid2 = oid3);
 
   (* --- Test cyclicity and casting: *)
@@ -1408,14 +1408,14 @@ let crash_test () =
   assert (x#marshaller#equals y);
 
   z#set_field5 ([y; x; z] :> class2 list); (* y is in the graph of x and conversely... *)
-  assert ((y :> class2) = List.hd ((Either.right x#get_field7)#get_field5));
+  assert ((y :> class2) = List.hd ((Either.get_right x#get_field7)#get_field5));
   load_y_with_x ~upcasting:() ();
   (* because y in the list of (z of) x was not recognized as... y itself
      when y was loading: *)
   assert (not (x#marshaller#equals y));
   (* but the first element of the list in y is the old state of y, not the new state
      obtained loading from x: *)
-  let y'= List.hd ((Either.right y#get_field7)#get_field5) in
+  let y'= List.hd ((Either.get_right y#get_field7)#get_field5) in
   assert (not (y#marshaller#equals y'));
   (* so, we can try to fix y' in this way: *)
   let options = make_loading_options ~try_to_preserve_upcasting:() () in

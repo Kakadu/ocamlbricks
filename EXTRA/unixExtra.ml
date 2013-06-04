@@ -113,7 +113,12 @@ let test_access ?r ?w ?x filename : bool =
  let xs = Unix.F_OK::(List.map snd xs) in
  try
    let _ = Unix.access filename xs in true
- with Unix.Unix_error (_,_,_) -> false
+ with
+  (* For a strange reason, exceptions are not matched by the
+      pattern `Unix.Unix_error (_, _, _)', even if they should!
+      Unix.Unix_error (_,_,_) -> false
+      So, we have to manipulate exceptions instead of Unix errors: *)
+   e -> false
 ;;
 
 (** Create a file if necessary with the given permissions
@@ -516,16 +521,16 @@ type program = string;;
 
 (** Search the directory containing the executable. Candidates are taken from the environment variable [PATH].
     The result [None] means not found. {b Examples}:
-{[# UnixExtra.is_executable_in_PATH "ls" ;;
+{[# UnixExtra.path_of_implicit "ls" ;;
   : string option = Some "/bin"
 
-# UnixExtra.is_executable_in_PATH "foo" ;;
+# UnixExtra.path_of_implicit "foo" ;;
   : string option = None
 ]} *)
-let is_executable_in_PATH p =
+let path_of_implicit p =
  let is_there_an_executable p d =
    let filelist = Array.to_list (Sys.readdir d) in
-   (List.mem p filelist) && (test_access ~x:() (d^"/"^p))
+   (List.mem p filelist) && (test_access ~x:() (Filename.concat d p))
  in
  let dirs = StringExtra.split ~d:':' (Sys.getenv "PATH") in
  let dirs = List.filter (test_access ~r:()) dirs in
@@ -577,7 +582,7 @@ let rec wait_child child_pid events =
   | Unix.WSIGNALED signal
   | Unix.WSTOPPED  signal -> (events.forwarded_signal <- Some signal); wait_child child_pid events
  end with
- | Unix.Unix_error(_,_, _) -> (events.waitpid_exn <- true)
+ | Unix.Unix_error(_,_,_) -> (events.waitpid_exn <- true)
  ;;
 
  let new_handler child_pid events =
@@ -862,6 +867,7 @@ let is_symlink filename =
   true
  with _ -> false
 
+(* This version is thread_unsafe because of Sys.chdir. *)
 module Thread_unsafe = struct
 
  (** See the unix command realpath: *)
@@ -899,3 +905,27 @@ module Mutex = MutexExtra.Recursive
 let mutex = Mutex.create ()
 
 let realpath ?s x = Mutex.apply_with_mutex mutex (Thread_unsafe.realpath ?s) x
+
+(** Version working in the both cases implicit/explicit program
+    reference as a shell interpreter. *)
+let is_executable program =
+  if Filename.is_implicit program
+    then (path_of_implicit program) <> None
+    else (Sys.file_exists program) && (test_access ~x:() program)
+
+let realpath_alias = realpath
+
+(** Version working in the both cases implicit/explicit program
+    reference as a shell interpreter. *)
+let resolve_executable ?realpath program =
+  let result =
+    if Filename.is_implicit program then
+      Option.map (fun path -> Filename.concat path program) (path_of_implicit program)
+    else
+    if not (Sys.file_exists program) then None else
+    if not (test_access ~x:() program) then None else
+    Some program
+  in
+  if realpath = None then result else
+  Option.bind result (fun pathname -> realpath_alias pathname)
+

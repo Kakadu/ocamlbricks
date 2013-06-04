@@ -22,10 +22,11 @@ module Process : sig
   type program = string
   type arguments = string list
   type pid = int
+  type birthtime = float (* since 00:00:00 GMT, Jan. 1, 1970, in seconds *)
+  type age  = float (* duration, in seconds *)
   type exit_code = int
   type signal_name = string
   type mrproper = unit -> unit
-  type running_state = Running | Suspended
 
   type options
   type tuning = unit -> options
@@ -37,22 +38,31 @@ module Process : sig
     ?pseudo:string ->
     unit -> options
 
-  type state =
-    | Planned    of tuning * program * arguments
-    | Started    of pid * mrproper * running_state
-    | Terminated of pid * (signal_name, exit_code) Either.t
+  module State : sig
 
-  val state_equality : state -> state -> bool
+    type running_state = Running | Suspended
 
-  val is_planned       : state -> bool
-  val is_started       : state -> bool
-  val is_suspended     : state -> bool
-  val is_running       : state -> bool
-  val is_terminated    : state -> bool
+    type t =
+      | Planned    of tuning * program * arguments
+      | Started    of program * birthtime * pid * mrproper * running_state
+      | Terminated of program * age * pid * (signal_name, exit_code) Either.t
 
-  type t = state Cortex.t
-  type u = state Cortex.Open.t
+    val equality : t -> t -> bool
 
+    val is_planned       : t -> bool
+    val is_started       : t -> bool
+    val is_suspended     : t -> bool
+    val is_running       : t -> bool
+    val is_terminated    : t -> bool
+    val is_terminated_and_has_been_really_executed : t -> bool
+    val is_terminated_aged_at_least : seconds:float -> t -> bool
+    val birthtime : t -> float option
+    val age : t -> float option
+
+  end (* Process.State *)
+
+  type t = State.t Cortex.t
+  type u = State.t Cortex.u (* open cortex *)
 
   val plan :
     ?tuning:(unit -> options) ->
@@ -65,40 +75,43 @@ module Process : sig
 	program -> arguments -> u
     end
 
-  val start     : t -> state * bool
-  val suspend   : ?nohang:unit -> t -> state * bool
-  val resume    : ?nohang:unit -> t -> state * bool
-  val terminate : ?nohang:unit -> t -> state * bool
+  val start     : t -> State.t * bool
+  val suspend   : ?nohang:unit -> t -> State.t * bool
+  val resume    : ?nohang:unit -> t -> State.t * bool
+  val terminate : ?nohang:unit -> t -> State.t * bool
 
   class c :
     ?tuning:(unit -> options) ->
     program ->
     arguments ->
     object
-      inherit [state] Cortex.to_object_with_private_interface
-      method start : unit -> state * bool
-      method suspend : ?nohang:unit -> unit -> state * bool
-      method resume : ?nohang:unit -> unit -> state * bool
-      method terminate : ?nohang:unit -> unit -> state * bool
+      inherit [State.t] Cortex.Object.with_private_interface
+      method start     : unit -> State.t * bool
+      method suspend   : ?nohang:unit -> unit -> State.t * bool
+      method resume    : ?nohang:unit -> unit -> State.t * bool
+      method terminate : ?nohang:unit -> unit -> State.t * bool
     end
 
 end
 
 module Service : sig
 
-  type t = (Process.state option * Process.t) Cortex.t
+  type t = (Process.State.t option * Process.t) Cortex.t
 
   val plan :
     ?tuning:Process.tuning ->
     Process.program -> Process.arguments -> t
 
-  val start           : t -> Process.state * bool
-  val previous_status : t -> Process.state option
-  val status          : t -> Process.state
-  val suspend         : t -> Process.state * bool
-  val resume          : ?nohang:unit -> t -> Process.state * bool
-  val stop            : ?nohang:unit -> t -> Process.state * bool
-  val restart         : t -> Process.state * bool
+  val start                    : t -> Process.State.t * bool
+  val previous_status          : t -> Process.State.t option
+  val previous_really_executed : t -> bool
+  val previous_age             : t -> float option
+  val previous_aged_at_least   : seconds:float -> t -> bool
+  val status                   : t -> Process.State.t
+  val suspend                  : t -> Process.State.t * bool
+  val resume                   : ?nohang:unit -> t -> Process.State.t * bool
+  val stop                     : ?nohang:unit -> t -> Process.State.t * bool
+  val restart                  : t -> Process.State.t * bool
 
   class c :
     ?tuning:Process.tuning ->
@@ -106,15 +119,18 @@ module Service : sig
     Process.arguments ->
     object
       inherit
-        [Process.state option * Process.state Cortex.t]
-           Cortex.to_object_with_private_interface
-      method start           : unit -> Process.state * bool
-      method previous_status : unit -> Process.state option
-      method status          : unit -> Process.state
-      method suspend         : unit -> Process.state * bool
-      method resume          : ?nohang:unit -> unit -> Process.state * bool
-      method stop            : ?nohang:unit -> unit -> Process.state * bool
-      method restart         : unit -> Process.state * bool
+        [Process.State.t option * Process.t]
+           Cortex.Object.with_private_interface
+      method start                    : unit -> Process.State.t * bool
+      method previous_status          : unit -> Process.State.t option
+      method previous_really_executed : unit -> bool
+      method previous_age             : unit -> float option
+      method previous_aged_at_least   : seconds:float -> bool
+      method status                   : unit -> Process.State.t
+      method suspend                  : unit -> Process.State.t * bool
+      method resume                   : ?nohang:unit -> unit -> Process.State.t * bool
+      method stop                     : ?nohang:unit -> unit -> Process.State.t * bool
+      method restart                  : unit -> Process.State.t * bool
     end
 
 end
