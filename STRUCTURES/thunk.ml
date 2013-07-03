@@ -54,6 +54,19 @@ let of_lazy l = fun () -> Lazy.force l
 type id = int
 type linear = bool
 
+let rec first_success pred = function
+| []    -> None
+| t::ts ->
+  let y = t () in
+  (match (pred y) with
+   | false -> first_success pred ts
+   | true  -> Some y
+   )
+
+let first_attempt p0 ts =
+ let p1 = function None -> false | Some x -> p0 x in
+ Option.join (first_success p1 ts)
+
 module Make_class_with_discipline (M : Container.T_with_identifiers) = struct
 
 let dress_thunk ?fallback ?one_shot thunk =

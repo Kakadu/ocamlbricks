@@ -30,6 +30,12 @@ val of_lazy   : 'a lazy_t -> 'a t
 type id = int
 type linear = bool
 
+(** First thunk providing a suitable result: *)
+val first_success : ('a -> bool) -> 'a t list -> 'a option
+
+(** As first_success, but each thunk may directly fails (None): *)
+val first_attempt : ('a -> bool) -> ('a option) t list -> 'a option
+
 (** A queue of 'a thunks. Linear (one-shot) thunks are automatically
    removed after each call of apply. Note that the first parameter
    of the folder is the accumulator (current state). *)
