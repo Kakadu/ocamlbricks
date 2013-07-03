@@ -141,10 +141,10 @@ world: world-local main
 # foo.byte   : manually_pre_actions
 # foo.native : manually_pre_actions
 #
-# MANUALLY_PRE_COPY_IN_build = include_as_string.ml USAGE.txt
-# MANUALLY_PRE_MAKE_IN_build = include_as_string.cmo
+# MANUALLY_PRE_COPY_IN_build = include_as_string_p4.ml USAGE.txt
+# MANUALLY_PRE_MAKE_IN_build = include_as_string_p4.cmo
 #
-# _build/include_as_string.cmo: include_as_string.ml
+# _build/include_as_string_p4.cmo: include_as_string_p4.ml
 #	ocamlc -c -I +camlp4 camlp4lib.cma -pp camlp4of -o $@ $<
 
 .PHONY : manually_pre_actions manually_post_actions

@@ -97,3 +97,28 @@ let for_int ?break ?backward ?(step=1) ~min ~max f acc =
 	if x < min || (break acc x) then acc else loop (f acc x) (x-step)
       in
       loop acc min
+
+
+let get_first_line_of_file filename =
+  try
+    let ch = open_in filename in
+    let line = input_line ch in
+    let () = close_in ch in
+    Some line
+  with _ -> None
+
+
+let get_first_lines_of_file filename n =
+  try
+    let ch = open_in filename in
+    let rec loop k acc =
+      if k=0 then List.rev acc else
+      try
+        let line = input_line ch in
+        loop (k-1) (line::acc)
+      with _ -> List.rev acc
+    in
+    let result = loop n [] in
+    let () = close_in ch in
+    result
+  with _ -> []
