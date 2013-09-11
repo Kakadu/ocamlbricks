@@ -194,13 +194,6 @@ let eqset a b = (subset a b) && (subset b a)
 (** Intersection of list: AvB=A\(A\B) . *)
 let intersection a b = substract a (substract a b)
 
-let rec product2 xs = function
- | [] -> []
- | y::ys -> List.append (List.map (fun x->(x,y)) xs) (product2 xs ys)
-
-let product3 xs ys zs =
-  List.map (function (z,(y,x)) -> (x,y,z)) (product2 zs (product2 ys xs))
-
 (** Shortcut for [List.iter] with arguments in the opposite order: before the list, then the action to perfom. *)
 let foreach l f = List.iter f l
 
@@ -432,6 +425,22 @@ let rec combine4 l1 l2 l3 l4 = match (l1,l2,l3,l4) with
  | [] -> ([],[],[],[],[],[],[],[])
  | (x1,x2,x3,x4,x5,x6,x7,x8)::r -> let (s1,s2,s3,s4,s5,s6,s7,s8) = (split8 r) in (x1::s1,x2::s2,x3::s3,x4::s4,x5::s5,x6::s6,x7::s7,x8::s8)
  ;;
+
+(** Cartesian products: *)
+
+ let rec product xs ys =
+  match xs with
+  | x::xs -> List.append (List.map (fun y -> (x,y)) ys) (product xs ys)
+  | []    -> []
+ ;;
+
+let product2 = product;;
+let rec product3 xs ys zs = match xs with x::xs -> List.append (List.map (fun (y,z) -> (x,y,z)) (product2 ys zs)) (product3 xs ys zs) | [] -> [] ;;
+let rec product4 xs ys zs us = match xs with x::xs -> List.append (List.map (fun (y,z,u) -> (x,y,z,u)) (product3 ys zs us)) (product4 xs ys zs us) | [] -> [] ;;
+let rec product5 xs ys zs us vs = match xs with x::xs -> List.append (List.map (fun (y,z,u,v) -> (x,y,z,u,v)) (product4 ys zs us vs)) (product5 xs ys zs us vs) | [] -> [] ;;
+let rec product6 xs ys zs us vs ts = match xs with x::xs -> List.append (List.map (fun (y,z,u,v,t) -> (x,y,z,u,v,t)) (product5 ys zs us vs ts)) (product6 xs ys zs us vs ts) | [] -> [] ;;
+let rec product7 xs ys zs us vs ts ws = match xs with x::xs -> List.append (List.map (fun (y,z,u,v,t,w) -> (x,y,z,u,v,t,w)) (product6 ys zs us vs ts ws)) (product7 xs ys zs us vs ts ws) | [] -> [] ;;
+let rec product8 xs ys zs us vs ts ws ls = match xs with x::xs -> List.append (List.map (fun (y,z,u,v,t,w,l) -> (x,y,z,u,v,t,w,l)) (product7 ys zs us vs ts ws ls)) (product8 xs ys zs us vs ts ws ls) | [] -> [] ;;
 
 module Assoc = struct
 

@@ -42,13 +42,25 @@ val k_perm_iter : ?disorder:unit -> k:int -> ('a list -> unit) -> 'a list -> uni
 val k_perm_map  : ?disorder:unit -> k:int -> ('a list -> 'b) -> 'a list -> 'b list
 val k_perm      : ?disorder:unit -> k:int -> 'a list -> 'a list list
 
-
 (*
 val comb      : k:int -> 'b list -> 'b list list
 val comb_fold : k:int -> ('a -> 'b list -> 'a) -> 'a -> 'b list -> 'a
 val comb_iter : k:int -> ('a list -> unit) -> 'a list -> unit
 val comb_map  : k:int -> ('a list -> 'b) -> 'a list -> 'b list
 *)
+
+(** Cartesian products: *)
+
+val product  : 'a list -> 'b list -> ('a * 'b) list
+val product2 : 'a list -> 'b list -> ('a * 'b) list
+val product3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
+val product4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) list
+val product5 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> ('a * 'b * 'c * 'd * 'e) list
+val product6 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> ('a * 'b * 'c * 'd * 'e * 'f) list
+val product7 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list -> ('a * 'b * 'c * 'd * 'e * 'f * 'g) list
+val product8 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list -> 'h list -> ('a * 'b * 'c * 'd * 'e * 'f * 'g * 'h) list
+
+
 val map_fold  : ?acc:'c list -> ('a -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
 val mapi_fold : ?acc:'c list -> ('a -> int -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
 
@@ -105,9 +117,6 @@ val eqset        : 'a list -> 'a list -> bool
 val intersection : 'a list -> 'a list -> 'a list
 val uniq         : 'a list -> 'a list
 val remove_duplicates : ?take_first:bool -> 'a list -> 'a list
-
-val product2 : 'a list -> 'b list -> ('a * 'b) list
-val product3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
 
 (** {2 Indexes} *)
 
