@@ -68,7 +68,7 @@ val chop      : string -> string
 
 (** {2 Considering as a char array} *)
 
-val init : int -> (int -> char) -> string
+val init         : int -> (int -> char) -> string
 val iteri        : (int -> char -> 'a) -> string -> unit
 val iter2        : (char -> char -> 'a) -> string -> string -> unit
 val iteri2       : (int -> char -> char -> 'a) -> string -> string -> unit

@@ -428,19 +428,36 @@ let rec combine4 l1 l2 l3 l4 = match (l1,l2,l3,l4) with
 
 (** Cartesian products: *)
 
- let rec product xs ys =
+let rec product2 xs ys =
   match xs with
-  | x::xs -> List.append (List.map (fun y -> (x,y)) ys) (product xs ys)
   | []    -> []
- ;;
+  | x::xs -> List.append (List.map (fun y -> (x,y)) ys) (product2 xs ys)
+;;
 
-let product2 = product;;
+ 
 let rec product3 xs ys zs = match xs with x::xs -> List.append (List.map (fun (y,z) -> (x,y,z)) (product2 ys zs)) (product3 xs ys zs) | [] -> [] ;;
 let rec product4 xs ys zs us = match xs with x::xs -> List.append (List.map (fun (y,z,u) -> (x,y,z,u)) (product3 ys zs us)) (product4 xs ys zs us) | [] -> [] ;;
 let rec product5 xs ys zs us vs = match xs with x::xs -> List.append (List.map (fun (y,z,u,v) -> (x,y,z,u,v)) (product4 ys zs us vs)) (product5 xs ys zs us vs) | [] -> [] ;;
 let rec product6 xs ys zs us vs ts = match xs with x::xs -> List.append (List.map (fun (y,z,u,v,t) -> (x,y,z,u,v,t)) (product5 ys zs us vs ts)) (product6 xs ys zs us vs ts) | [] -> [] ;;
 let rec product7 xs ys zs us vs ts ws = match xs with x::xs -> List.append (List.map (fun (y,z,u,v,t,w) -> (x,y,z,u,v,t,w)) (product6 ys zs us vs ts ws)) (product7 xs ys zs us vs ts ws) | [] -> [] ;;
 let rec product8 xs ys zs us vs ts ws ls = match xs with x::xs -> List.append (List.map (fun (y,z,u,v,t,w,l) -> (x,y,z,u,v,t,w,l)) (product7 ys zs us vs ts ws ls)) (product8 xs ys zs us vs ts ws ls) | [] -> [] ;;
+
+(* General case: *)
+type 'a tuple = 'a list
+
+(** {b Example}:
+# product [[1;2;3];[4;5];[6]] ;;
+  : int list list =
+[[1; 4; 6]; [1; 5; 6]; [2; 4; 6]; [2; 5; 6]; [3; 4; 6]; [3; 5; 6]]
+*)
+let rec product : 'a list tuple -> 'a tuple list = function 
+| [] -> []
+| [xs] -> List.map (fun x -> [x]) xs
+| xs::yss -> 
+    match xs with 
+    | x::xs -> List.append (List.map (fun ys -> x::ys) (product yss)) (product (xs::yss)) 
+    | [] -> [] 
+;;
 
 module Assoc = struct
 

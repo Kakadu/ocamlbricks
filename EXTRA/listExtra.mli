@@ -51,7 +51,6 @@ val comb_map  : k:int -> ('a list -> 'b) -> 'a list -> 'b list
 
 (** Cartesian products: *)
 
-val product  : 'a list -> 'b list -> ('a * 'b) list
 val product2 : 'a list -> 'b list -> ('a * 'b) list
 val product3 : 'a list -> 'b list -> 'c list -> ('a * 'b * 'c) list
 val product4 : 'a list -> 'b list -> 'c list -> 'd list -> ('a * 'b * 'c * 'd) list
@@ -60,6 +59,8 @@ val product6 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list ->
 val product7 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list -> ('a * 'b * 'c * 'd * 'e * 'f * 'g) list
 val product8 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list -> 'g list -> 'h list -> ('a * 'b * 'c * 'd * 'e * 'f * 'g * 'h) list
 
+type 'a tuple = 'a list
+val product : 'a list tuple -> 'a tuple list
 
 val map_fold  : ?acc:'c list -> ('a -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
 val mapi_fold : ?acc:'c list -> ('a -> int -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
