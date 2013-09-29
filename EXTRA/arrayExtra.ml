@@ -294,6 +294,15 @@ let fold_right2 f xs ys s0 = fold_righti (fun i x s -> f x ys.(i) s) xs s0
 let fold_lefti2  f s0 xs ys = fold_lefti  (fun i s x -> f i s x ys.(i)) s0 xs
 let fold_righti2 f xs ys s0 = fold_righti (fun i x s -> f i x ys.(i) s) xs s0
 
+let fold_binop f s =
+ let l = Array.length s in
+ if l = 0 then invalid_arg "ArrayExtra.fold_binop: I cannot fold an empty array" else
+ let rec loop acc i =
+  if i>=l then acc else
+  let acc = f acc s.(i) in
+  loop acc (i+1)
+ in loop s.(0) 1
+
 (** Similar to [List.partition] but for arrays and with many classes.
 {b Example}:
 {[

@@ -155,7 +155,9 @@ val lift_to_the_top_positions : ('a -> bool) -> 'a list -> 'a list
 
 (** {2 Folding} *)
 
-val big  : ('a -> 'a -> 'a) -> 'a list -> 'a
+val fold_binop  : ('a -> 'a -> 'a) -> 'a list -> 'a
+val big         : ('a -> 'a -> 'a) -> 'a list -> 'a
+
 val max  : 'a list -> 'a
 val min  : 'a list -> 'a
 val best : ?choice:('a -> 'a -> 'a) -> 'a list -> 'a

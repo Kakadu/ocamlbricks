@@ -323,17 +323,20 @@ let shuffler l = l => (indexes || shuffle || asFunction )
 let shuffleIndexes l = l => (indexes || shuffle)
 
 (** The {e folding} of lists is simply a [List.fold_left] specialization:
-
      - the first element is the {b head} of the list
      - the folding is performed on the {b tail} of the list.
-
-   This function is adequate for most common cases. Use the module [Big] when
-   maximum generality is requested. *)
+   This function is adequate for most common cases. *)
 let big f = function
-  | []   -> failwith "big"
+  | []   -> invalid_arg "ListExtra.big: I cannot fold an empty list"
   | [x]  -> x
   | x::r -> List.fold_left f x r
 
+(* Alias for `big': *)  
+let fold_binop f = function
+  | []   -> invalid_arg "ListExtra.fold_binop: I cannot fold an empty list"
+  | [x]  -> x
+  | x::r -> List.fold_left f x r
+  
 (** {b Common foldings} *)
 
 (** By default the best is the minimal element, i.e. the choice function is set by default to [min]. *)
