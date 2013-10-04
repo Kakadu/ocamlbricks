@@ -135,6 +135,20 @@ module ComboTextTree :
       ?slave1Callback:(choice -> unit) option ->
       ?slave1Packing:(GObj.widget -> unit) option ->
       (choice -> choices) -> comboTextTree
+
+    val fromListWithThreeSlaves :
+      ?masterCallback:(choice -> unit) option ->
+      ?masterPacking:(GObj.widget -> unit) option ->
+      choices ->
+      ?slave0Callback:(choice -> unit) option ->
+      ?slave0Packing:(GObj.widget -> unit) option ->
+      (choice -> choices) ->
+      ?slave1Callback:(choice -> unit) option ->
+      ?slave1Packing:(GObj.widget -> unit) option ->
+      (choice -> choices) ->
+      ?slave2Callback:(choice -> unit) option ->
+      ?slave2Packing:(GObj.widget -> unit) option ->
+      (choice -> choices) -> comboTextTree
   end
 
 class textview :

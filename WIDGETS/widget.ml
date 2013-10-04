@@ -491,6 +491,56 @@ let fromListWithTwoSlaves
    master
 ;;
 
+let fromListWithThreeSlaves
+ ?(masterCallback:((choice->unit) option) = None)
+ ?(masterPacking:((GObj.widget -> unit) option) = None)
+  (masterChoices:choices)
+
+ ?(slave0Callback:((choice->unit) option) = None)
+ ?(slave0Packing:((GObj.widget -> unit) option) = None )
+  (slave0Choices: choice -> choices)
+
+ ?(slave1Callback:((choice->unit) option) = None)
+ ?(slave1Packing:((GObj.widget -> unit) option) = None )
+  (slave1Choices: choice -> choices)
+
+ ?(slave2Callback:((choice->unit) option) = None)
+ ?(slave2Packing:((GObj.widget -> unit) option) = None )
+  (slave2Choices: choice -> choices)
+
+ = let master =
+     fromList ~key:"master" ~callback:masterCallback ~packing:masterPacking masterChoices
+   in
+   let slave0  =
+     make
+      ~generator:(fun r -> slave0Choices (r#get "master"))
+      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~key:"slave0"
+      ~callback:slave0Callback
+      ~packing:slave0Packing
+   in
+   let slave1  =
+     make
+      ~generator:(fun r -> slave1Choices (r#get "master"))
+      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~key:"slave1"
+      ~callback:slave1Callback
+      ~packing:slave1Packing
+   in
+   let slave2  =
+     make
+      ~generator:(fun r -> slave2Choices (r#get "master"))
+      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~key:"slave2"
+      ~callback:slave2Callback
+      ~packing:slave2Packing
+   in
+   let _ = master#add_child slave0 in
+   let _ = master#add_child slave1 in
+   let _ = master#add_child slave2 in
+   master
+;;
+
 
 end ;; (* Module ComboTextTree *)
 
