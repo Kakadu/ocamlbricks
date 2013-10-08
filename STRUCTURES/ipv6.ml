@@ -82,7 +82,7 @@ let to_string ?uncompress t =
 
 (** Convert a string in the form ["xxxx:xxxx:..:xxxx/<cidr>"] into its internal representation. *)
 let config_of_string (config:string) =
-  match Option.apply_or_catch (Scanf.sscanf config "%s@/%i") (fun s i -> s,i) with
+  match Option.apply_or_catch (Scanf.sscanf config "%s@/%i%s") (fun s i r ->  (assert (r="")); (s,i)) with
   | None -> invalid_arg ("Ipv6.config_of_string: ill-formed address/cidr: "^config)
   | Some (s, cidr) ->
       if cidr < 0 || cidr > 128

@@ -72,7 +72,7 @@ let netmask_of_string s =
       (Printf.sprintf "Ipv4.netmask_of_string: ill-formed netmask %s" s)
   in
   try begin
-    let netmask = Scanf.sscanf s "%i.%i.%i.%i" (fun b1 b2 b3 b4 -> (b1, b2, b3, b4)) in
+    let netmask = Scanf.sscanf s "%i.%i.%i.%i%s" (fun b1 b2 b3 b4 r ->  (assert (r="")); (b1, b2, b3, b4)) in
     let _ = cidr_of_netmask netmask in (* verify *)
     netmask
   end with _ -> invalid_arg ()
@@ -89,7 +89,7 @@ let of_string s =
     List.for_all (fun x->(x>=0) && (x<=255)) [b1; b2; b3; b4]
   in
   try
-    let result = Scanf.sscanf s "%i.%i.%i.%i" (fun b1 b2 b3 b4 -> (b1, b2, b3, b4)) in
+    let result = Scanf.sscanf s "%i.%i.%i.%i%s" (fun b1 b2 b3 b4 r -> (assert (r="")); (b1, b2, b3, b4)) in
     if is_valid result then result else invalid_arg ()
    with _ -> invalid_arg ()
 
@@ -100,9 +100,9 @@ let to_string (b1, b2, b3, b4) =
 let string_of_config ((b1, b2, b3, b4), cidr) =
   Printf.sprintf "%i.%i.%i.%i/%i" b1 b2 b3 b4 cidr
 
-(** Convert a string in the form ["xxxx:xxxx:..:xxxx/<cidr>"] into its internal representation. *)
+(** Convert a string in the form ["xx.xx.xx.xx/<cidr>"] into its internal representation. *)
 let config_of_string (config:string) =
-  match Option.apply_or_catch (Scanf.sscanf config "%s@/%i") (fun s i -> s,i) with
+  match Option.apply_or_catch (Scanf.sscanf config "%s@/%i%s") (fun s i r ->  (assert (r="")); (s,i)) with
   | None -> invalid_arg ("Ipv4.config_of_string: ill-formed address/cidr: "^config)
   | Some (s, cidr) ->
       if cidr < 0 || cidr > 32
