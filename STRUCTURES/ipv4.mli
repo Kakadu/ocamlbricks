@@ -29,6 +29,9 @@ type netmask = t
 type config          = t * cidr
 type verbose_config  = t * netmask
 
+(** Completion: *)
+val to_config : t -> config option
+
 (** {2 Netmask <-> CIDR} *)
 
 val netmask_of_cidr   : cidr -> netmask
@@ -42,6 +45,8 @@ val to_string : t -> string
 
 val config_of_string  : string -> config
 val string_of_config  : config -> string
+
+val import : string -> (t, config) Either.t option
 
 type ipcalc_result =
 < ip        : t;

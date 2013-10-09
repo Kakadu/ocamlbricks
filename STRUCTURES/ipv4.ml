@@ -113,7 +113,30 @@ let config_of_string (config:string) =
           | Some t -> (t, cidr)
         end
 
+(** Try to complete an Ipv4 address using historical classes (as performed for instance by the Unix command `ifconfig') *)
+let to_config ((b1, b2, b3, b4) as t) : config option =
+  let b5 = 
+    if b1 < 128 then Some 8  (* class A *) else
+    if b1 < 192 then Some 16 (* class B *) else
+    if b1 < 224 then Some 24 (* class C *) else 
+    None
+  in
+  Option.map (fun b5 -> (t,b5)) b5
 
+(** Try to import a string as config or simple address (when the CIDR is not specified neither deductible). *)  
+let import (s:string) : (t, config) Either.t option =
+  try begin
+    let config = config_of_string s in
+    Some (Either.Right config)
+  end with _ -> 
+  try begin
+    let t = of_string s in
+    match to_config t with
+    | Some config -> Some (Either.Right config)
+    | None        -> Some (Either.Left t)
+  end with _ -> None  
+  
+  
 (* ********************************************
                  ipcalc
    ******************************************** *)
