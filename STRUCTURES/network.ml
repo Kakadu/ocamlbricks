@@ -172,7 +172,6 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
     while true do
       Log.printf "Waiting for connection on %s\n" listen_socket_as_string;
       let (service_socket, _) = accepting_function listen_socket in
-      incr connexion_no;
       let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
       match Unix.fork () with
       |	0 ->
@@ -884,17 +883,17 @@ module Socat = struct
 DEFINE MACRO_CROSSOVER_LINK (chA,chB) =
   let rec loop_A_to_B () =
     try
-      let x  = chA#receive () in
-      let () = chB#send x in
+      let x  = (try chA#receive () with e -> chB#shutdown ~send:()    (); raise e) in
+      let () = (try chB#send x     with e -> chA#shutdown ~receive:() (); raise e) in
       loop_A_to_B ()
-    with _ -> chB#shutdown ()
+    with _ -> ()
   in
   let rec loop_B_to_A () =
     try
-      let x  = chB#receive () in
-      let () = chA#send x in
+      let x  = (try chB#receive () with e -> chA#shutdown ~send:()    (); raise e) in
+      let () = (try chA#send x     with e -> chB#shutdown ~receive:() (); raise e) in
       loop_B_to_A ()
-    with _ -> chA#shutdown ()
+    with _ -> ()
   in
   let thread_A_to_B = Thread.create loop_A_to_B () in
   let thread_B_to_A = Thread.create loop_B_to_A () in
