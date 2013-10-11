@@ -58,13 +58,13 @@ let rec accept_non_intr s =
   | Unix.Unix_error (Unix.EINTR, _, _) -> accept_non_intr s
   | e -> raise (Accepting e)
 
-let accept_in_range_non_intr ~range_predicate ~range_string s =
+let accept_in_range_non_intr ~(range_predicate : Unix.sockaddr -> bool) ~(range_string : string) s =
   let rec loop () =
     try
       let (service_socket, _) as result = Unix.accept s in
-      let sockaddr0 = string_of_sockaddr (Unix.getsockname service_socket) in
+      let sockaddr0 = (Unix.getsockname service_socket) in
       if range_predicate sockaddr0 then result else begin
-	Log.printf "Rejecting a connexion from %s (not in the range %s)\n" sockaddr0 range_string;
+	Log.printf "Rejecting a connexion from %s (not in the range %s)\n" (string_of_sockaddr sockaddr0) range_string;
 	Unix.close service_socket;
 	loop ()
       end
@@ -76,15 +76,23 @@ let accept_in_range_non_intr ~range_predicate ~range_string s =
 
 module Ipv4_or_ipv6 = struct
 
-  let range_predicate_of (config:string) =
+  (** Convert a predicate about a string (representing an IPv4 or an IPv6 address)
+      into a predicate about a Unix.sockaddr *)
+  let sockaddr_predicate_of_ip_predicate (pred : ip:string -> bool) : (Unix.sockaddr -> bool) =
+    function
+    | Unix.ADDR_UNIX _ -> false
+    | Unix.ADDR_INET (inet_addr, port) ->
+        let ip = (Unix.string_of_inet_addr inet_addr) in
+        pred ~ip
+
+  let range_predicate_of (config:string) : (Unix.sockaddr -> bool) =
     match Option.apply_or_catch (fun config -> Ipv4.String.ipcalc ~config) config with
-    | Some result ->
-        (fun ip -> result#contains ~ip)
+    | Some result -> sockaddr_predicate_of_ip_predicate (result#contains)
     | None ->
         begin
 	  match Option.apply_or_catch (fun config -> Ipv6.String.ipcalc ~config) config with
-	  | Some result -> (fun ip -> result#contains ~ip)
-	  | None -> invalid_arg ("invalid range: "^config)
+	  | Some result -> sockaddr_predicate_of_ip_predicate (result#contains)
+	  | None        -> invalid_arg ("invalid range: "^config)
 	end
 
 end
