@@ -58,7 +58,8 @@ ocaml_libraryprefix=$(ocamlc -where || exit -1)
 # By default they will be installed into ${ocaml_libraryprefix}, but you 
 # can change it if you really want to install into a different, custom prefix.
 # *No* trailing slash should be included.
-libraryprefix=${ocaml_libraryprefix}
+libraryprefix=$(which 1>/dev/null ocamlfind && ocamlfind printconf path)
+libraryprefix=${libraryprefix:-$ocaml_libraryprefix}
 #
 # This definition may be appropriate for debian packaging:
 #libraryprefix=debian/tmp/${ocaml_libraryprefix}
