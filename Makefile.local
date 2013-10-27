@@ -17,12 +17,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+# BYTE_COMPILE_OPTIONS += -custom -ccopt -L./ -cclib -L./
 COMPILE_OPTIONS += -g -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2 camlp4
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
 NATIVE_PROGRAMS += mutexExtra_test.native
-BYTE_PROGRAMS += mutexExtra_test.byte
+BYTE_PROGRAMS += mutexExtra_test.byte toolkit.byte
 
 NATIVE_LIBRARY_NAME = ocamlbricks.cmxa
 BYTE_LIBRARY_NAME = ocamlbricks.cma
