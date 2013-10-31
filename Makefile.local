@@ -23,7 +23,7 @@ DIRECTORIES_TO_INCLUDE = threads lablgtk2 camlp4
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
 NATIVE_PROGRAMS += mutexExtra_test.native
-BYTE_PROGRAMS += mutexExtra_test.byte toolkit.byte
+BYTE_PROGRAMS += mutexExtra_test.byte
 
 NATIVE_LIBRARY_NAME = ocamlbricks.cmxa
 BYTE_LIBRARY_NAME = ocamlbricks.cma
@@ -43,6 +43,9 @@ OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-
 
 MANUALLY_PRE_COPY_IN_build =     \
   GETTEXT/gettext_extract_pot_p4.ml{,i} \
+  GETTEXT/gettext-c-wrapper.c \
+  EXTRA/does-process-exist-c-wrapper.c \
+  EXTRA/waitpid-c-wrapper.c \
   CAMLP4/include_type_definitions_p4.ml{,i} \
   CAMLP4/include_as_string_p4.ml{,i} \
   CAMLP4/where_p4.ml{,i} \
@@ -51,6 +54,7 @@ MANUALLY_PRE_COPY_IN_build =     \
   CAMLP4/raise_p4.ml{,i} \
   CAMLP4/log_module_loading_p4.ml{,i}
 
+  
 MANUALLY_PRE_MAKE_IN_build =      \
   gettext_extract_pot_p4.cm{i,o} \
   include_type_definitions_p4.cm{i,o} \
@@ -58,7 +62,8 @@ MANUALLY_PRE_MAKE_IN_build =      \
   where_p4.cm{i,o} \
   option_extract_p4.cm{i,o} \
   raise_p4.cm{i,o} \
-  log_module_loading_p4.cm{i,o}
+  log_module_loading_p4.cm{i,o} \
+  ocamlbricks_stubs
 
 main-local: meta_ocamlbricks.ml
 
@@ -115,20 +120,13 @@ _build/gettext_extract_pot_p4.cmi: $(GETTEXT)/gettext_extract_pot_p4.mli
 _build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
 	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of camlp4lib.cma -o $@ $<
 
-_build/gettext-c-wrapper.o: $(GETTEXT)/gettext-c-wrapper.c
-	@$(call READ_CONFIG, ocaml_sources); \
-	(mkdir _build &> /dev/null || true) && \
-	gcc -g -O3 -I $$ocaml_sources -I $$ocaml_sources/byterun -I $$ocaml_sources/otherlibs/unix -o $@ -c $^
-
-_build/does-process-exist-c-wrapper.o: EXTRA/does-process-exist-c-wrapper.c
-	@$(call READ_CONFIG, ocaml_sources); \
-	(mkdir _build &> /dev/null || true) && \
-	gcc -g -O3 -I $$ocaml_sources -I $$ocaml_sources/byterun -I $$ocaml_sources/otherlibs/unix -o $@ -c $^
-
-_build/waitpid-c-wrapper.o: EXTRA/waitpid-c-wrapper.c
-	@$(call READ_CONFIG, ocaml_sources); \
-	(mkdir _build &> /dev/null || true) && \
-	gcc -g -O3 -I $$ocaml_sources -I $$ocaml_sources/byterun -I $$ocaml_sources/otherlibs/unix -o $@ -c $^
+_build/ocamlbricks_stubs: $(GETTEXT)/gettext-c-wrapper.c  EXTRA/does-process-exist-c-wrapper.c  EXTRA/waitpid-c-wrapper.c
+	@(mkdir _build &> /dev/null || true); \
+	cd _build; \
+	ocamlc -c -verbose $(GETTEXT)/gettext-c-wrapper.c; \
+	ocamlc -c -verbose EXTRA/does-process-exist-c-wrapper.c; \
+	ocamlc -c -verbose EXTRA/waitpid-c-wrapper.c; \
+	ocamlmklib -verbose -oc ocamlbricks_stubs gettext-c-wrapper.o does-process-exist-c-wrapper.o waitpid-c-wrapper.o
 
 # idempotent
 rebuilding:
@@ -148,18 +146,19 @@ clean-local:
 
 TESTING_TRACE=_build/compiled-with-DDOCUMENTATION_OR_DEBUGGING
 compile_for_testing:
-	test -f  $(TESTING_TRACE) || \
+	@if test -f  $(TESTING_TRACE); then echo "Ok, already compiled for testing."; else \
 	  make clean && \
 	  make PP_OPTION="$(PP_OPTION) -DDOCUMENTATION_OR_DEBUGGING" && \
-	  touch $(TESTING_TRACE)
+	  touch $(TESTING_TRACE); \
+	  fi
 
 # Test without installation
 LIBRARY_TO_TEST=_build/ocamlbricks.cma
 test: compile_for_testing rebuilding
-	@chmod +x Makefile.d/test.sh
-	@Makefile.d/test.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"
+	@chmod +x Makefile.d/test_with.sh
+	@Makefile.d/test_with.sh "ocaml"
 
 # Test without installation with the utop toplevel
 test_with_utop: compile_for_testing rebuilding
-	@chmod +x Makefile.d/test_with_utop.sh
-	@Makefile.d/test_with_utop.sh -l "$(LIBRARIES_TO_LINK)" -i "$(DIRECTORIES_TO_INCLUDE)"
+	@chmod +x Makefile.d/test_with.sh
+	@Makefile.d/test_with.sh "utop"

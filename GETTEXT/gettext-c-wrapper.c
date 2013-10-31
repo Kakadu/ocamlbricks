@@ -22,11 +22,11 @@
 #include <stdbool.h>
 #include <libintl.h>
 
-#include <mlvalues.h>
+#include <caml/mlvalues.h>
 /* If I don't #include caml/alloc.h then this module compiles fine, but then crashes
    at runtime. Funny, isn't it? */
-#include <alloc.h>
-#include <memory.h>
+#include <caml/alloc.h>
+#include <caml/memory.h>
 
 /* Some part of the gettext initialization should only be performed once: */
 static bool was_gettext_initialized = false;

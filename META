@@ -1,7 +1,6 @@
 name="ocamlbricks"
 version="trunk"
 descriton = "A general-purpose library of reusable small code bricks"
-directory = "+ocamlbricks"
 requires = "lablgtk2 unix str"
 archive(syntax,preprocessor) = "-thread"
 archive(byte,mt) = "ocamlbricks.cma"

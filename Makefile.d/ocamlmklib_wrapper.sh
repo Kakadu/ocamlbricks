@@ -20,7 +20,6 @@
 # ocamlmklib_wrapper $(OTHER_LIBRARY_FILES_TO_INSTALL)"
 
 set -e
-set -x
 
 # Check script dependencies
 type ocamlobjinfo
@@ -40,8 +39,6 @@ CMX=$(ocamlobjinfo _build/ocamlbricks.cma | awk '/Unit name/{x=tolower(substr($3
 
 cd _build/
 echo "Rebuilding library with ocamlmklib..."
-set -x
-ocamlmklib -custom -o ocamlbricks $OBJECTS $INCLUDES $CMO
-ocamlmklib -custom -o ocamlbricks $OBJECTS $INCLUDES $CMX
-set +x
+echo '---'; set -x; ocamlc   -a -linkall -dllib -locamlbricks_stubs -o ocamlbricks.cma  $INCLUDES $CMO; set +x
+echo '---'; set -x; ocamlopt -a -linkall -cclib -locamlbricks_stubs -o ocamlbricks.cmxa $INCLUDES $CMX; set +x; 
 ls -l ocamlbricks.cm{,x}a

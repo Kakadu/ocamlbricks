@@ -443,6 +443,9 @@ install-libraries: libraries install-libraries-local
 	        `find _build/ -name \*.cmi | grep -v /myocamlbuild` \
 	        `find _build/ -name \*.mli | grep -v /myocamlbuild` \
 	      $(LIBRARYPREFIX)/$$name/) && \
+	  if test -d $(LIBRARYPREFIX)/stublibs/; then \
+	    find _build/ -name "dll*.so" -exec cp -f "{}" $(LIBRARYPREFIX)/stublibs/ ";" ; \
+	  fi; \
 	  echo 'Library installation was successful.'; \
 	fi)
 
@@ -867,7 +870,8 @@ myocamlbuild.ml:
 		echo -en "A \"$$x.o\"; " >> $@; \
 	done; \
 	echo -e "];;" >> $@; \
-	echo -en "let our_byte_link_options = our_include_options @ [ A \"-custom\"; " >> $@; \
+	#echo -en "let our_byte_link_options = our_include_options @ [ A \"-custom\"; " >> $@; \
+	echo -en "let our_byte_link_options = our_include_options @ [ " >> $@; \
 	for x in $(LIBRARIES_TO_LINK); do \
 		echo -en "A \"$$x.cma\"; " >> $@; \
 	done; \
