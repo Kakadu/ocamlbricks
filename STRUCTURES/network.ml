@@ -177,13 +177,17 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
       |	0 ->
           (* The child here: *)
           begin
-            Log.printf "Process (fork) created for connection #%d on %s\n" !connexion_no sockaddr0;
-            (* SysExtra.log_signal_reception ~except:[26] (); *)
-	    Unix.close listen_socket;
-	    (try Unix.set_close_on_exec service_socket with Invalid_argument _ -> ());
-	    let result = server_fun service_socket in
-	    let exit_code = exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result in
-	    exit exit_code
+            try
+              Log.printf "Process (fork) created for connection #%d on %s\n" !connexion_no sockaddr0;
+	      (* SysExtra.log_signal_reception ~except:[26] (); *)
+	      Unix.close listen_socket;
+	      (try Unix.set_close_on_exec service_socket with Invalid_argument _ -> ());
+	      let result = server_fun service_socket in
+	      let exit_code = exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result in
+	      exit exit_code
+	    with e ->
+              (Log.printf "Process (fork) created for connection #%d on %s: terminated with exn: %s\n" !connexion_no sockaddr0 (Printexc.to_string e);
+               exit 4)
 	  end
       | child_pid ->
           (* The father here creates a process-tutor thread per child: *)

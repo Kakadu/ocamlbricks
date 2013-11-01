@@ -669,13 +669,17 @@ NATIVE_OR_BYTE = \
 
 PROCESSOR_NO = $(shell grep "^processor.*:" /proc/cpuinfo | sort | uniq | wc -l)
 
+# The log location with respect to the directory _build/
+# So, with respect to the Makefile, the log location is _build/_build/_log
+OCAMLBUILD_LOG=_build/_log
+LOGFILE=_build/$(OCAMLBUILD_LOG)
 # Return the proper command line for ocamlbuild, including an option
 # -byte-plugin if needed:
 OCAMLBUILD_COMMAND_LINE = \
 	(if [ $$( $(call NATIVE_OR_BYTE) ) == 'byte' ]; then \
-	  echo 'ocamlbuild -j $(PROCESSOR_NO) -byte-plugin -verbose 2 -log _build/_log'; \
+	  echo 'ocamlbuild -j $(PROCESSOR_NO) -byte-plugin -verbose 2 -log $(OCAMLBUILD_LOG)'; \
 	else \
-	  echo 'ocamlbuild -j $(PROCESSOR_NO) -verbose 2 -log _build/_log'; \
+	  echo 'ocamlbuild -j $(PROCESSOR_NO) -verbose 2 -log $(OCAMLBUILD_LOG)'; \
 	fi)
 
 # Macro extracting, via source, the value associated to some keys

@@ -372,7 +372,7 @@ let waitpid_thread
     let process_alive = ref true in
     let tutor_preamble pid =
       Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
-      if do_not_kill_process_if_exit = Some () then () else
+      if (pid <= 0) || (do_not_kill_process_if_exit = Some ()) then () else
       Exit_function.at_exit
 	(fun () ->
 	  if !process_alive then begin
@@ -438,7 +438,7 @@ let waitpid_thread
     let process_alive = ref true in
     let tutor_preamble pid =
       Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
-      if do_not_kill_process_if_exit = Some () then () else
+      if (pid <= 0) || (do_not_kill_process_if_exit = Some ()) then () else
       Exit_function.at_exit
 	(fun () ->
 	  if !process_alive then begin

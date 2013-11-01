@@ -25,10 +25,8 @@ which $TOPLEVEL &>/dev/null || {
 }
 
 FLATTENED_DIRECTORY=_build/_build.flattened
-[[ -f $FLATTENED_DIRECTORY/ocamlbricks.cma ]] || {
-  mkdir -p $FLATTENED_DIRECTORY
-  find _build -path $FLATTENED_DIRECTORY -prune -o -type f -exec cp -l {} $FLATTENED_DIRECTORY/ \;
-}
+mkdir -p $FLATTENED_DIRECTORY
+find _build -path $FLATTENED_DIRECTORY -prune -o -type f -exec cp -fl {} $FLATTENED_DIRECTORY/ \;
 
 PREAMBLE=$(mktemp)
 cat > $PREAMBLE  <<EOF
@@ -46,20 +44,20 @@ fi
 # ---
 cd $FLATTENED_DIRECTORY
 case "$TOPLEVEL" in
-  
-  utop) 
+
+  utop)
 	CMD="utop -I $LIBRARYPREFIX/lablgtk2 -I . str.cma lablgtk.cma ./ocamlbricks.cma -init $PREAMBLE"
 	$CMD || CODE=$?
         ;;
- 
- ocaml) 
+
+ ocaml)
 	CMD="ocaml -I +threads -I $LIBRARYPREFIX/lablgtk2 -I . str.cma unix.cma threads.cma lablgtk.cma ./ocamlbricks.cma -init $PREAMBLE"
 	if which rlwrap >/dev/null; then
 	  rlwrap $CMD || CODE=$?
 	else
 	  echo "Suggestion: install rlwrap for testing with readline (on a debian/ubuntu: apt-get install rlwrap)"
 	  $CMD || CODE=$?
-	fi 
+	fi
 	;;
 esac
 

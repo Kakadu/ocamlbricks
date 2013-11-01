@@ -54,7 +54,7 @@ MANUALLY_PRE_COPY_IN_build =     \
   CAMLP4/raise_p4.ml{,i} \
   CAMLP4/log_module_loading_p4.ml{,i}
 
-  
+
 MANUALLY_PRE_MAKE_IN_build =      \
   gettext_extract_pot_p4.cm{i,o} \
   include_type_definitions_p4.cm{i,o} \
@@ -144,13 +144,9 @@ clean-local:
 	rm -rf _build/does_process_exist.o
 	rm -rf _build/waitpid-c-wrapper.o
 
-TESTING_TRACE=_build/compiled-with-DDOCUMENTATION_OR_DEBUGGING
 compile_for_testing:
-	@if test -f  $(TESTING_TRACE); then echo "Ok, already compiled for testing."; else \
-	  make clean && \
-	  make PP_OPTION="$(PP_OPTION) -DDOCUMENTATION_OR_DEBUGGING" && \
-	  touch $(TESTING_TRACE); \
-	  fi
+	@if grep -q "DDOCUMENTATION_OR_DEBUGGING" $(LOGFILE); then echo "Fine, already compiled for testing."; else make clean; fi; \
+	make PP_OPTION="$(PP_OPTION) -DDOCUMENTATION_OR_DEBUGGING"
 
 # Test without installation
 LIBRARY_TO_TEST=_build/ocamlbricks.cma

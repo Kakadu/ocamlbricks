@@ -198,7 +198,8 @@ val script :
   ?register_pid:(int->unit) ->
   content -> string list -> process_result
 
-val is_process_alive : int -> bool
+type pid = int
+val is_process_alive : pid -> bool
 
 module Process : sig
 
@@ -214,9 +215,19 @@ module Process : sig
  | WUNTRACED
  | WCONTINUE
 
- val waitpid : wait_flag list -> int -> int * status
-
+ val waitpid : wait_flag list -> pid -> int * status
  val string_of_status : status -> string
+
+ (** Similar to waitpid but protected from the exception [Unix.Unix_error (Unix.EINTR, _, _)].
+     If this exception is raised, the function recall itself in order to wait again: *)
+ val waitpid_non_intr : ?wait_flags:wait_flag list -> pid -> (exn, int * status) Either.t
+
+ (** Similar to [waitpid_non_intr] but protected also from the exception:
+     [Unix.Unix_error (Unix.ECHILD, _, _)] which may simply mean that the process doesn't exist
+     or it is already terminated (and wait-ed by someone else). In this case, the function returns immediately.
+     However, if this exception is raised when the process is still alive, this means that the process
+     cannot be wait-ed (is not a child or a descendant). In this case, an exception [Invalid_argument] is raised. *)
+ val join_process : pid -> unit
 
 end
 

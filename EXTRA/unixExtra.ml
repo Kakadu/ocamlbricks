@@ -475,18 +475,16 @@ let find_first_and_map ?follow ?maxdepth ?kind ?basename (f:string -> string -> 
 -- From {{:http://www.enseignement.polytechnique.fr/profs/informatique/Didier.Remy/system/camlunix/fich.html}Xavier Leroy and Didier Remy's OS course, Chapter 2}. *)
 module Passwdlib = struct
 
-     open Unix;;
-
      let read_passwd message =
       match
         try
-          let default = tcgetattr stdin in
+          let default = Unix.tcgetattr Unix.stdin in
           let silent =
             { default with
-              c_echo = false;
-              c_echoe = false;
-              c_echok = false;
-              c_echonl = false;
+              Unix.c_echo = false;
+              Unix.c_echoe = false;
+              Unix.c_echok = false;
+              Unix.c_echonl = false;
             } in
           Some (default, silent)
         with _ -> None
@@ -495,12 +493,12 @@ module Passwdlib = struct
       | Some (default, silent) ->
           print_string message;
           flush Pervasives.stdout;
-          tcsetattr stdin TCSANOW silent;
+          Unix.tcsetattr Unix.stdin Unix.TCSANOW silent;
           try
             let s = input_line Pervasives.stdin in
-            tcsetattr stdin TCSANOW default; s
+            Unix.tcsetattr Unix.stdin Unix.TCSANOW default; s
           with x ->
-            tcsetattr stdin TCSANOW default; raise x;;
+            Unix.tcsetattr Unix.stdin Unix.TCSANOW default; raise x;;
 
 end;; (* Passwdlib *)
 
@@ -770,11 +768,11 @@ let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (content:c
  end
 ;;
 
+type pid = int
 
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
 external does_process_exist : int -> bool = "does_process_exist_c";;
 let is_process_alive = does_process_exist
-
 
 module Process = struct
 
@@ -790,7 +788,7 @@ module Process = struct
  | WUNTRACED         (* report also the children that receive stop signals. *)
  | WCONTINUE         (* report also if the children resume *)
 
- external waitpid : wait_flag list -> int -> int * status = "waitpid_c"
+ external waitpid : wait_flag list -> pid -> int * status = "waitpid_c"
 
  let string_of_status = function
    | WUNCHANGED       -> (Printf.sprintf "Process.WUNCHANGED")
@@ -799,7 +797,39 @@ module Process = struct
    | WSTOPPED  signal -> (Printf.sprintf "Process.WSTOPPED %d" signal)
    | WCONTINUED       -> (Printf.sprintf "Process.WCONTINUED")
 
-end
+ (** Similar to waitpid but protected from the exception [Unix.Unix_error (Unix.EINTR, _, _)].
+     If this exception is raised, the function recall itself in order to wait again: *)
+ let rec waitpid_non_intr ?(wait_flags=[]) pid =
+  try
+    Either.Right (waitpid wait_flags pid)
+  with
+    | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr ~wait_flags pid
+    | e -> Either.Left e
+
+ (** Similar to [waitpid_non_intr] but protected also from the exception:
+     [Unix.Unix_error (Unix.ECHILD, _, _)] which may simply mean that the process doesn't exist
+     or it is already terminated (and wait-ed by someone else). In this case, the function returns immediately.
+     However, if this exception is raised when the process is still alive, this means that the process
+     cannot be wait-ed (is not a child or a descendant). In this case, an exception [Invalid_argument] is raised. *)
+ let join_process pid : unit =
+  let invalid_arg () =
+    let msg = Printf.sprintf "UnixExtra.join_process: pid %d is not a child neither a descendant" pid in
+    invalid_arg msg
+  in
+  let wait_flags = [] in
+  match (waitpid_non_intr ~wait_flags pid) with
+  | Either.Left (Unix.Unix_error (Unix.ECHILD, _, _)) ->
+      if is_process_alive pid
+        then invalid_arg () (* Not a child neither a descendant *)
+        else ()             (* Unexistent or already dead process *)
+  | Either.Left e                 -> raise e
+  | Either.Right (_, WEXITED _)   -> ()
+  | Either.Right (_, WSIGNALED _) -> ()
+  | Either.Right (_, WSTOPPED _)  -> assert false
+  | Either.Right (_, WCONTINUED)  -> assert false
+  | Either.Right (_, WUNCHANGED)  -> assert false
+
+end (* Process *)
 
 (** Return the current date formatted as a string like ["2010-06-24.17:34:25"].
     Dashes, dot and colons may be replaced by something else
