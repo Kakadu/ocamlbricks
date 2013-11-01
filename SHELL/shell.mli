@@ -60,3 +60,9 @@ val dir_comfortable    : ?nullglob:bool -> filexpr -> bool
 val regfile_readable   : ?nullglob:bool -> filexpr -> bool
 val regfile_modifiable : ?nullglob:bool -> filexpr -> bool
 val freshname_possible : string -> bool
+
+(** Get or kill children or descendants using the command `ps' : *)
+type pid = int
+val get_children     : ?pid:int -> unit -> pid list
+val get_descendants  : ?pid:int -> unit -> pid list
+val kill_descendants : ?pid:int -> unit -> unit
