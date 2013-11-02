@@ -63,7 +63,7 @@ MANUALLY_PRE_MAKE_IN_build =      \
   option_extract_p4.cm{i,o} \
   raise_p4.cm{i,o} \
   log_module_loading_p4.cm{i,o} \
-  ocamlbricks_stubs
+  libocamlbricks_stubs.a
 
 main-local: meta_ocamlbricks.ml
 
@@ -120,7 +120,7 @@ _build/gettext_extract_pot_p4.cmi: $(GETTEXT)/gettext_extract_pot_p4.mli
 _build/gettext_extract_pot_p4.cmo: $(GETTEXT)/gettext_extract_pot_p4.ml
 	ocamlc -c -I +camlp4 -I _build/ -pp camlp4of camlp4lib.cma -o $@ $<
 
-_build/ocamlbricks_stubs: $(GETTEXT)/gettext-c-wrapper.c  EXTRA/does-process-exist-c-wrapper.c  EXTRA/waitpid-c-wrapper.c
+_build/libocamlbricks_stubs.a: $(GETTEXT)/gettext-c-wrapper.c  EXTRA/does-process-exist-c-wrapper.c  EXTRA/waitpid-c-wrapper.c
 	@(mkdir _build &> /dev/null || true); \
 	cd _build; \
 	ocamlc -c -verbose $(GETTEXT)/gettext-c-wrapper.c; \
