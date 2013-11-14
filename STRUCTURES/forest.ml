@@ -36,6 +36,7 @@ type 'a tree = 'a * 'a t (** a tree is a root with the forest of its children *)
 type 'a leaf = 'a        (** a leaf is a tree without children *)
 
 let empty = Empty
+let is_empty t = (t=Empty)
 
 (** Add a tree to a forest. *)
 let add_tree ((x,children):'a tree) t = NonEmpty (x,children,t)
@@ -345,3 +346,32 @@ let rec of_treelist (l:'a tree list) = match l with
 (** Convert a list of unstructured elements into a forest of leafs. *)
 let of_list (l:'a list) = of_forestlist (List.map of_leaf l)
 
+(** {b Example}:
+{[let f = Forest.of_acyclic_relation (function 0->[1;2]|1->[3;4;5]|2->[6;7]|3->[8]| _ -> []) [0] in
+Forest.print_forest ~string_of_node:(string_of_int) f ~channel:stdout ;; 
+* 0
+  `-1
+    `-3                                                                                                                                                   
+      `-8                                                                                                                                                 
+    `-4                                                                                                                                                   
+    `-5                                                                                                                                                   
+  `-2                                                                                                                                                     
+    `-6                                                                                                                                                   
+    `-7 ]} *)
+let of_acyclic_relation ~(successors:'a -> 'a list) ~(roots:'a list) : 'a t =
+  let rec loop x : 'a tree =
+    let children = successors x in
+    let children_trees = List.map (loop) children in
+    (x, (of_treelist children_trees))
+  in
+  let treelist = List.map (loop) roots in
+  of_treelist (treelist)
+
+let tree_of_acyclic_relation ~(successors:'a -> 'a list) ~(root:'a) : 'a tree =
+  let rec loop x : 'a tree =
+    let children = successors x in
+    let children_trees = List.map (loop) children in
+    (x, (of_treelist children_trees))
+  in
+  loop root
+  

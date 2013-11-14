@@ -207,7 +207,7 @@ PERFORM_MANUALLY_POST_ACTIONS = \
 
 # Edit all ml/mli files and Makefile.local with your $EDITOR
 edit:
-	test -n "$$EDITOR" && $$EDITOR Makefile.local $$(find . \( -name "_build*" -o -name "meta.ml" -o -name "$(EXCLUDE_FROM_EDITING)" -o -name "version.ml" -o -name "gui.ml" -o -name myocamlbuild.ml \) -prune -o -type f -a \( -name "*.ml" -o -name "*.mli" \) -print) &
+	test -n "$$EDITOR" && eval $$EDITOR Makefile.local $$(find . \( -name "_build*" -o -name "meta.ml" -o -name "$(EXCLUDE_FROM_EDITING)" -o -name "version.ml" -o -name "gui.ml" -o -name myocamlbuild.ml \) -prune -o -type f -a \( -name "*.ml" -o -name "*.mli" \) -print) &
 # Create the documentation
 documentation: world documentation-local
 	chmod +x Makefile.d/doc.sh

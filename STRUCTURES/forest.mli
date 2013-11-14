@@ -29,6 +29,7 @@ type 'a tree = 'a * 'a t (** a tree is a root with the forest of its children *)
 type 'a leaf = 'a        (** a leaf is a tree without children *)
 
 val empty : 'a t
+val is_empty : 'a t -> bool
 
 val add_tree : 'a tree -> 'a t -> 'a t
 val add_leaf : 'a leaf -> 'a t -> 'a t
@@ -79,3 +80,6 @@ val of_treelist   : 'a tree list -> 'a t
 val of_forestlist : 'a t list -> 'a t
 val of_list       : 'a list -> 'a t
 val to_list       : 'a t -> 'a list
+
+val tree_of_acyclic_relation : successors:('a -> 'a list) -> root:'a -> 'a tree
+val of_acyclic_relation      : successors:('a -> 'a list) -> roots:('a list) -> 'a t
