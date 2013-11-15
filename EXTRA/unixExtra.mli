@@ -229,7 +229,23 @@ module Process : sig
      cannot be wait-ed (is not a child or a descendant). In this case, an exception [Invalid_argument] is raised. *)
  val join_process : pid -> unit
 
-end
+end (* Process *)
+
+module Dir : sig
+
+ type t = string
+
+ val iter    : ?entry_kind:Unix.file_kind -> ?follow:unit -> (string -> unit) -> t -> unit
+ val to_list : ?entry_kind:Unix.file_kind -> ?follow:unit -> t -> string list
+ val map     : ?entry_kind:Unix.file_kind -> ?follow:unit -> (string -> 'a) -> t -> 'a list
+ val fold    : ?entry_kind:Unix.file_kind -> ?follow:unit -> ('a -> string -> 'a) -> 'a -> t -> 'a
+
+ val iter_with_kind    : ?follow:unit -> (string -> Unix.file_kind -> unit) -> t -> unit
+ val to_list_with_kind : ?follow:unit -> t -> (string * Unix.file_kind) list
+ val map_with_kind     : ?follow:unit -> (string -> Unix.file_kind -> 'a) -> t -> 'a list
+ val fold_with_kind    : ?follow:unit -> ('a -> string -> Unix.file_kind -> 'a) -> 'a -> t -> 'a
+
+end (* Dir *)
 
 val date : ?gmt:unit -> ?dash:string -> ?dot:string -> ?colon:string -> ?no_time:unit -> ?no_date:unit
   -> unit -> string

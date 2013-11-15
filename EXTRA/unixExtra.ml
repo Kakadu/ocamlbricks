@@ -203,18 +203,20 @@ let append ?(perm=0o644) (fname:filename) (x:content) =
     the following pipeline catches the first line of [/etc/fstab] containing
     the substring "hda1":
 {[# "/etc/fstab" => ( cat || String.to_list || Str.grep ".*hda1.*" || hd ) ]}*)
-let rec cat (fname:filename) =
+let cat (fname:filename) =
   let fd = (Unix.openfile fname [Unix.O_RDONLY] 0o644) in
   let len = 16*1024 in
   let buff = String.create len in
-  let rec boucle () =
+  let rec loop acc =
     begin
     let n = (Unix.read fd buff 0 len) in
     let s = String.sub buff 0 n in
-    if (n<len) then s
-    else s^(boucle ())
+    if (n<len) then (String.concat "" (s::acc))
+    else loop (s::acc)
     end in
-  boucle ()
+  let result = loop [] in
+  let () = Unix.close fd in
+  result
 ;;
 
 
@@ -768,6 +770,88 @@ let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (content:c
  end
 ;;
 
+(** Tools for manipulating directory entries: *)
+module Dir = struct
+
+  type t = string
+
+  (* This protection is necessary because there is a time period between the call of `Unix.readdir'
+     and the successive call to `Unix.stat'. In this period the entry may be deleted.  *)
+  let protected_pred p x =
+    try (p x) with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+
+  let file_kind_pred_of ?entry_kind ?follow dir =
+    let stat = (if follow=Some () then Unix.stat else Unix.lstat) in
+    match entry_kind with
+    | None           -> (fun _ -> true)
+    | Some file_kind -> protected_pred (fun x -> (stat (Filename.concat dir x)).Unix.st_kind = file_kind)
+
+  let fold ?entry_kind ?follow f zero dir =
+    let file_kind_pred = file_kind_pred_of ?entry_kind ?follow dir in
+    let dir_handle = Unix.opendir dir in
+    let rec loop acc =
+      try
+        let x = Unix.readdir dir_handle in
+        let acc = if (x = ".") || (x = "..")  || (not (file_kind_pred x)) then acc else (f acc x) in
+        loop acc
+      with End_of_file -> acc
+    in
+    let result = (loop zero) in
+    let () = Unix.closedir dir_handle in
+    result
+
+  let iter ?entry_kind ?follow f dir =
+    fold ?entry_kind ?follow (fun () x -> f x) () dir
+
+  let to_list ?entry_kind ?follow dir =
+    List.rev (fold ?entry_kind ?follow (fun xs x -> x::xs) [] dir)
+
+  let map ?entry_kind ?follow f dir =
+    List.rev (fold ?entry_kind ?follow (fun xs x -> (f x)::xs) []  dir)
+
+  (* --- with kind --- *)
+
+
+  (* This protection is necessary because there is a time period between the call of `Unix.readdir'
+     and the successive call to `Unix.stat'. In this period the entry may be deleted.  *)
+  let file_kind_of ?follow dir =
+    let stat = (if follow=Some () then Unix.stat else Unix.lstat) in
+    fun x ->
+      try
+        Some (stat (Filename.concat dir x)).Unix.st_kind
+      with
+        Unix.Unix_error (Unix.ENOENT, _, _) -> None
+
+  let fold_with_kind ?follow f zero dir =
+    let file_kind : string -> Unix.file_kind option = file_kind_of ?follow dir in
+    let dir_handle = Unix.opendir dir in
+    let rec loop acc =
+      try
+        let x = Unix.readdir dir_handle in
+        let acc = if (x = ".") || (x = "..") then acc else
+        match (file_kind x) with
+        | Some k -> f acc x k
+        | None   -> acc
+        in
+        loop acc
+      with End_of_file -> acc
+    in
+    let result = (loop zero) in
+    let () = Unix.closedir dir_handle in
+    result
+
+  let iter_with_kind ?follow f dir =
+    fold_with_kind ?follow (fun () x k -> f x k) () dir
+
+  let to_list_with_kind ?follow dir =
+    List.rev (fold_with_kind ?follow (fun xs x k -> (x,k)::xs) [] dir)
+
+  let map_with_kind ?follow f dir =
+    List.rev (fold_with_kind ?follow (fun xs x k -> (f x k)::xs) [] dir)
+
+end (* Dir *)
+
+
 type pid = int
 
 (** [does_process_exist pid] return true if and only if the [pid] is alive in the system. *)
@@ -777,16 +861,16 @@ let is_process_alive = does_process_exist
 module Process = struct
 
  type status =
- | WUNCHANGED        (* Used when non-blocking calls with WNOHANG return immediately without value *)
- | WEXITED of int    (* The process terminated normally by exit; the argument is the return code. *)
- | WSIGNALED of int  (* The process was killed by a signal; the argument is the signal number.    *)
- | WSTOPPED of int   (* The process was stopped by a signal; the argument is the signal number.   *)
- | WCONTINUED        (* The process was resumed *)
+ | WUNCHANGED        (** Used when non-blocking calls with WNOHANG return immediately without value *)
+ | WEXITED of int    (** The process terminated normally by exit; the argument is the return code. *)
+ | WSIGNALED of int  (** The process was killed by a signal; the argument is the signal number.    *)
+ | WSTOPPED of int   (** The process was stopped by a signal; the argument is the signal number.   *)
+ | WCONTINUED        (** The process was resumed *)
 
  type wait_flag =
- | WNOHANG           (* do not block if no child has died yet, but immediately return with a pid equal to 0. *)
- | WUNTRACED         (* report also the children that receive stop signals. *)
- | WCONTINUE         (* report also if the children resume *)
+ | WNOHANG           (** do not block if no child has died yet, but immediately return with a pid equal to 0. *)
+ | WUNTRACED         (** report also the children that receive stop signals. *)
+ | WCONTINUE         (** report also if the children resume *)
 
  external waitpid : wait_flag list -> pid -> int * status = "waitpid_c"
 
@@ -830,6 +914,7 @@ module Process = struct
   | Either.Right (_, WUNCHANGED)  -> assert false
 
 end (* Process *)
+
 
 (** Return the current date formatted as a string like ["2010-06-24.17:34:25"].
     Dashes, dot and colons may be replaced by something else
