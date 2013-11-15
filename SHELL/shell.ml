@@ -397,38 +397,47 @@ let freshname_possible x =
 
 type pid = int
 
-let get_children ?(pid=Unix.getpid ()) () =
- let ps_command = Printf.sprintf "ps --ppid %d -o pid --no-headers" pid in
+let get_children_by_the_external_command_ps ?(pid=Unix.getpid ()) () =
+ let command = Printf.sprintf "ps --ppid %d -o pid --no-headers" pid in
  let result =
    List.map
      (fun x -> int_of_string (StringExtra.strip x))
-     (StringExtra.Text.of_string (UnixExtra.shell (ps_command)))
+     (StringExtra.Text.of_string (UnixExtra.shell (command)))
  in
  (* this filter may remove the `ps' process used before which is dead now: *)
  List.filter (UnixExtra.is_process_alive) result
 ;;
 
-let rec kill_descendants ?(pid=Unix.getpid ()) () =
- let get_children () = get_children ~pid () in
- (* --- Step 1: recursively kill children's descendance: *)
- let children = get_children () in
- if children = [] then () (* return *) else (* continue *)
- let () = List.iter (fun pid -> kill_descendants ~pid ()) (List.rev children) in
- (* --- Step 2: send SIGTERM (15) to remaining children: *)
+let get_children_by_ps = get_children_by_the_external_command_ps ;;
+
+let rec get_descendants_by_ps ?(pid=Unix.getpid ()) () =
+ let children = get_children_by_ps ~pid () in
+ List.concat (List.map (fun pid -> pid::(get_descendants_by_ps ~pid ())) children)
+;;
+
+let rec kill_children_by_ps ?(pid=Unix.getpid ()) () =
+ let get_children () = get_children_by_ps ~pid () in
+ (* --- Step 1: send SIGTERM (15) to children: *)
  let children = get_children () in
  if children = [] then () (* return *) else (* continue *)
  let () = List.iter (fun pid -> try Unix.kill pid 15 with _ -> ()) (List.rev children) in
- (* --- Step 3: send SIGINT (2) to remaining children: *)
+ (* --- Step 2: send SIGINT (2) to remaining children: *)
  let children = get_children () in
  if children = [] then () (* return *) else (* continue *)
  let () = List.iter (fun pid -> try Unix.kill pid 2 with _ -> ()) (List.rev children) in
- (* --- Step 4: send SIGKILL (9) to remaining children: *)
+ (* --- Step 3: send SIGKILL (9) to remaining children: *)
  let children = get_children () in
  if children = [] then () (* return *) else (* continue *)
  let () = List.iter (fun pid -> try Unix.kill pid 9 with _ -> ()) (List.rev children) in
  ()
+;;
 
-let rec get_descendants ?(pid=Unix.getpid ()) () =
- let children = get_children ~pid () in
- List.concat (List.map (fun pid -> pid::(get_descendants ~pid ())) children)
+let rec kill_descendants_by_ps ?(pid=Unix.getpid ()) () =
+ (* --- Step 1: recursively kill children's descendance: *)
+ let children = get_children_by_ps ~pid () in
+ if children = [] then () (* return *) else (* continue *)
+ let () = List.iter (fun pid -> kill_descendants_by_ps ~pid ()) (List.rev children) in
+ (* --- Step 2: kill now the children: *)
+ kill_children_by_ps ~pid ()
+;;
 

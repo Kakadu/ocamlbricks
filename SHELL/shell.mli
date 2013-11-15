@@ -61,8 +61,12 @@ val regfile_readable   : ?nullglob:bool -> filexpr -> bool
 val regfile_modifiable : ?nullglob:bool -> filexpr -> bool
 val freshname_possible : string -> bool
 
-(** Get or kill children or descendants using the command `ps' : *)
+(** Get or kill children or descendants using the command [ps(1)] : *)
+
 type pid = int
-val get_children     : ?pid:int -> unit -> pid list
-val get_descendants  : ?pid:int -> unit -> pid list
-val kill_descendants : ?pid:int -> unit -> unit
+
+val get_children_by_ps     : ?pid:int -> unit -> pid list
+val get_descendants_by_ps  : ?pid:int -> unit -> pid list
+
+val kill_children_by_ps    : ?pid:int -> unit -> unit
+val kill_descendants_by_ps : ?pid:int -> unit -> unit
