@@ -14,6 +14,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** Framework to define classes with methods to easily load or save an instance into a string or a file (currently undocumented).
+     The [Camlp4] parser for field's definitions is still not written. Only the run-time support is provided. However, the source code
+     of the module [Example] shows how to define fields manually (without a syntax extension). *)
 
 type field_name = string
 type object_structure

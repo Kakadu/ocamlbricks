@@ -54,11 +54,11 @@ for i in "$@"; do
 done
 
 # ocamldoc parameters:
-
-SOURCES=$(builtin cd _build/ && find . \( -name "*.ml" -o -name "*.mli" \) $UNDOCUMENTED_FILTER)
-INCLUDES=$(builtin cd _build/ && find . -type d -printf "-I %p\n")
+set -x
+SOURCES=$(builtin cd _build/ &>/dev/null && find . \( -name "*.ml" -o -name "*.mli" \) $UNDOCUMENTED_FILTER)
+INCLUDES=$(builtin cd _build/ &>/dev/null && find . -type d -printf "-I %p\n")
 PROJECT=$(basename $PWD)
-
+set +x
 ################################
 #    Make header and footer    #
 ################################

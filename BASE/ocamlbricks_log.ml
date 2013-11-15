@@ -14,6 +14,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** A [Log_builder.Make] instance ready-to-use in the application loading this module.
+    The [debug_level] is initially set to [0], the [verbosity] is set to [1], the [log_channel]
+    is set to [`stderr] and [synchronized] is set to [true]. *)
 
 (* Initialized later, by Global_options, in order to break the ciclic dependency: *)
 include Log_builder.Make (struct

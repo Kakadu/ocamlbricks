@@ -59,30 +59,37 @@ val register_filename_list1_argument    : .. -> string list ref
 {b Example}:
 
 {[(* Registering usage: *)
-let () = register_usage_msg "Usage: myprogram [OPTIONS] LENGTH [FLAGS..] POWERS[POWERS..] FILE[FILES..]\nOptions:" ;;
+let () = Argv.register_usage_msg "Usage: myprogram [OPTIONS] LENGTH [FLAGS..] POWERS[POWERS..] FILE[FILES..]\nOptions:" ;;
 
 (* Registering options: *)
-let option_x = register_unit_option "x" ~doc:"very useful option -x" () ;;
-let option_y = register_unit_option "y" () ;;
-let option_z = register_bool_option "z" () ;;
-let option_s = register_string_option "s" ~tests:[(((<>)"none"), "not none please for the option `-s'")] () ;;
-let option_t = register_enum_option "t" ~admissible_args:["BLACK"; "WHITE"] ~doc:"very useful option -t" () ;;
-let option_f = register_filename_option "f" ~w:() ~r:() ~b:() ~doc:"very useful option -f" () ;;
-let option_d = register_directory_option "d" ~w:() ~doc:"very useful option -d" () ;;
-let () = register_h_option_as_help () ;;
+let option_x : unit option ref = Argv.register_unit_option "x" ~doc:"very useful option -x" () ;;
+let option_y : unit option ref = Argv.register_unit_option "y" () ;;
+let option_z : bool option ref = Argv.register_bool_option "z" () ;;
+let option_s = Argv.register_string_option "s" ~tests:[(((<>)"none"), "not none please for the option `-s'")] () ;;
+let option_t = Argv.register_enum_option "t" ~admissible_args:["BLACK"; "WHITE"] ~doc:"very useful option -t" () ;;
+let option_f = Argv.register_filename_option "f" ~w:() ~r:() ~b:() ~doc:"very useful option -f" () ;;
+let option_d = Argv.register_directory_option "d" ~w:() ~doc:"very useful option -d" () ;;
+let () = Argv.register_h_option_as_help () ;;
 
 (* Registering arguments: *)
-let length = register_float_argument () ;;
-let flags  = register_bool_list0_argument () ;;
-let powers = register_int_list1_argument () ;;
-let files  = register_filename_list1_argument ~r:() ~f:() () ;;
+let length = Argv.register_float_argument () ;;
+let flags  = Argv.register_bool_list0_argument () ;;
+let powers = Argv.register_int_list1_argument () ;;
+let files  = Argv.register_filename_list1_argument ~r:() ~f:() () ;;
 
 let main =
   begin
     (* Parse the command line (Sys.argv). The program will exit if something goes wrong parsing the command line: *)
-    parse ();
+    Argv.parse ();
     (* At this point all involved references have been updated: *)
+    let () =
+      if !option_x = Some () then begin
+        Printf.printf "Not so useful option. Exiting ;-)\n";
+        exit 0;
+      end
+    in
     ...
+
   end
 ;;
 ]}

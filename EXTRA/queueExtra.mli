@@ -14,6 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+(** Additional features for the standard module [Queue]. *)
+
 val filter      : ('a -> bool) -> 'a Queue.t -> unit
 val filter_copy : ('a -> bool) -> 'a Queue.t -> 'a Queue.t
 val map         : ('a -> 'a) -> 'a Queue.t -> unit
