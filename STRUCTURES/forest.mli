@@ -21,7 +21,7 @@
  *)
 
 (** A purely functional data structure for tree forests.
-    For all iterators, the order of visit is always depth-first, left-to-right. *)
+    For all iterators, the order of visit is always depth-first (pre-order), left-to-right. *)
 
 type 'a t
 
@@ -45,15 +45,27 @@ val is_leaf : 'a t -> bool
 
 val concat : 'a t -> 'a t -> 'a t
 val map    : ('a -> 'b) -> 'a t -> 'b t
-val iter   : ?parent:'a -> ('a -> 'a option -> unit) -> 'a t -> unit
+val iter   : ?post_order:unit -> ?parent:'a -> ('a -> 'a option -> unit) -> 'a t -> unit
+val fold   : ?post_order:unit -> ?parent:'a -> ('b -> 'a -> 'a option -> 'b) -> 'b ->  'a t -> 'b
+
+val backprop_tree          : ('a -> 'b list -> 'b) -> 'a tree -> 'b
+val backprop_tree_parallel : ('a -> 'b list -> 'b) -> 'a tree -> 'b
+
+val backprop               : ('a -> 'b list -> 'b) -> 'a t -> 'b list
+val backprop_parallel      : ('a -> 'b list -> 'b) -> 'a t -> 'b list
+
+(** Sort all levels of the forest recursively. *)
+val sort      : ('a -> 'a -> int) -> 'a t -> 'a t
+
+(** Sort all levels of the tree recursively. *)
+val sort_tree : ('a -> 'a -> int) -> 'a tree -> 'a tree
 
 val filter                   : ('a -> bool) -> 'a t -> 'a t
 val nodes_such_that          : ('a -> bool) -> 'a t -> 'a list
 val parent_of_node_such_that : ('a -> bool) -> 'a t -> 'a option
-
-val find   : ('a -> bool) -> 'a t -> 'a
-val search : ('a -> bool) -> 'a t -> 'a option
-val search_and_replace : ('a -> bool) -> ('a -> 'a) -> 'a t -> 'a t
+val find                     : ('a -> bool) -> 'a t -> 'a
+val search                   : ('a -> bool) -> 'a t -> 'a option
+val search_and_replace       : ('a -> bool) -> ('a -> 'a) -> 'a t -> 'a t
 
 val parent_of : 'a -> 'a t -> 'a option
 val roots_of  : 'a t -> 'a list

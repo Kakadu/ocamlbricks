@@ -27,87 +27,136 @@
 (** This definition prevents equivalences
     (each forest as a unique representation). *)
 type 'a t =
-  | Empty
-  | NonEmpty of 'a      (** first tree root     *)
-             *  ('a t)  (** first tree subtrees *)
-             *  ('a t)  (** other nodes         *)
+  | Nil                    (** empty forest *)
+  | Cons of ('a * 'a t) *  (** first tree (root and subtrees) *)
+            ('a t)         (** other trees *)
 
 type 'a tree = 'a * 'a t (** a tree is a root with the forest of its children *)
 type 'a leaf = 'a        (** a leaf is a tree without children *)
 
-let empty = Empty
-let is_empty t = (t=Empty)
+let empty = Nil
+let is_empty t = (t=Nil)
 
-(** Add a tree to a forest. *)
-let add_tree ((x,children):'a tree) t = NonEmpty (x,children,t)
+(** Prepend a tree to a forest. *)
+let cons t f = Cons (t,f)
+let add_tree = cons
 
-(** Add to a forest a tree which is a leaf. *)
-let add_leaf (x:'a) t = NonEmpty (x,Empty,t)
+(** Prepend to a forest a tree which is a leaf. *)
+let cons_leaf (x:'a) t = Cons ((x,Nil),t)
+let add_leaf = cons_leaf
 
 (** Make a forest with a single tree. *)
-let of_tree ((x,children):'a tree) = NonEmpty (x,children,Empty)
+let of_tree t = Cons (t,Nil)
+
+let hd = function
+| Nil -> None
+| Cons(t, _) -> Some t
+
+let tl = function
+| Nil -> None
+| Cons(_, f) -> Some f
 
 let to_tree = function
-| NonEmpty(root, children, Empty) -> (root, children)
+| Cons(t, Nil) -> t
 | _ -> invalid_arg "Forest.to_tree: the forest is not a singleton"
 
 (** Make a forest with a single tree which is a leaf. *)
-let of_leaf (x:'a leaf) = NonEmpty (x,Empty,Empty)
+let of_leaf (x:'a leaf) = Cons ((x,Nil),Nil)
 
-let tree_of_leaf (x:'a leaf) : 'a tree = (x, Empty)
+let tree_of_leaf (x:'a leaf) : 'a tree = (x, Nil)
 
 (** Returns the list of the 'a elements belong the forest.
     The order is depth-first, left-to-right. *)
-let rec to_list (forest:'a t) : 'a list  =
-  match forest with
-    Empty ->
-      []
-  | NonEmpty(root, subtrees, rest) ->
+let rec to_list : 'a t -> 'a list  = function
+| Nil -> []
+| Cons((root, subtrees), rest) ->
       root :: (List.append (to_list subtrees) (to_list rest))
 
 (** Append the second forest at the end of the first one. *)
-let rec concat forest1 forest2 =
-  match forest1 with
-    Empty ->
-      forest2
-  | NonEmpty(root1, subtrees1, rest1) ->
-      NonEmpty(root1, subtrees1, concat rest1 forest2)
+let rec concat f1 f2 =
+  match f1 with
+  | Nil -> f2
+  | Cons(t1, f1) -> Cons(t1, concat f1 f2)
 
 (** Map the function over the 'a elements of the forest. *)
 let rec map f forest =
   match forest with
-    Empty ->
-      Empty
-  | NonEmpty(root, subtrees, rest) ->
+    Nil -> Nil
+  | Cons((root, subtrees), rest) ->
       let root = f root in
       let subtrees = map f subtrees in
       let rest = map f rest in
-      NonEmpty(root, subtrees, rest)
+      Cons((root, subtrees), rest)
 
 (** Iterate calling f on all nodes. The order is depth-first, left-to-right.
     f has the node as its first parameter, and its "parent-tree-node-option" as
     its second parameter *)
-let rec iter ?parent (f : 'a -> 'a option -> unit) (forest : 'a t) =
+let rec iter_pre_order ?parent (f : 'a -> 'a option -> unit) (forest : 'a t) =
   match forest with
-    Empty ->
+    Nil ->
       ()
-  | NonEmpty(root, subtrees, rest) ->
+  | Cons((root, subtrees), rest) ->
       begin
         f root parent;
-        iter ~parent:root f subtrees;
-        iter ?parent f rest
+        iter_pre_order ~parent:root f subtrees;
+        iter_pre_order ?parent f rest
       end
 
+let rec iter_post_order ?parent (f : 'a -> 'a option -> unit) (forest : 'a t) =
+  match forest with
+    Nil ->
+      ()
+  | Cons((root, subtrees), rest) ->
+      begin
+        iter_post_order ~parent:root f subtrees;
+        f root parent;
+        iter_post_order ?parent f rest
+      end
+
+let iter ?post_order =
+ match post_order with
+ | None    -> iter_pre_order
+ | Some () -> iter_post_order
+
+(** Iterate calling f on all nodes. The order is depth-first, left-to-right.
+    f has the node as its first parameter, and its "parent-tree-node-option" as
+    its second parameter *)
+let rec fold_pre_order ?parent (f : 'b -> 'a -> 'a option -> 'b) acc (forest : 'a t) =
+  match forest with
+    Nil -> acc
+  | Cons((root, subtrees), rest) ->
+      begin
+        let acc = f acc root parent in
+        let acc = fold_pre_order ~parent:root f acc subtrees in
+        let acc = fold_pre_order ?parent f acc rest in
+        acc
+      end
+
+let rec fold_post_order ?parent (f : 'b -> 'a -> 'a option -> 'b) acc (forest : 'a t) =
+  match forest with
+    Nil -> acc
+  | Cons((root, subtrees), rest) ->
+      begin
+        let acc = fold_post_order ~parent:root f acc subtrees in
+        let acc = f acc root parent in
+        let acc = fold_post_order ?parent f acc rest in
+        acc
+      end
+
+let fold ?post_order =
+ match post_order with
+ | None    -> fold_pre_order
+ | Some () -> fold_post_order
+ 
 (** Bad nodes (which not verify the property p) are cut and orphans lifted up. *)
 let rec filter p forest =
   match forest with
-    Empty ->
-      Empty
-  | NonEmpty(root, subtrees, rest) ->
+    Nil -> Nil
+  | Cons((root, subtrees), rest) ->
       let subtrees = filter p subtrees in
       let rest = filter p rest in
       if p root then
-        NonEmpty(root, subtrees, rest)
+        Cons((root, subtrees), rest)
       else
         concat subtrees rest
 
@@ -115,9 +164,8 @@ let rec filter p forest =
     The order is as usual depth-first, left-to-right. *)
 let rec nodes_such_that predicate forest =
   match forest with
-    Empty ->
-      []
-  | NonEmpty(root, subtrees, rest) ->
+    Nil -> []
+  | Cons((root, subtrees), rest) ->
       let switch = predicate root in
       let subtrees = nodes_such_that predicate subtrees in
       let rest = nodes_such_that predicate rest in
@@ -128,8 +176,8 @@ let rec nodes_such_that predicate forest =
     The order is as usual depth-first, left-to-right. *)
 let rec search predicate forest =
   match forest with
-  | Empty -> None
-  | NonEmpty(root, subtrees, rest) ->
+  | Nil -> None
+  | Cons((root, subtrees), rest) ->
       if predicate root then (Some root) else
       match (search predicate subtrees) with
       | None -> search predicate rest
@@ -154,8 +202,8 @@ let find predicate forest =
 let parent_of_node_such_that predicate forest =
  let rec loop ?parent forest =
   match forest with
-  | Empty -> None
-  | NonEmpty (root, subtrees, rest) ->
+  | Nil -> None
+  | Cons ((root, subtrees), rest) ->
       if predicate root then parent else
       match (loop ~parent:root subtrees) with
       | None -> loop ?parent rest
@@ -169,8 +217,8 @@ let parent_of node forest =
 
 (** Return the first-level nodes (similar to 'find -maxdepth 1'). *)
 let rec roots_of = function
-  | Empty -> []
-  | NonEmpty(root, _ , rest) -> root :: (roots_of rest)
+  | Nil -> []
+  | Cons((root, _), rest) -> root :: (roots_of rest)
 ;;
 
 (** Return a list of all the children of the given node in the given
@@ -180,9 +228,8 @@ let rec roots_of = function
 let children_nodes node forest =
   let rec children_nodes_of_existing_node node forest =
   match forest with
-    Empty ->
-      []
-  | NonEmpty(root, subtrees, rest) ->
+    Nil -> []
+  | Cons((root, subtrees), rest) ->
       if root = node then
         roots_of subtrees
       else
@@ -207,9 +254,8 @@ let child_node node forest =
     forest. The order is depth-first, left-to-right. *)
 let rec descendant_nodes node forest =
   match forest with
-    Empty ->
-      []
-  | NonEmpty(root, subtrees, rest) ->
+    Nil -> []
+  | Cons((root, subtrees), rest) ->
       if root = node then
         to_list subtrees
       else
@@ -240,8 +286,8 @@ let printable_string_of_forest
    if level = 0 then print_string "* " else print_string "`-"
  in
  let rec loop ~level = function
-  | Empty -> ()
-  | NonEmpty(root, subtrees, rest) ->
+  | Nil -> ()
+  | Cons((root, subtrees), rest) ->
       begin
 	indent level;
 	print_node root;
@@ -265,21 +311,18 @@ let rec print_forest ?level ?string_of_node ~channel forest =
     returned *)
 let rec add_tree_to_forest_for_each predicate tree_root tree_subtrees forest =
   match forest with
-    Empty ->
-      Empty
-  | NonEmpty(root, subtrees, rest) ->
+    Nil -> Nil
+  | Cons((root, subtrees), rest) ->
       if predicate root then
-        NonEmpty(root,
-                 concat
+        let tree = 
+          (root, concat
                    (add_tree_to_forest_for_each predicate tree_root tree_subtrees subtrees)
-                   (NonEmpty(tree_root, tree_subtrees, Empty)),
-                 rest)
+                   (Cons((tree_root, tree_subtrees), Nil)))
+        in
+        Cons(tree, rest)
       else
-        NonEmpty(root,
-                 add_tree_to_forest_for_each
-                   predicate tree_root tree_subtrees subtrees,
-                 add_tree_to_forest_for_each
-                   predicate tree_root tree_subtrees rest)
+        let tree = (root, (add_tree_to_forest_for_each predicate tree_root tree_subtrees subtrees)) in
+        Cons(tree, (add_tree_to_forest_for_each predicate tree_root tree_subtrees rest))
 
 (** Add the given tree to the given forest, as a new child of the only
     node satisfying the given predicate, or at toplevel if no node satisfies
@@ -290,7 +333,7 @@ let add_tree_to_forest predicate tree_root tree_subtrees forest =
   let satisfying_nodes = List.filter predicate nodes in
   let satisfying_nodes_length = List.length satisfying_nodes in
   if satisfying_nodes_length = 0 then
-    concat forest (NonEmpty(tree_root, tree_subtrees, Empty))
+    concat forest (Cons((tree_root, tree_subtrees), Nil))
   else if satisfying_nodes_length = 1 then
     add_tree_to_forest_for_each predicate tree_root tree_subtrees forest
   else
@@ -304,29 +347,28 @@ let add_tree_to_forest predicate tree_root tree_subtrees forest =
 
 (** Has the forest the form of a tree (i.e. a forest of length 1)? *)
 let is_tree = function
-| NonEmpty (root,children,Empty) -> true
+| Cons (t,Nil) -> true
 | _ -> false
 
 
 (** Has the forest the form of a leaf? *)
 let is_leaf = function
-| NonEmpty (root,Empty,Empty) -> true
+| Cons ((_,Nil),Nil) -> true
 | _ -> false
 
 
 (** A forest may be viewed as a list of trees. *)
-let rec to_treelist (forest:'a t) : ('a tree list) =
-match forest with
-| Empty -> []
-| NonEmpty (root,children,rest) -> (root,children)::(to_treelist rest)
+let rec to_treelist : 'a t -> 'a tree list = function
+| Nil -> []
+| Cons (t,f) -> t::(to_treelist f)
 
 
 (** A list of forests may be viewed as a single big forest.
     The forests in the list are simply catenated. *)
-let rec of_forestlist (l:'a t list) = match l with
-| []                             -> Empty
-| Empty::l'                      -> of_forestlist l'
-| (NonEmpty (x,children,rest))::l' -> NonEmpty (x,children, (concat rest (of_forestlist l')))
+let rec of_forestlist : 'a t list -> 'a t = function
+| []                           -> Nil
+| Nil::fs                      -> of_forestlist fs
+| (Cons (t,rest))::fs -> Cons (t, (concat rest (of_forestlist fs)))
 ;;
 
 (** A list of trees may be recompacted into a single forest. This function
@@ -335,28 +377,28 @@ let rec of_forestlist (l:'a t list) = match l with
     is raised when a non tree element is encountered (use [of_forestlist] if you want
     flexibility). *)
 (*let rec of_treelist (l:'a t list) = match l with
-| []                              -> Empty
-| (NonEmpty (x,children,Empty))::l' -> NonEmpty (x,children, (of_treelist l'))
+| []                              -> Nil
+| (Cons (x,children,Nil))::l' -> Cons (x,children, (of_treelist l'))
 | _ -> failwith "of_nodelist" (* A run-time type checking *)*)
 
-let rec of_treelist (l:'a tree list) = match l with
-| []             -> Empty
-| (x,children)::l' -> NonEmpty (x,children, (of_treelist l'))
+let rec of_treelist : 'a tree list -> 'a t = function
+| []    -> Nil
+| t::ts -> Cons (t, (of_treelist ts))
 
 (** Convert a list of unstructured elements into a forest of leafs. *)
 let of_list (l:'a list) = of_forestlist (List.map of_leaf l)
 
 (** {b Example}:
 {[let f = Forest.of_acyclic_relation (function 0->[1;2]|1->[3;4;5]|2->[6;7]|3->[8]| _ -> []) [0] in
-Forest.print_forest ~string_of_node:(string_of_int) f ~channel:stdout ;; 
+Forest.print_forest ~string_of_node:(string_of_int) f ~channel:stdout ;;
 * 0
   `-1
-    `-3                                                                                                                                                   
-      `-8                                                                                                                                                 
-    `-4                                                                                                                                                   
-    `-5                                                                                                                                                   
-  `-2                                                                                                                                                     
-    `-6                                                                                                                                                   
+    `-3
+      `-8
+    `-4
+    `-5
+  `-2
+    `-6
     `-7 ]} *)
 let of_acyclic_relation ~(successors:'a -> 'a list) ~(roots:'a list) : 'a t =
   let rec loop x : 'a tree =
@@ -374,4 +416,38 @@ let tree_of_acyclic_relation ~(successors:'a -> 'a list) ~(root:'a) : 'a tree =
     (x, (of_treelist children_trees))
   in
   loop root
-  
+
+(** Back-propagation (from leafs to roots) of evaluations over a tree: *)  
+let rec backprop_tree eval (root, subtrees) =
+ let ts = to_treelist subtrees in
+ let vs = List.map (backprop_tree eval) ts in
+ eval root vs
+
+(** Parallel (using Futures) back-propagation (from leafs to roots) of evaluations over a tree: *)  
+let rec backprop_tree_parallel eval (root, subtrees) =
+ let ts = to_treelist subtrees in
+ let futures = List.map (Future.future (backprop_tree_parallel eval)) ts in
+ let vs = List.map (Future.touch) futures in
+ eval root vs
+
+(** Back-propagation (from leafs to roots) of evaluations over a forest: *)  
+let backprop eval forest =
+ let ts = to_treelist forest in
+ List.map (backprop_tree eval) ts
+
+(** Parallel (using Futures) back-propagation (from leafs to roots) of evaluations over a forest: *)  
+let backprop_parallel eval forest =
+ let ts = to_treelist forest in
+ let futures = List.map (Future.future (backprop_tree_parallel eval)) ts in
+ List.map (Future.touch) futures
+
+let rec sort compare forest =
+ let xs = to_treelist forest in
+ let ys = List.map (sort_tree compare) xs in
+ let zs = List.sort (fun (root1,_) (root2,_) -> compare root1 root2) ys in
+ of_treelist zs 
+
+and sort_tree compare (root, subtrees) =
+ let subtrees' = sort compare subtrees in
+ (root, subtrees')
+ 
