@@ -263,4 +263,69 @@ module Process = struct
  let get_descendant_stats           = Full_stat.get_descendant_stats
  let get_descendant_stats_as_forest = Full_stat.get_descendant_stats_as_forest
 
+ module Kill_descendants = struct
+
+ let still_alive_after_kill ~signal ~wait_delay pid_list =
+  if pid_list = [] then [] (* return *) else (* continue *)
+  let () = List.iter (fun pid -> try Unix.kill pid signal with _ -> ()) pid_list in
+  (* Leave to the fathers the time to register the death of their children: *)
+  let () = Thread.delay wait_delay in
+  let alive_list = List.filter (UnixExtra.is_process_alive) pid_list in
+  alive_list
+
+ let killall ?(signal_sequence=[Sys.sigterm; Sys.sigint; Sys.sigcont; Sys.sigkill]) ?(wait_delay=0.1) ?(wait_delay_factor=2.) ?(retries=1) pids =
+  let rec loop i wait_delay =
+    let alive_list = pids in
+    if i > retries then () (* abandon *) else
+    let alive_list =
+      List.fold_left
+        (fun alive_list signal -> still_alive_after_kill ~signal ~wait_delay alive_list)
+        (alive_list)
+        (signal_sequence)
+    in
+    if alive_list = [] then () else loop (i+1) (wait_delay *. wait_delay_factor)
+  in
+  loop 1 wait_delay
+
+ let kill_descendants
+  ?sequential
+  ?(wait_delay=0.1)
+  ?(wait_delay_node_increase_factor=2.)
+  ?(wait_delay_root_increase_factor=2.)
+  ?(node_max_retries=1)
+  ?(root_max_retries=1)
+  ?signal_sequence
+  ?(pid=Unix.getpid ())
+  ()
+  =
+  let rec main_loop j wait_delay =
+    if j > root_max_retries then () (* abandon *) else
+    let f0 = get_descendant_stats_as_forest ~pid () in
+    if Forest.is_empty f0 then () (* stop *) else (* continue *)
+    (* The last launched will be the first killed: *)
+    let f1 = Forest.sort (fun p1 p2 -> compare p2.starttime p1.starttime) f0 in
+    (* The forest evaluation function: *)
+    let eval x = function
+      (* Leaf evaluation: do nothing, just provide the pid to the father *)
+      | [] -> x.pid
+      (* Node evaluation: kill children, then provide the pid to the father *)
+      | x_children ->
+	let () = killall ?signal_sequence ~wait_delay ~wait_delay_factor:(wait_delay_node_increase_factor) ~retries:(node_max_retries) x_children in
+	x.pid
+    in
+    let backprop =
+      match sequential with
+      | None    -> Forest.backprop_parallel
+      | Some () -> Forest.backprop
+    in
+    let children  = backprop eval f1 in
+    let () = killall ?signal_sequence ~wait_delay ~wait_delay_factor:(wait_delay_node_increase_factor) ~retries:(node_max_retries) children in
+    main_loop (j+1) (wait_delay *. wait_delay_root_increase_factor)
+  in
+  main_loop 1 (wait_delay)
+
+ end (* Kill_descendants *)
+
+ include Kill_descendants
+
 end (* Process *)

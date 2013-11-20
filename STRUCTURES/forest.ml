@@ -366,8 +366,8 @@ let rec to_treelist : 'a t -> 'a tree list = function
 (** A list of forests may be viewed as a single big forest.
     The forests in the list are simply catenated. *)
 let rec of_forestlist : 'a t list -> 'a t = function
-| []                           -> Nil
-| Nil::fs                      -> of_forestlist fs
+| []                  -> Nil
+| Nil::fs             -> of_forestlist fs
 | (Cons (t,rest))::fs -> Cons (t, (concat rest (of_forestlist fs)))
 ;;
 

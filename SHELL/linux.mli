@@ -264,7 +264,36 @@ module Process : sig
  (** Get the statistics hierarchy (forest) of the descendants of the caller (by default) or the provided [~pid]. *)
  val get_descendant_stats_as_forest : ?pid:int -> unit -> stat Forest.t
 
- (** Get the statistics hierarchy (forest)  of the descendants of the caller (by default) or the provided [~pid] (using the simplified structure). *)
+ (** Get the statistics hierarchy (forest) of the descendants of the caller (by default) or the provided [~pid] (using the simplified structure). *)
  val get_descendant_easy_stats_as_forest : ?pid:int -> unit -> easy_stat Forest.t
+
+ (** {2 Kill descendants}*)
+ 
+ (** Kill the whole hierarchy (forest) of the descendants of the caller (by default) or the provided [~pid].
+     By default the children are processed concurrently (and recursively) using futures.
+     The sequence of signals send to each process (from leafs to root) are (by default) the following in this order:
+     [\[Sys.sigterm; Sys.sigint; Sys.sigcont; Sys.sigkill]\].
+     After each signal in the sequence, we leave to the fathers the time [wait_delay] to register the death of their children.
+     The processes still alive are then recalculated and the next signal is sent to the survivors and so on.
+     Optional parameters and their defaults:
+{[?sequential:unit                       (* Process the children sequentially (instead of concurrently) *)
+?wait_delay:float                      (* Default: 0.1 (seconds) *)
+?wait_delay_node_increase_factor:float (* Increase factor for each retry at any node level. Default: 2. *)
+?wait_delay_root_increase_factor:float (* Increase factor for each retry at root level. Default: 2. *)
+?node_max_retries:int                  (* Default: 1   *)
+?root_max_retries:int                  (* Default: 1   *)
+?signal_sequence:int list              (* Default: [Sys.sigterm; Sys.sigint; Sys.sigcont; Sys.sigkill] *)
+?pid:int                               (* Default: the pid of the caller *)
+]} *)
+ val kill_descendants :
+   ?sequential:unit ->
+   ?wait_delay:float ->
+   ?wait_delay_node_increase_factor:float ->
+   ?wait_delay_root_increase_factor:float ->
+   ?node_max_retries:int ->
+   ?root_max_retries:int ->
+   ?signal_sequence:int list ->
+   ?pid:int ->
+   unit -> unit
 
 end (* Process *)
