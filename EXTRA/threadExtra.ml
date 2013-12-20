@@ -17,6 +17,7 @@
 (** Additional features for the module [Thread] provided by the [threads] library. *)
 
 module Log = Ocamlbricks_log
+module ULog = Ocamlbricks_log.Unprotected (* for critical sections *)
 
 module Exit_function = struct
 
@@ -51,13 +52,13 @@ module Exit_function = struct
 	  try
 	    let exit_function = Hashtbl.find ht key in
 	    let () = exit_function () in
-	    Log.printf "Thread Exiting: some thunks executed\n";
+	    ULog.printf "Thread Exiting: some thunks executed\n";
 	    Hashtbl.remove ht key
 	  with Not_found ->
-	    Log.printf "Thread Exiting: nothing to do\n"
+	    ULog.printf "Thread Exiting: nothing to do\n"
 	end
       else
-        Log.printf "Thread Exiting: nothing to do\n"
+        ULog.printf "Thread Exiting: nothing to do\n"
     in
     apply_with_mutex action ()
 
@@ -86,11 +87,11 @@ module Exit_function = struct
 	    ht;
 	  Hashtbl.clear ht;
 	  if !actions = 0
-	    then Log.printf "Thread Exiting (main): nothing to do\n"
-	    else Log.printf "Thread Exiting (main): %d thunk(s) executed (%d exogenous)\n" !actions ! exo_actions
+	    then ULog.printf "Thread Exiting (main): nothing to do\n"
+	    else ULog.printf "Thread Exiting (main): %d thunk(s) executed (%d exogenous)\n" !actions ! exo_actions
 	  end
 	else
-          Log.printf "Thread Exiting (main): nothing to do\n"
+          ULog.printf "Thread Exiting (main): nothing to do\n"
       in
       apply_with_mutex action ()
     in
@@ -175,7 +176,7 @@ module Available_signals = struct
     ()
 
   let id_kill_by_signal id =
-    Log.printf "Attempting to kill the thread %d by signal...\n" id;
+    Log.printf1 "Attempting to kill the thread %d by signal...\n" id;
     let (semaphores, mapping) = T.extract () in
     let result = T.apply_with_mutex
      (fun () ->
@@ -190,7 +191,7 @@ module Available_signals = struct
     result
 
   let id_kill_by_thunk id =
-    Log.printf "Attempting to kill the thread %d by thunk...\n" id;
+    Log.printf1 "Attempting to kill the thread %d by thunk...\n" id;
     let mapping = H.extract () in
     let result = H.apply_with_mutex
      (fun () ->
@@ -203,9 +204,9 @@ module Available_signals = struct
     result
 
   let id_kill id =
-    Log.printf "Attempting to kill the thread %d...\n" id;
+    Log.printf1 "Attempting to kill the thread %d...\n" id;
     let result = (id_kill_by_signal id) || (id_kill_by_thunk id) in
-    Log.printf "Thread %d killed: %b\n" id result;
+    Log.printf2 "Thread %d killed: %b\n" id result;
     result
 
   let kill t = id_kill (Thread.id t)
@@ -240,7 +241,7 @@ module Available_signals = struct
       with Not_found -> id_killer_by_thunk id
     in
     let pid = Unix.getpid () in
-    Log.printf "Built a killer thunk able to kill %d.%d\n" pid id;
+    Log.printf2 "Built a killer thunk able to kill %d.%d\n" pid id;
     result
 
   let killer t = id_killer (Thread.id t)
@@ -261,7 +262,7 @@ module Available_signals = struct
   let () =
     Pervasives.at_exit
       (fun () ->
-         Log.printf "Thread Exiting (main): killing all sub-threads...\n";
+         ULog.printf "Thread Exiting (main): killing all sub-threads...\n";
          killall ();
          Thread.delay 0.5 (* Give to the sub-threads the time to perform their at_exit functions *)
          )
@@ -278,8 +279,8 @@ let create_killable =
   let handler id s =
     let id' = Thread.id (Thread.self ()) in
     (if id <> id' then
-       Log.printf ~v:0 "Wrong behaviour: thread %d should be killed by signal #%d but I'm killed instead\n" id s);
-    Log.printf "Killed by signal #%d\n" s;
+       ULog.printf ~v:0 "Wrong behaviour: thread %d should be killed by signal #%d but I'm killed instead\n" id s);
+    ULog.printf "Killed by signal #%d\n" s;
     raise Available_signals.Has_been_killed
   in
   fun f x ->
@@ -295,7 +296,7 @@ let create_killable =
       let id = Thread.id (Thread.self ()) in
       let previous_handler = Sys.signal s (Sys.Signal_handle (handler id)) in
       let () = Available_signals.child_take_possession_of_signal_slot i in
-      Log.printf "Signal #%d reserved to be able to kill this thread\n" s;
+      Log.printf1 "Signal #%d reserved to be able to kill this thread\n" s;
       let final_actions () =
         (* The thread should make free the owned signal: *)
         (Sys.set_signal s previous_handler);
@@ -355,7 +356,7 @@ let rec waitpid_non_intr ?(wait_flags=[]) pid =
     | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr ~wait_flags pid
     | e ->
        begin
-         Log.printf "ThreadExtra.waitpid_non_intr: exception: %s\n" (Printexc.to_string e);
+         Log.printf1 "ThreadExtra.waitpid_non_intr: exception: %s\n" (Printexc.to_string e);
          Either.Left e;
        end
 
@@ -371,12 +372,12 @@ let waitpid_thread
   let tutor_behaviour =
     let process_alive = ref true in
     let tutor_preamble pid =
-      Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
+      Log.printf1 "Thread created for tutoring (waitpid-ing) process %d\n" pid;
       if (pid <= 0) || (do_not_kill_process_if_exit = Some ()) then () else
       Exit_function.at_exit
 	(fun () ->
 	  if !process_alive then begin
-	    Log.printf "Killing (SIGTERM) tutored process %d...\n" pid;
+	    Log.printf1 "Killing (SIGTERM) tutored process %d...\n" pid;
 	    Unix.kill pid 15;
 	    end);
       ()
@@ -393,11 +394,11 @@ let waitpid_thread
 	match (waitpid_non_intr ?wait_flags pid) with
 	| Either.Left e -> fallback ~pid e
 	| Either.Right (_, Unix.WSTOPPED _) ->
-   	    Log.printf "Tutored process %d stopped.\n" pid;
+   	    Log.printf1 "Tutored process %d stopped.\n" pid;
 	    let () = perform_when_suspended ~pid in
             loop ()
 	| Either.Right (_, status) ->
-   	    Log.printf "Tutored process %d terminated.\n" pid;
+   	    Log.printf1 "Tutored process %d terminated.\n" pid;
    	    let () = process_alive := false in
 	    let () = after_waiting ~pid status in
 	    ()
@@ -420,7 +421,7 @@ let rec waitpid_non_intr ?(wait_flags=[]) pid =
     | Unix.Unix_error (Unix.EINTR, _, _) -> waitpid_non_intr ~wait_flags pid
     | e ->
        begin
-         Log.printf "ThreadExtra.waitpid_non_intr (catching resume): exception: %s\n" (Printexc.to_string e);
+         Log.printf1 "ThreadExtra.waitpid_non_intr (catching resume): exception: %s\n" (Printexc.to_string e);
          Either.Left e;
        end
 
@@ -437,12 +438,12 @@ let waitpid_thread
   let tutor_behaviour =
     let process_alive = ref true in
     let tutor_preamble pid =
-      Log.printf "Thread created for tutoring (waitpid-ing) process %d\n" pid;
+      Log.printf1 "Thread created for tutoring (waitpid-ing) process %d\n" pid;
       if (pid <= 0) || (do_not_kill_process_if_exit = Some ()) then () else
       Exit_function.at_exit
 	(fun () ->
 	  if !process_alive then begin
-	    Log.printf "Killing (SIGTERM) tutored process %d...\n" pid;
+	    ULog.printf "Killing (SIGTERM) tutored process %d...\n" pid;
 	    Unix.kill pid 15;
 	    end);
       ()
@@ -465,22 +466,22 @@ let waitpid_thread
 	match (waitpid_non_intr ~wait_flags pid) with
 	| Either.Left e -> fallback ~pid e
 	| Either.Right (_, Process.WSTOPPED _) ->
-   	    Log.printf "Tutored process %d stopped.\n" pid;
+   	    Log.printf1 "Tutored process %d stopped.\n" pid;
 	    let () = perform_when_suspended ~pid in
             loop ()
 	| Either.Right (_, Process.WCONTINUED) ->
-   	    Log.printf "Tutored process %d resumed.\n" pid;
+   	    Log.printf1 "Tutored process %d resumed.\n" pid;
 	    let () = perform_when_resumed ~pid in
             loop ()
 	| Either.Right (_, Process.WUNCHANGED) ->
             loop ()
 	| Either.Right (_, Process.WEXITED i) ->
-   	    Log.printf "Tutored process %d terminated (exited).\n" pid;
+   	    Log.printf1 "Tutored process %d terminated (exited).\n" pid;
    	    let () = process_alive := false in
 	    let () = after_waiting ~pid (Unix.WEXITED i) in
 	    ()
 	| Either.Right (_, Process.WSIGNALED i) ->
-   	    Log.printf "Tutored process %d terminated (killed).\n" pid;
+   	    Log.printf1 "Tutored process %d terminated (killed).\n" pid;
    	    let () = process_alive := false in
 	    let () = after_waiting ~pid (Unix.WSIGNALED i) in
 	    ()
@@ -529,7 +530,7 @@ let fork_with_tutor
     | 0 ->
 	(* The child here: *)
 	begin
-	  Log.printf "Process (fork) created by %d.%d\n" pid id;
+	  Log.printf2 "Process (fork) created by %d.%d\n" pid id;
 	  let _ =
 	    try f x
             with e ->

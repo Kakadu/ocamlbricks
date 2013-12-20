@@ -61,7 +61,7 @@ module Raise_p4 : Unit = struct
          <:expr@loc<
             let __raised_exception__ = $e$ in
             let () =
-              Log.printf ~v:$int:!verbosity$ "Raising exception %s at %s\n"
+              Log.printf2 ~v:$int:!verbosity$ "Raising exception %s at %s\n"
                 (Printexc.to_string __raised_exception__)
                  $str:loc_as_string$
             in

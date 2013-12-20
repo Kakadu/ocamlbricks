@@ -64,7 +64,7 @@ let accept_in_range_non_intr ~(range_predicate : Unix.sockaddr -> bool) ~(range_
       let (service_socket, _) as result = Unix.accept s in
       let sockaddr0 = (Unix.getsockname service_socket) in
       if range_predicate sockaddr0 then result else begin
-	Log.printf "Rejecting a connexion from %s (not in the range %s)\n" (string_of_sockaddr sockaddr0) range_string;
+	Log.printf2 "Rejecting a connexion from %s (not in the range %s)\n" (string_of_sockaddr sockaddr0) range_string;
 	Unix.close service_socket;
 	loop ()
       end
@@ -154,23 +154,23 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
     incr connexion_no;
     let sockaddr0 = string_of_sockaddr (Unix.getsockname service_socket) in
     let sockaddr1 = string_of_sockaddr (Unix.getpeername service_socket) in
-    Log.printf "Accepted connection #%d on %s from %s\n" !connexion_no sockaddr0 sockaddr1;
+    Log.printf3 "Accepted connection #%d on %s from %s\n" !connexion_no sockaddr0 sockaddr1;
     sockaddr0
   in
   let exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result =
     match result with
     | Either.Right () ->
-	let () = Log.printf "Protocol completed (connection #%d on %s). Exiting.\n" !connexion_no sockaddr0
+	let () = Log.printf2 "Protocol completed (connection #%d on %s). Exiting.\n" !connexion_no sockaddr0
 	in 0
     | Either.Left _ ->
-	let () = Log.printf "Protocol interrupted (connection #%d on %s). Exiting\n" !connexion_no sockaddr0
+	let () = Log.printf2 "Protocol interrupted (connection #%d on %s). Exiting\n" !connexion_no sockaddr0
 	in 1
   in
   let process_forking_loop () =
     let connexion_no = ref 0 in
     let tutor = ThreadExtra.Easy_API.waitpid_thread ?options:tutor_behaviour () in
     while true do
-      Log.printf "Waiting for connection on %s\n" listen_socket_as_string;
+      Log.printf1 "Waiting for connection on %s\n" listen_socket_as_string;
       let (service_socket, _) = accepting_function listen_socket in
       let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
       match Unix.fork () with
@@ -178,7 +178,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
           (* The child here: *)
           begin
             try
-              Log.printf "Process (fork) created for connection #%d on %s\n" !connexion_no sockaddr0;
+              Log.printf2 "Process (fork) created for connection #%d on %s\n" !connexion_no sockaddr0;
 	      (* SysExtra.log_signal_reception ~except:[26] (); *)
 	      Unix.close listen_socket;
 	      (try Unix.set_close_on_exec service_socket with Invalid_argument _ -> ());
@@ -186,7 +186,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
 	      let exit_code = exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result in
 	      exit exit_code
 	    with e ->
-              (Log.printf "Process (fork) created for connection #%d on %s: terminated with exn: %s\n" !connexion_no sockaddr0 (Printexc.to_string e);
+              (Log.printf3 "Process (fork) created for connection #%d on %s: terminated with exn: %s\n" !connexion_no sockaddr0 (Printexc.to_string e);
                exit 4)
 	  end
       | child_pid ->
@@ -203,7 +203,7 @@ let server ?(max_pending_requests=5) ?seqpacket ?tutor_behaviour ?no_fork ?range
       let (service_socket, _) = accepting_function listen_socket in
       let sockaddr0 = notify_after_accept_and_get_sockaddr0 ~connexion_no ~service_socket in
       let server_fun s =
-        Log.printf "Thread created for connection #%d on %s\n" !connexion_no sockaddr0;
+        Log.printf2 "Thread created for connection #%d on %s\n" !connexion_no sockaddr0;
         let result = server_fun s in
         let _unused_exit_code = exit_code_and_final_notification ~connexion_no ~sockaddr0 ~result in
 	Thread.exit ()
@@ -305,7 +305,7 @@ let inet_server ?max_pending_requests ?tutor_behaviour ?no_fork
   let (thrd4, addr4, port4) as r4 =
     inet4_server ?max_pending_requests ?tutor_behaviour ?no_fork ?range4 ?ipv4 ?port server_fun
   in
-  Log.printf "dual stack server: inet4 thread started (%d)\n" (Thread.id thrd4);
+  let () = Log.printf1 "dual stack server: inet4 thread started (%d)\n" (Thread.id thrd4) in
   let return_raising e =
     Log.print_exn ~prefix:"dual stack server: I cannot start both servers because of: " e;
     (* Try to kill thrd4 after having waited 1 second (thrd4 shoud have the time tu register its killing thunk),
@@ -323,14 +323,14 @@ let inet_server ?max_pending_requests ?tutor_behaviour ?no_fork
 	 with e -> return_raising e)
     | e -> return_raising e
   in
-  Log.printf "dual stack server: inet6 thread started (%d)\n" (Thread.id thrd6);
+  Log.printf1 "dual stack server: inet6 thread started (%d)\n" (Thread.id thrd6);
   (r4,r6)
 
 (* fix Unix.SO_RCVBUF if needed *)
 let fix_SO_RCVBUF_if_needed ~max_input_size fd =
   let recv_buffer_size = Unix.getsockopt_int fd Unix.SO_RCVBUF in
   (if max_input_size > recv_buffer_size then
-    Log.printf "Fixing option Unix.SO_RCVBUF to the value %d\n" max_input_size;
+    Log.printf1 "Fixing option Unix.SO_RCVBUF to the value %d\n" max_input_size;
     Unix.setsockopt_int fd Unix.SO_RCVBUF max_input_size);
   ()
 
@@ -427,7 +427,7 @@ class stream_channel ?max_input_size fd =
       if n>=at_least
        then Some (String.sub input_buffer 0 n)
        else
-         let () = if at_least>0 then Log.printf "stream_channel#peek: received %d bytes (expected at least %d)\n" n at_least in
+         let () = if at_least>0 then Log.printf2 "stream_channel#peek: received %d bytes (expected at least %d)\n" n at_least in
          None
     with e ->
       Unix.clear_nonblock fd;
@@ -608,7 +608,7 @@ let dgram_input_socketfile_of ?dgram_output_socketfile ~stream_socketfile () =
     let result = Unix.socket Unix.PF_UNIX Unix.SOCK_DGRAM 0 in
     let socketfile = bind_to in
     bind result (Unix.ADDR_UNIX socketfile);
-    Log.printf "Unix datagram socket bound to %s\n" socketfile;
+    Log.printf1 "Unix datagram socket bound to %s\n" socketfile;
     result
   in
   let socketfile1 = dgram_output_socketfile in
@@ -1096,17 +1096,17 @@ let dgram_inet_echo_server ?no_fork ?inet6 ?port () =
     let bootstrap (ch:stream_channel) =
       (* The client provides the port where it will receive datagrams: *)
       let peer = string_of_sockaddr ch#sockaddr1 in
-      Log.printf "Receiving the dgram-inet port number (my output line) from %s\n" peer;
+      Log.printf1 "Receiving the dgram-inet port number (my output line) from %s\n" peer;
       let dgram_output_port = ch#input_binary_int () in
       let peer_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr1) in
-      Log.printf "Ok, my output line is %s:%d\n" (Unix.string_of_inet_addr peer_inet_addr) dgram_output_port;
+      Log.printf2 "Ok, my output line is %s:%d\n" (Unix.string_of_inet_addr peer_inet_addr) dgram_output_port;
       let sockaddr1 = Unix.ADDR_INET (peer_inet_addr, dgram_output_port) in
       let my_stream_inet_addr = fst (inet_addr_and_port_of_sockaddr ch#sockaddr0) in
       let (fd0, sockaddr0, port0) =
         dgram_input_port_of ~dgram_output_port ~my_stream_inet_addr ()
       in
       let dgram_channel = new dgram_channel ~max_input_size ~fd0 ~sockaddr1 () in
-      Log.printf "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
+      Log.printf2 "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
       (ch#output_binary_int port0);
       dgram_channel
     in
@@ -1128,15 +1128,15 @@ let dgram_unix_echo_server ?no_fork ?stream_socketfile () =
   let (t, socketfile) =
     let bootstrap (ch:stream_channel) =
       let sockname = string_of_sockaddr ch#sockaddr0 in
-      Log.printf "Receiving the filename (my output line) from %s\n" sockname;
+      Log.printf1 "Receiving the filename (my output line) from %s\n" sockname;
       let dgram_output_socketfile = ch#receive () in
-      Log.printf "Ok, my output line is %s\n" dgram_output_socketfile;
+      Log.printf1 "Ok, my output line is %s\n" dgram_output_socketfile;
       let (fd0, sockaddr0, socketfile0) =
         dgram_input_socketfile_of ~dgram_output_socketfile ~stream_socketfile ()
       in
       let sockaddr1 = Unix.ADDR_UNIX dgram_output_socketfile in
       let dgram_channel = new dgram_channel ~max_input_size ~fd0 ~sockaddr1 () in
-      Log.printf "Sending the filename %s (my input line) to %s\n" socketfile0 sockname;
+      Log.printf2 "Sending the filename %s (my input line) to %s\n" socketfile0 sockname;
       (ch#send socketfile0);
       dgram_channel
     in
@@ -1154,14 +1154,14 @@ let dgram_inet_echo_client ~ipv4_or_v6 ~port () =
       dgram_input_port_of ~my_stream_inet_addr ()
     in
     let peer = string_of_sockaddr ch#sockaddr1 in
-    Log.printf "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
+    Log.printf2 "Sending the dgram-inet port number %d (my input line) to %s\n" port0 peer;
     (ch#output_binary_int port0);
-    Log.printf "Receiving the dgram-inet port number (my output line) from %s\n" peer;
+    Log.printf1 "Receiving the dgram-inet port number (my output line) from %s\n" peer;
     let dgram_output_port = ch#input_binary_int () in
     let peer_inet_addr =
       fst (inet_addr_and_port_of_sockaddr ch#sockaddr1)
     in
-    Log.printf "Ok, my output line is %s:%d\n" (Unix.string_of_inet_addr peer_inet_addr) dgram_output_port;
+    Log.printf2 "Ok, my output line is %s:%d\n" (Unix.string_of_inet_addr peer_inet_addr) dgram_output_port;
     let sockaddr1 = Unix.ADDR_INET (peer_inet_addr, dgram_output_port) in
     new dgram_channel ~fd0 ~sockaddr1 ()
   in

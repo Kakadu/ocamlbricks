@@ -17,13 +17,17 @@
 val enable  : unit -> unit
 val disable : unit -> unit
 
-val printf        : ?v:int -> ?force:bool -> ?banner:bool -> ('a, out_channel, unit) format -> 'a
+(* val printf  : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a *)
+val printf  : ?v:int -> ?force:bool -> ?banner:bool -> ((unit, out_channel, unit) format) -> unit
+val printf1 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> unit, out_channel, unit) format) -> 'a -> unit
+val printf2 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> unit, out_channel, unit) format) -> 'a -> 'b -> unit
+val printf3 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> unit
+val printf4 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> unit
+val printf5 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> unit
+val printf6 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> unit
+val printf7 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> unit
+
 val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> ?prefix:string -> ?suffix:string -> exn -> unit
-val print_string  : ?v:int -> ?force:bool -> string -> unit
-val print_int     : ?v:int -> ?force:bool -> int -> unit
-val print_float   : ?v:int -> ?force:bool -> float -> unit
-val print_newline : ?v:int -> ?force:bool -> unit -> unit
-val print_endline : ?v:int -> ?force:bool -> string -> unit
 
 module Unprotected:
   sig

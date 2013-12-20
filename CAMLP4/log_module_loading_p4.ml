@@ -39,7 +39,7 @@ module Log_module_loading_p4 : Unit = struct
          else begin
            (* Printf.kfprintf flush stderr "camlp4: Applying filter log_module_loading_p4 to %s\n" file_name; *)
 	   let preambule = <:str_item@loc<
-	      let () = Log.printf "Loading module %s\n" $str:file_name$
+	      let () = Log.printf1 "Loading module %s\n" $str:file_name$
 	      >>
 	   in
 	   StSem (loc, preambule, s)

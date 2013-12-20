@@ -68,7 +68,7 @@ let get_out_channel log_channel =
  match log_channel with
   | `stdout -> (stdout, stdout_mutex)
   | `stderr -> (stderr, stderr_mutex)
-  | `file fname -> Mutex.apply_with_mutex ht_mutex out_channel_and_mutex_of_filename fname
+  | `file fname -> Mutex.apply_with_mutex (ht_mutex) (out_channel_and_mutex_of_filename) fname
 
 
 module Make
@@ -108,15 +108,13 @@ module Make
   let (out_channel, mutex) = get_out_channel Tuning.log_channel
 
   let apply_with_mutex (f:'a -> 'b) (x:'a) : 'b =
-   Mutex.apply_with_mutex mutex f x
-
+   Mutex.apply_with_mutex (mutex) f x
 
   (* Take a format string and either use it for Printf.printf, or use it
      for a dummy printf-like function which does nothing, according to
      whether we're in debug mode or not: *)
-  let printf_unsynchronized ?v ?(force=false) ~banner frmt =
-    Obj.magic
-      (if force || (Tuning.is_log_enabled ?v ()) then
+  let printf_unsynchronized ?v ?(force=false) ~banner (frmt:('a, out_channel, unit) format) : 'a =
+      if force || (Tuning.is_log_enabled ?v ()) then
        begin
          (match banner with
            | false -> ()
@@ -128,39 +126,66 @@ module Make
          Printf.kfprintf flush out_channel frmt
        end
       else
-        Printf.ifprintf out_channel frmt)
+        Printf.ifprintf out_channel frmt (* do nothing *)
 
+  (* printf0 *)
   let printf ?v ?(force=false) ?(banner=true) frmt =
    if not Tuning.synchronized
     then printf_unsynchronized ?v ~force ~banner frmt
-    else apply_with_mutex (printf_unsynchronized ?v ~force ~banner) frmt
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt) ()
+
+  let printf1 ?v ?(force=false) ?(banner=true) frmt x1 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1) ()
+
+  let printf2 ?v ?(force=false) ?(banner=true) frmt x1 x2 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1 x2
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2) ()
+
+  let printf3 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3) ()
+
+  let printf4 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4) ()
+
+  let printf5 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 x5 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5) ()
+
+  let printf6 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 x5 x6 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6) ()
+
+  let printf7 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 x5 x6 x7 =
+   if not Tuning.synchronized
+    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6 x7
+    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6 x7) ()
 
   let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
    match suffix with
-   | None        -> printf ?v ?force ?banner "%s%s\n"   prefix (Printexc.to_string e)
-   | Some suffix -> printf ?v ?force ?banner "%s%s%s\n" prefix (Printexc.to_string e) suffix
-
-  (* Here Obj.magic just avoids a warning "Warning X: this argument will not be used by the function.".
-     For a misunderstood reason, we must define and call the function printf_nobanner into Obj.magic.
-     Otherwise the banner is always printed... *)
-  let printf_nobanner ?v ?(force=false) = printf ?v ~force ~banner:false
-  let print_string  ?v ?(force=false) x  = (Obj.magic (printf_nobanner ?v ~force (format_of_string "%s"))) x
-  let print_int     ?v ?(force=false) x  = (Obj.magic (printf_nobanner ?v ~force (format_of_string "%d"))) x
-  let print_float   ?v ?(force=false) x  = (Obj.magic (printf_nobanner ?v ~force (format_of_string "%f"))) x
-  let print_endline ?v ?(force=false) x  = (Obj.magic (printf_nobanner ?v ~force (format_of_string "%s\n"))) x
-  let print_newline ?v ?(force=false) () = (Obj.magic (printf_nobanner ?v ~force (format_of_string "\n")))
+   | None        -> printf2 ?v ?force ?banner "%s%s\n"   prefix (Printexc.to_string e)
+   | Some suffix -> printf3 ?v ?force ?banner "%s%s%s\n" prefix (Printexc.to_string e) suffix
 
   module Unprotected = struct
 
-  let printf ?v ?(force=false) ?(banner=true) frmt =
-    printf_unsynchronized ?v ~force ~banner frmt
+    let printf ?v ?(force=false) ?(banner=true) frmt =
+      printf_unsynchronized ?v ~force ~banner frmt
 
-  let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
-   match suffix with
-   | None        -> printf ?v ?force ?banner "%s%s\n"   prefix (Printexc.to_string e)
-   | Some suffix -> printf ?v ?force ?banner "%s%s%s\n" prefix (Printexc.to_string e) suffix
+    let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
+    match suffix with
+    | None        -> printf ?v ?force ?banner "%s%s\n"   prefix (Printexc.to_string e)
+    | Some suffix -> printf ?v ?force ?banner "%s%s%s\n" prefix (Printexc.to_string e) suffix
 
   end (* Unprotected *)
+
 end (* Make *)
 
 module Make_simple (Tuning:sig val is_log_enabled : unit -> bool end) =
@@ -185,13 +210,13 @@ include Log
     this behaviour, the function provides the optional parameters ?hide_output
     and ?hide_errors: setting both these parameters to false, you ensure that
     nothing will be appended to the command (in debug mode or not). *)
-let system_or_fail ?on_error ?hide_output ?hide_errors command_line =
+let system_or_fail ?on_error ?hide_output ?hide_errors (command_line:string) =
   let extract_hide_decision h = match h with
   | None          -> not (Tuning.is_log_enabled ())
   | Some decision -> decision in
   let hide_output = extract_hide_decision hide_output in
   let hide_errors = extract_hide_decision hide_errors in
-  printf "Executing: %s\n" command_line;
+  let () = Log.printf1 "Executing: %s\n" command_line in
   try
     UnixExtra.system_or_fail ~hide_output ~hide_errors command_line
   with e ->
@@ -219,14 +244,14 @@ let system_or_ignore ?on_error ?hide_output ?hide_errors command_line =
    let fmt = format_of_string "Ignoring exception: %s\n" in
    let msg = Printexc.to_string e in
    (match hide_errors with
-    | None       -> printf fmt msg
-    | Some false -> printf ~force:true fmt msg
+    | None       -> Log.printf1 fmt msg
+    | Some false -> Log.printf1 ~force:true fmt msg
     | Some true  -> ()
     )
     end
 
 let print_backtrace () =
-  printf
+  Log.printf1
     "Backtrace:\n%s\n"
     (StringExtra.tab ~tab:2 (Printexc.get_backtrace ()))
 

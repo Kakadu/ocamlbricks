@@ -519,7 +519,7 @@ module Logging = struct
   let get_bool_variable : bool get_variable =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
     Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(string_of_bool)
       ~mthd:(t#bool)
       varname t
@@ -527,7 +527,7 @@ module Logging = struct
   let get_float_variable : float get_variable =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
     Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(string_of_float)
       ~mthd:(t#float)
       varname t
@@ -535,7 +535,7 @@ module Logging = struct
   let get_int_variable : int get_variable =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
     Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(string_of_int)
       ~mthd:(t#int)
       varname t
@@ -545,7 +545,7 @@ module Logging = struct
     (* Empty strings are not considered as a result (=> default): *)
     let f = add_constraint_not_empty_string ?unsuitable_value () in
     Polymorphic_functions.get_variable ?k ?ignore_undeclared ~unsuitable_value:f
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(fun x -> x)
       ~mthd:(t#string)
       varname t
@@ -553,7 +553,7 @@ module Logging = struct
   let get_string_list_variable : (string list) get_variable =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value varname t ->
     Polymorphic_functions.get_variable ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(String.concat " ")
       ~mthd:(t#list)
       varname t
@@ -561,7 +561,7 @@ module Logging = struct
   let extract_bool_variable_or : bool extract_variable_or =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
     Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(string_of_bool)
       ~default
       ~mthd:(t#bool)
@@ -570,7 +570,7 @@ module Logging = struct
   let extract_float_variable_or : float extract_variable_or =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
     Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(string_of_float)
       ~default
       ~mthd:(t#float)
@@ -579,7 +579,7 @@ module Logging = struct
   let extract_int_variable_or : int extract_variable_or =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
     Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(string_of_int)
       ~default
       ~mthd:(t#int)
@@ -590,7 +590,7 @@ module Logging = struct
     (* Empty strings are not considered as a result (=> default): *)
     let f = add_constraint_not_empty_string ?unsuitable_value () in
     Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ~unsuitable_value:f
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(fun x->x)
       ~default
       ~mthd:(t#string)
@@ -599,7 +599,7 @@ module Logging = struct
   let extract_string_list_variable_or : (string list) extract_variable_or =
     fun ?k ?log_printf ?ignore_undeclared ?unsuitable_value ~default varname t ->
     Polymorphic_functions.extract_variable_or ?k ?ignore_undeclared ?unsuitable_value
-      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf)
+      ~log_printf:(Option.extract_or log_printf Ocamlbricks_log.printf1)
       ~to_string:(String.concat " ")
       ~default
       ~mthd:(t#list)

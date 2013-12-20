@@ -24,7 +24,7 @@
 
 With this directive all files are prepended with the call:
 {[
-Log.printf "Loading module <filename>\n" ;;
+Log.printf1 "Loading module <filename>\n" ;;
 ]}
 In this way you can observe the order of modules loaded by the application.
 *)

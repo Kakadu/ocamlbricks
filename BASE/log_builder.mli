@@ -46,9 +46,9 @@ module Log2 = Log_builder.Make (struct
 
 (* Put calls somewhere in your code : *)
 ...
-Log1.printf "%s\n" value;   (* really printed when debug level >= 1 *)
+Log1.printf1 "%s\n" value;   (* really printed when debug level >= 1 *)
 ...
-Log2.printf "%s\n" value;   (* really printed when debug level >= 2 *)
+Log2.printf1 "%s\n" value;   (* really printed when debug level >= 2 *)
 ...
 ]}
 *)
@@ -65,21 +65,25 @@ module type Result = sig
        informations about the program and the thread which are executed. {b Example:}
 {[# module Log = Log.Make_simple (struct let is_log_enabled () = true end) ;;
 
-# Log.printf "The result is %d\n" 42 ;;
+# Log.printf1 "The result is %d\n" 42 ;;
 toplevel 13920 [thread 0]: The result is 42
    : unit = ()
 
-# Log.printf ~banner:false "The result is %d\n" 42 ;;
+# Log.printf1 ~banner:false "The result is %d\n" 42 ;;
 The result is 42
    : unit = ()
 ]}*)
-  val printf        : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a
+(*   val printf  : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a *)
+  val printf  : ?v:int -> ?force:bool -> ?banner:bool -> ((unit, out_channel, unit) format) -> unit
+  val printf1 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> unit, out_channel, unit) format) -> 'a -> unit
+  val printf2 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> unit, out_channel, unit) format) -> 'a -> 'b -> unit
+  val printf3 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> unit
+  val printf4 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> unit
+  val printf5 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> unit
+  val printf6 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> unit
+  val printf7 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> unit
+
   val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> ?prefix:string -> ?suffix:string -> exn -> unit
-  val print_string  : ?v:int -> ?force:bool -> string -> unit
-  val print_int     : ?v:int -> ?force:bool -> int -> unit
-  val print_float   : ?v:int -> ?force:bool -> float -> unit
-  val print_newline : ?v:int -> ?force:bool -> unit -> unit
-  val print_endline : ?v:int -> ?force:bool -> string -> unit
 
   module Unprotected:sig
   val printf        : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a

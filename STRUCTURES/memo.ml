@@ -43,7 +43,7 @@ let memoize_and_get_table ?trace_faults ?(size=default_size) f =
 	    Hashtbl.find ht x
 	  with Not_found ->
 	    begin
-	      Log.printf
+	      Log.printf1
 		"Memo.memoize: cache fault for input with hash key %d: function must be called.\n"
 		(Hashtbl.hash x) ;
 	      let y = f x in
