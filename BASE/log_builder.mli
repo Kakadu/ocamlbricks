@@ -20,8 +20,9 @@
  *)
 
 (** Facility for tracing program activities, specially using threads.
-    Essentially, this module provides a function [Log.printf] printing your
-    messages only when the current debugging level of your application rises
+    Essentially, this module provides a set of functions [Log.printf<N>], where N 
+    is the number of arguments following the format. These functions print your
+    messages only when the current debugging level of the application rises
     above ([>=]) the verbosity. Two ore more modules may be built
     on the same {!Log_builder.log_channel}. Actually:
     - an internal global hash table register the associations [(file,out_channel)]
@@ -73,7 +74,6 @@ toplevel 13920 [thread 0]: The result is 42
 The result is 42
    : unit = ()
 ]}*)
-(*   val printf  : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a *)
   val printf  : ?v:int -> ?force:bool -> ?banner:bool -> ((unit, out_channel, unit) format) -> unit
   val printf1 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> unit, out_channel, unit) format) -> 'a -> unit
   val printf2 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> unit, out_channel, unit) format) -> 'a -> 'b -> unit

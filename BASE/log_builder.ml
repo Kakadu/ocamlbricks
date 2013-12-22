@@ -73,10 +73,10 @@ let get_out_channel log_channel =
 
 module Make
  (Tuning:sig
-     val verbosity    : int
-     val debug_level  : unit -> int
-     val log_channel  : log_channel
-     val synchronized : bool
+     val verbosity    : int              (* dynamic *)
+     val debug_level  : unit -> int      (* dynamic *) 
+     val log_channel  : log_channel      (* static  *)
+     val synchronized : bool             (* static  *)
    end) : Result =
  struct
 
@@ -110,65 +110,73 @@ module Make
   let apply_with_mutex (f:'a -> 'b) (x:'a) : 'b =
    Mutex.apply_with_mutex (mutex) f x
 
+  let unprotected_test_is_log_disable ?v ?(force=false) () =
+    not ((Tuning.is_log_enabled ?v ()) || force)
+    
+  let printf_unsynchronized ?(banner=true) (frmt:('a, out_channel, unit) format) : 'a =
+    let () = 
+      match banner with
+      | false -> ()
+      | true  ->
+	  let thread_id = Thread.id (Thread.self ()) in
+	  let pid = Unix.getpid () in
+	  let prefix = Printf.sprintf "[%d.%d]: " pid thread_id in
+	  Printf.kfprintf flush out_channel "%s" prefix
+    in
+    Printf.kfprintf flush out_channel frmt
+    
   (* Take a format string and either use it for Printf.printf, or use it
      for a dummy printf-like function which does nothing, according to
      whether we're in debug mode or not: *)
-  let printf_unsynchronized ?v ?(force=false) ~banner (frmt:('a, out_channel, unit) format) : 'a =
-      if force || (Tuning.is_log_enabled ?v ()) then
-       begin
-         (match banner with
-           | false -> ()
-           | true  ->
-              let thread_id = Thread.id (Thread.self ()) in
-              let pid = Unix.getpid () in
-              let prefix = Printf.sprintf "[%d.%d]: " pid thread_id in
-              Printf.kfprintf flush out_channel "%s" prefix);
-         Printf.kfprintf flush out_channel frmt
-       end
-      else
-        Printf.ifprintf out_channel frmt (* do nothing *)
-
   (* printf0 *)
-  let printf ?v ?(force=false) ?(banner=true) frmt =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt) ()
+  let printf ?v ?force ?banner frmt =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt) ()
+     else printf_unsynchronized ?banner frmt
 
-  let printf1 ?v ?(force=false) ?(banner=true) frmt x1 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1) ()
+  let printf1 ?v ?force ?banner frmt x1 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1) ()
+     else printf_unsynchronized ?banner frmt x1
 
-  let printf2 ?v ?(force=false) ?(banner=true) frmt x1 x2 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1 x2
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2) ()
-
-  let printf3 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3) ()
-
-  let printf4 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4) ()
-
-  let printf5 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 x5 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5) ()
-
-  let printf6 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 x5 x6 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6) ()
-
-  let printf7 ?v ?(force=false) ?(banner=true) frmt x1 x2 x3 x4 x5 x6 x7 =
-   if not Tuning.synchronized
-    then printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6 x7
-    else apply_with_mutex (fun () -> printf_unsynchronized ?v ~force ~banner frmt x1 x2 x3 x4 x5 x6 x7) ()
-
+  let printf2 ?v ?force ?banner frmt x1 x2 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2) ()
+     else printf_unsynchronized ?banner frmt x1 x2
+     
+  let printf3 ?v ?force ?banner frmt x1 x2 x3 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3
+     
+  let printf4 ?v ?force ?banner frmt x1 x2 x3 x4 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 x4 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3 x4
+     
+  let printf5 ?v ?force ?banner frmt x1 x2 x3 x4 x5 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 x4 x5 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5
+     
+  let printf6 ?v ?force ?banner frmt x1 x2 x3 x4 x5 x6 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 x4 x5 x6 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6
+     
+  let printf7 ?v ?force ?banner frmt x1 x2 x3 x4 x5 x6 x7 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 x4 x5 x6 x7 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7
+     
   let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
    match suffix with
    | None        -> printf2 ?v ?force ?banner "%s%s\n"   prefix (Printexc.to_string e)
@@ -176,8 +184,10 @@ module Make
 
   module Unprotected = struct
 
-    let printf ?v ?(force=false) ?(banner=true) frmt =
-      printf_unsynchronized ?v ~force ~banner frmt
+    let printf ?v ?(force=false) ?banner frmt =
+      if force || (Tuning.is_log_enabled ?v ()) 
+	then printf_unsynchronized ?banner frmt
+	else Printf.ifprintf out_channel frmt (* do nothing (with type 'a) *)
 
     let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
     match suffix with

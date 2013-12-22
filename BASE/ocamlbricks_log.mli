@@ -17,7 +17,6 @@
 val enable  : unit -> unit
 val disable : unit -> unit
 
-(* val printf  : ?v:int -> ?force:bool -> ?banner:bool -> (('a, out_channel, unit) format) -> 'a *)
 val printf  : ?v:int -> ?force:bool -> ?banner:bool -> ((unit, out_channel, unit) format) -> unit
 val printf1 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> unit, out_channel, unit) format) -> 'a -> unit
 val printf2 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> unit, out_channel, unit) format) -> 'a -> 'b -> unit
