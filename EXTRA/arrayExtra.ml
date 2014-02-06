@@ -43,6 +43,15 @@ let fast_sorted_copy ?(compare=Pervasives.compare) xs =
   (Array.fast_sort compare ys);
   ys
 
+(** Sort the array saving the position of each element in the original array. {b Example}:
+{|# ArrayExtra.sort_saving_positions [| 6.28; 3.14; 1.41; 2.71 |] ;;
+  : (int * float) array = [|(2, 1.41); (3, 2.71); (1, 3.14); (0, 6.28)|]
+|} *)
+let sort_saving_positions ?(compare=Pervasives.compare) (xs:'a array) : (int * 'a) array =
+  let ys = Array.mapi (fun i x -> (x,i)) xs in
+  let () = Array.sort (fun (x,_) (y,_) ->  compare x y) ys in
+  Array.map (fun (p,i) -> (i,p)) ys
+  
 (** {b Example}:
 {[# int_seq 3 10 2 ;;
   : int array = [|3; 5; 7; 9|]
