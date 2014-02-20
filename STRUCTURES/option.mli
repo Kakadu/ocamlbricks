@@ -22,6 +22,7 @@ val extract : ?failwith_msg:string -> ?fallback:(unit -> 'a) -> 'a option -> 'a
 val extract_or : 'a option -> 'a -> 'a
 val extract_or_force : 'a option -> 'a Lazy.t -> 'a
 val extract_from_list : ?acc:'a list -> 'a option list -> 'a list
+val extract_map_or : 'a option -> ('a -> 'b) -> 'b -> 'b
 
 val map    : ('a -> 'b) -> 'a option -> 'b option
 val bind   : 'a option -> ('a -> 'b option) -> 'b option

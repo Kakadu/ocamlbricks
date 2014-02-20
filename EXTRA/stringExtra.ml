@@ -478,15 +478,16 @@ let cut ?(n:int=1) (s:string) =
   : string list = ["aaa"; ""; ""; "bbb"; "ccc"]
 
 ]}*)
-let rec split ?do_not_squeeze ?(d:char=' ') (s:string) = try
+let rec split ?do_not_squeeze ?(d:char=' ') (s:string) = 
+ try
   let l = String.length s in
   let p = String.index s d in
   let rest = split ?do_not_squeeze ~d (StringLabels.sub ~pos:(p+1) ~len:(l-p-1) s) in
   if (do_not_squeeze = None) && (p=0)
     then rest
     else (StringLabels.sub ~pos:0 ~len:p s)::rest
-  with
-   _ -> if (s="") then [] else [s]
+ with
+  _ -> if (s="") then [] else [s]
 
 (** Split a string into a string list using a list of blanks as word separators.
     By default blanks are [['\t';' ']] and will be squeezed. *)

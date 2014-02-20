@@ -44,9 +44,9 @@ let fast_sorted_copy ?(compare=Pervasives.compare) xs =
   ys
 
 (** Sort the array saving the position of each element in the original array. {b Example}:
-{|# ArrayExtra.sort_saving_positions [| 6.28; 3.14; 1.41; 2.71 |] ;;
+{[ ArrayExtra.sort_saving_positions [| 6.28; 3.14; 1.41; 2.71 |] ;;
   : (int * float) array = [|(2, 1.41); (3, 2.71); (1, 3.14); (0, 6.28)|]
-|} *)
+]} *)
 let sort_saving_positions ?(compare=Pervasives.compare) (xs:'a array) : (int * 'a) array =
   let ys = Array.mapi (fun i x -> (x,i)) xs in
   let () = Array.sort (fun (x,_) (y,_) ->  compare x y) ys in
@@ -320,12 +320,12 @@ let fold_binop f s =
 ]} *)
 let partition =
   let errmsg = "ArrayExtra.partition: classifier must provide only non-negative integers" in
-  fun f a ->
+  fun ?(min_size=0) f a ->
   (* f' is a dynamically type checking version of f: *)
   let f' x = (let y = f x in (if (y<0) then invalid_arg errmsg); y) in
   let max_index = Array.fold_left (fun s x -> max s (f' x)) (-1) a in
-  if max_index = -1 then [||] else
-  let ls = Array.create (max_index+1) [] in
+  if max_index = -1 then Array.create min_size [||] else
+  let ls = Array.create (max min_size (max_index+1)) [] in
   (Array.iteri (fun i x -> let c = f x in ls.(c) <- x :: ls.(c)) a);
   let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
   result

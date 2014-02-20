@@ -17,7 +17,7 @@
 (** Additional features for the standard module [Array].*)
 
 val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
-val partition : ('a -> int) -> 'a array -> 'a array array
+val partition : ?min_size:int -> ('a -> int) -> 'a array -> 'a array array
 
 val int_seq   : min:int   -> max:int   -> incr:int   -> int array
 val float_seq : min:float -> max:float -> incr:float -> float array
