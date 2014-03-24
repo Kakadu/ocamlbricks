@@ -90,3 +90,11 @@ val f : int -> int -> int = <fun>
 let rec ecfix c f e =
  (fun g -> c ((f e) g)) (fun y x -> (ecfix c f y) x)
 
+(** Find the fixpoint using the polymorphic equality: *)
+let find ?(equals=(=)) ?(loops_limit=max_int) f x0 =
+ let rec loop i x0 = 
+   let x1 = f x0 in
+   if (equals x0 x1) || (i>=loops_limit) then x1 else loop (i+1) x1
+ in
+ loop 1 x0
+

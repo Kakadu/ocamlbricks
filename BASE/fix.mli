@@ -19,3 +19,5 @@
 val fix   : (('a -> 'b) -> 'a -> 'b) -> 'a -> 'b
 val efix  : ('a -> ('a -> 'b -> 'c) -> 'b -> 'c) -> 'a -> 'b -> 'c
 val ecfix : ('a -> 'b -> 'c) -> ('d -> ('d -> 'b -> 'c) -> 'a) -> 'd -> 'b -> 'c
+
+val find : ?equals:('a -> 'a -> bool) -> ?loops_limit:int -> ('a -> 'a) -> 'a -> 'a 

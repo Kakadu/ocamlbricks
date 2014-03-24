@@ -33,6 +33,26 @@ let of_known_length_list ?(reversing=false) len = function
       | x::xs -> (try a.(i) <- x with _ -> invalid_arg "unexpected list length (understated size)"); fill (i+1) xs
       in fill 1 xs)
 
+(** {b Example}:
+{[
+# init2 3 (fun i -> (i+1,i*2)) ;;
+  : int array * int array = ([|1; 2; 3|], [|0; 2; 4|])
+]} *)
+let init2 n f =
+  if n = 0 then ([||],[||]) else
+  let (x0,y0) = f 0 in
+  let xs = Array.create n x0 in
+  let ys = Array.create n y0 in
+  for i = 1 to (n-1) do
+    let (x,y) = f i in
+    xs.(i) <- x;
+    ys.(i) <- y;
+  done;
+  (xs,ys)
+      
+let split xys = init2 (Array.length xys) (fun i -> xys.(i))
+let combine xs ys = Array.init (Array.length xs) (fun i -> xs.(i), ys.(i))
+      
 let sorted_copy ?(compare=Pervasives.compare) xs =
   let ys = (Array.copy xs) in
   (Array.sort compare ys);
@@ -51,6 +71,31 @@ let sort_saving_positions ?(compare=Pervasives.compare) (xs:'a array) : (int * '
   let ys = Array.mapi (fun i x -> (x,i)) xs in
   let () = Array.sort (fun (x,_) (y,_) ->  compare x y) ys in
   Array.map (fun (p,i) -> (i,p)) ys
+
+let sort_saving_permutation ?(compare=Pervasives.compare) (xs:'a array) : (int array) * ('a array) =
+  let ys = Array.mapi (fun i x -> (x,i)) xs in
+  let () = Array.sort (fun (x,_) (y,_) ->  compare x y) ys in
+  let xs, js = split ys in
+  (js, xs)
+
+(** {b Example}:
+{[ let xs = [| 23; 21; 10; 5; 9; 0; 2; 12; |] ;;
+let js, ys = ArrayExtra.sort_saving_permutation xs ;;
+val js : int array = [|5; 6; 3; 4; 2; 7; 1; 0|]
+val ys : int array = [|0; 2; 5; 9; 10; 12; 21; 23|]
+ys = (ArrayExtra.apply_permutation js xs) ;;
+ : bool = true 
+xs = (ArrayExtra.undo_permutation js ys) ;;
+ : bool = true ]} *)
+let apply_permutation js xs = 
+  let ys = Array.copy xs in
+  let () = Array.iteri (fun i j -> ys.(i) <- xs.(j)) js in
+  ys
+
+let undo_permutation js xs = 
+  let ys = Array.copy xs in
+  let () = Array.iteri (fun i j -> ys.(j) <- xs.(i)) js in
+  ys
   
 (** {b Example}:
 {[# int_seq 3 10 2 ;;
@@ -71,25 +116,6 @@ let float_seq ~min ~max ~incr =
  in
  let xs = loop min in
  Array.of_list xs
-
-(** {b Example}:
-{[
-# init2 3 (fun i -> (i+1,i*2)) ;;
-  : int array * int array = ([|1; 2; 3|], [|0; 2; 4|])
-]} *)
-let init2 n f =
-  if n = 0 then ([||],[||]) else
-  let (x0,y0) = f 0 in
-  let xs = Array.create n x0 in
-  let ys = Array.create n y0 in
-  for i = 1 to (n-1) do
-    let (x,y) = f i in
-    xs.(i) <- x;
-    ys.(i) <- y;
-  done;
-  (xs,ys)
-
-let split xys = init2 (Array.length xys) (fun i -> xys.(i))
 
 (** Similar to the standard [List.for_all], implemented directly, i.e. without conversion. *)
 let for_all p s =
@@ -326,10 +352,22 @@ let partition =
   let max_index = Array.fold_left (fun s x -> max s (f' x)) (-1) a in
   if max_index = -1 then Array.create min_size [||] else
   let ls = Array.create (max min_size (max_index+1)) [] in
-  (Array.iteri (fun i x -> let c = f x in ls.(c) <- x :: ls.(c)) a);
+  (Array.iter (fun x -> let c = f x in ls.(c) <- x :: ls.(c)) a);
   let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
   result
 
+let partitioni =
+  let errmsg = "ArrayExtra.partitioni: classifier must provide only non-negative integers" in
+  fun ?(min_size=0) f a ->
+  (* f' is a dynamically type checking version of f: *)
+  let f' i x = (let y = f i x in (if (y<0) then invalid_arg errmsg); y) in
+  let max_index = fold_lefti (fun i s x -> max s (f' i x)) (-1) a in
+  if max_index = -1 then Array.create min_size [||] else
+  let ls = Array.create (max min_size (max_index+1)) [] in
+  (Array.iteri (fun i x -> let c = f i x in ls.(c) <- x :: ls.(c)) a);
+  let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
+  result
+  
 (** {b Example}:
 {[
 # cut [1;2;3;0;2] [|0;1;2;3;4;5;6;7;8;9|];;
@@ -418,3 +456,28 @@ let search_longest_sequence ?leftmost p x =
   if best_n > 0 then Some (best_j, best_n) else None
 ;;
 
+
+let random_permutation xs =
+  let n = Array.length xs in
+  let js = Array.init n (fun i -> i) in
+  let () = 
+    Array.iteri 
+      (fun i x -> 
+        let choice = i + (Random.int (n-i)) in
+        js.(i)<-js.(choice); js.(choice)<-x)
+      js
+  in
+  Array.map (fun j -> xs.(j)) js
+
+let frequence pred xs =
+ let n = Array.length xs in
+ if n=0 then invalid_arg "ArrayExtra.frequence: empty array" else (* continue: *)
+ let occ = Array.fold_left (fun occ x -> if (pred x) then occ+1 else occ) 0 xs in
+ let freq = (float_of_int occ) /. (float_of_int n) in
+ (occ, freq)
+
+let count pred xs = 
+ let n = Array.length xs in
+ if n=0 then invalid_arg "ArrayExtra.count: empty array" else (* continue: *)
+ Array.fold_left (fun occ x -> if (pred x) then occ+1 else occ) 0 xs
+ 

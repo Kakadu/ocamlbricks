@@ -17,14 +17,18 @@
 (** Additional features for the standard module [Array].*)
 
 val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
-val partition : ?min_size:int -> ('a -> int) -> 'a array -> 'a array array
+val partition  : ?min_size:int -> ('a -> int) -> 'a array -> 'a array array
+val partitioni : ?min_size:int -> (int -> 'a -> int) -> 'a array -> 'a array array
 
 val int_seq   : min:int   -> max:int   -> incr:int   -> int array
 val float_seq : min:float -> max:float -> incr:float -> float array
 
-val sorted_copy           : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
-val fast_sorted_copy      : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
-val sort_saving_positions : ?compare:('a -> 'a -> int) -> 'a array -> (int * 'a) array
+val sorted_copy             : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
+val fast_sorted_copy        : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
+val sort_saving_positions   : ?compare:('a -> 'a -> int) -> 'a array -> (int * 'a) array
+val sort_saving_permutation : ?compare:('a -> 'a -> int) -> 'a array -> (int array) * ('a array)
+val apply_permutation       : int array -> 'a array -> 'a array 
+val undo_permutation        : int array -> 'a array -> 'a array 
 
 val for_all : (int -> 'a -> bool) -> 'a array -> bool
 val exists  : (int -> 'a -> bool) -> 'a array -> bool
@@ -38,6 +42,10 @@ val findi   : ('a -> bool) -> 'a array -> (int * 'a)
 
 val search_longest_sequence : ?leftmost:unit -> ('a -> bool) -> 'a array -> (int * int) option
 val shared_property : ('a -> 'b) -> 'a array -> bool
+
+val random_permutation : 'a array -> 'a array
+val frequence : ('a -> bool) -> 'a array -> int * float
+val count     : ('a -> bool) -> 'a array -> int
 
 (* The call {[dichotomic_search a x]} returns a pair (b,i) that
    provides two distinct kind of helpful informations:
@@ -76,6 +84,7 @@ val fold_binop : ('a -> 'a -> 'a) -> 'a array -> 'a
 
 val init2 : int -> (int -> 'a *'b) -> 'a array * 'b array
 val split : ('a * 'b) array -> 'a array * 'b array
+val combine : 'a array -> 'b array -> ('a * 'b) array
 
 val cut : lengths:int list -> 'a array -> 'a array list
 
