@@ -368,6 +368,10 @@ let partitioni =
   let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
   result
   
+let amass ~size = 
+  if size <= 0 then invalid_arg "ArrayExtra.amass: size must be greater than zero" else
+  partitioni (fun i x -> i/size)
+ 
 (** {b Example}:
 {[
 # cut [1;2;3;0;2] [|0;1;2;3;4;5;6;7;8;9|];;

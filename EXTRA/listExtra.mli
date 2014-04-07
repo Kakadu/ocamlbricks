@@ -119,6 +119,8 @@ val intersection : 'a list -> 'a list -> 'a list
 val uniq         : 'a list -> 'a list
 val remove_duplicates : ?take_first:bool -> 'a list -> 'a list
 
+val amass        : size:int -> 'a list -> 'a list list
+
 (** {2 Indexes} *)
 
 val int_seq   : min:int   -> max:int   -> incr:int   -> int list

@@ -221,6 +221,23 @@ let remove_duplicates ?(take_first=true) =
 ;;
 
 (** {b Example}:
+{[# let xs = ['a';'b';'c';'d';'e';'f';'g';'h';'i';'j'] ;;
+#ListExtra.amass 3 xs ;;
+  : char list list = [['a'; 'b'; 'c']; ['d'; 'e'; 'f']; ['g'; 'h'; 'i']; ['j']]
+# xs = List.concat (ListExtra.amass 3 xs) ;;
+  : bool = true ]}*)
+let amass ~size xs =
+  if size <= 0 then invalid_arg "ListExtra.amass: size must be greater than zero" else
+  let rec loop i acc1 acc2 xs =
+    if i>size then loop 1 [] ((List.rev acc1)::acc2) xs else
+    match xs with
+    | []    -> if acc1=[] then acc2 else (List.rev acc1)::acc2
+    | x::xs -> loop (i+1) (x::acc1) acc2 xs
+  in
+  List.rev (loop 1 [] [] xs)
+
+    
+(** {b Example}:
 {[# int_seq 3 10 2 ;;
   : int list = [3; 5; 7; 9]
 ]}*)
