@@ -126,7 +126,10 @@ module Text :
     val of_string : ?do_not_squeeze:unit -> string -> t
     val from_file : ?do_not_squeeze:unit -> string -> t
     val grep      : ?before:int -> ?after:int -> Str.regexp -> t -> t
+    (* --- *)
+    val merge_lines        : ?sep:string -> int -> t -> t
     val collapse_and_split : ?do_not_squeeze:unit -> ?d:char -> t -> word list
+    (* --- *)
     module Matrix :
       sig
         type t = word list list

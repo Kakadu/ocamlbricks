@@ -545,6 +545,7 @@ let rec merge_fields sep (fieldlist:int list) (l:string list) =
 # ensure_cr_at_end "hello\n";;
   : string = "hello\n"]}*)
 let ensure_cr_at_end x =
+ if x="" then "\n" else (* continue *)
  let l    = (String.length x) in
  let last = (String.sub x (l-1) 1) in
  match last with "\n" -> x | _ -> x^"\n"
@@ -557,11 +558,12 @@ type word = string
     The last line in the text may not terminate with a newline. *)
 module Text = struct
 
-(** A (line structured) text is a {b list} of strings. *)
-type t = string list
-
 (** In this context, a line is not structured, it's a flatten string. *)
 type line = string
+
+(** A (line structured) text is a {b list} of strings. *)
+type t = line list
+
 
 (** Convert a string list in a raw text.
     Each string in the input list is treated by the function [ensure_cr_at_end] in order to
@@ -640,6 +642,12 @@ let grep ?before ?after (r:Str.regexp) (sl:string list) : string list =
 let collapse_and_split ?do_not_squeeze ?(d=' ') t =
   let s = String.concat (Char.escaped d) t in
   split ?do_not_squeeze ~d s
+
+(** Merge fixed-length size groups of lines. *)  
+let merge_lines ?(sep=" ") (n:int) xs =
+  let xss = ArrayExtra.amass (n) (Array.of_list xs) in
+  let zs  = Array.map (fun ys -> String.concat sep (Array.to_list ys)) xss in
+  Array.to_list zs
 
 (** Converting raw text to matrix (list of list) of strings (words) and vice-versa. *)
 module Matrix = struct
