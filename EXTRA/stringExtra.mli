@@ -91,6 +91,7 @@ val to_charlist : string -> char list
 val of_charlist : char list -> string
 val expand : (char -> string option) -> string -> string
 val tr : char -> char -> string -> string
+val rm : char -> string -> string
 
 module Charlist :
   sig

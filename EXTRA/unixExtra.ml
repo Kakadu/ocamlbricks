@@ -770,6 +770,19 @@ let script ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (content:c
  end
 ;;
 
+let script_future ?stdin ?stdout ?stderr ?pseudo ?(forward=[]) ?register_pid (content:content) (argv_list:string list) : (int * string * string) Future.t =
+ begin
+ let program = temp_file ~perm:0o755 ~suffix:".sh" ~content () in
+ try
+  let k x y z = 
+    let () = Unix.unlink program in
+    (x,y,z)
+  in
+  kfuture ?stdin ?stdout ?stderr ?pseudo ~forward ?register_pid program argv_list k
+ with e -> ((Unix.unlink program); raise e)
+ end
+;;
+
 (** Tools for manipulating directory entries: *)
 module Dir = struct
 

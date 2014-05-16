@@ -67,13 +67,13 @@ module Source :
 module Sink :
  sig
   type t =
-  | Unix_descr  of Unix.file_descr
-  | Out_channel of out_channel
-  | Filename    of string
-  | Filename_append of string
+  | Unix_descr        of Unix.file_descr
+  | Out_channel       of out_channel
+  | Filename          of string
+  | Filename_append   of string
   | Filename_overtype of string
-  | Fun_thread  of (Unix.file_descr -> unit)
-  | String_queue of String_queue.t
+  | Fun_thread        of (Unix.file_descr -> unit)
+  | String_queue      of String_queue.t
   | Trash
 
   val to_file_descr  : t -> Unix.file_descr * bool

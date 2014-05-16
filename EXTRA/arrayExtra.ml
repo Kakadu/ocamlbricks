@@ -387,6 +387,14 @@ let cut ~lengths xs =
     List.map (fun (start, len) -> Array.sub xs start len) start_len_list
   with Invalid_argument "Array.sub" -> invalid_arg "ArrayExtra.cut"
 
+(** As standard [Array.sub] but with optional length (if not provided, the length is defined 
+    in order to take the rest of the list after the given position) *)  
+let sub ?len xs pos = 
+ let len = match len with
+ | None -> (Array.length xs) - pos
+ | Some n -> n
+ in
+ Array.sub xs pos len
 
 (** Tools for matrices (arrays of arrays). *)
 module Matrix = struct

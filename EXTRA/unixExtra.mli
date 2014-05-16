@@ -198,6 +198,15 @@ val script :
   ?register_pid:(int->unit) ->
   content -> string list -> process_result
 
+val script_future :
+  ?stdin:Endpoint.Source.t ->
+  ?stdout:Endpoint.Sink.t  ->
+  ?stderr:Endpoint.Sink.t  ->
+  ?pseudo:string ->
+  ?forward:int list ->
+  ?register_pid:(int->unit) ->
+  content -> string list -> process_result Future.t
+  
 type pid = int
 val is_process_alive : pid -> bool
 

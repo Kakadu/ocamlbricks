@@ -516,6 +516,9 @@ let concat ?(blit:blit_function=String.blit) xs =
     (fun k src -> let l=(String.length src) in (blit src 0 dst k l); (k+l)) 0 xs in
  dst
 
+(** Remove all occurrences of a character from a string. *) 
+let rm d s = concat (split ~d s) ;;
+ 
 (** Quote a string using a prefix [l] (by default [l="'"]) and a suffix [r] (by default [r="'"]). *)
 let quote ?(l="'") ?(r="'") (x:string) = String.concat "" [l;x;r]
 
@@ -524,7 +527,7 @@ let quote ?(l="'") ?(r="'") (x:string) = String.concat "" [l;x;r]
 let assemble_if_not_empty ~prefix ~suffix x =
   if (x="") then "" else (String.concat "" [prefix;x;suffix])
 
-(** [merge_map f l] maps the function [f] on the list [l]
+(** [map_concat f l] maps the function [f] on the list [l]
     then merge the result with the separator ([sep=" "] by default). *)
 let map_concat ?(sep=" ") f l = String.concat sep (List.map f l)
 
