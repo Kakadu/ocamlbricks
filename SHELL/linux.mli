@@ -59,7 +59,7 @@ module Process : sig
    tpgid : int;        (** %d (8) The ID of the foreground process group of the
                           controlling terminal of the process. *)
 
-   flags : int;        (** %u (%lu before Linux 2.6.22)
+   flags : int64;      (** %lu (should be %u, or %lu before Linux 2.6.22)
                           (9) The kernel flags word of the process.  For bit
                           meanings, see the PF_* defines in the Linux kernel
                           source file include/linux/sched.h.  Details depend
@@ -201,13 +201,13 @@ module Process : sig
    processor : int;    (** %d (since Linux 2.2.8)
                           (39) CPU number last executed on. *)
 
-   rt_priority : int;  (** %u (since Linux 2.5.19; was %lu before Linux 2.6.22)
+   rt_priority : int64;(** %lu (should be %u since Linux 2.5.19; was %lu before Linux 2.6.22)
                           (40) Real-time scheduling priority, a number in
                           the range 1 to 99 for processes scheduled under a
                           real-time policy, or 0, for non-real-time
                           processes (see sched_setscheduler(2)). *)
 
-   policy : int;       (** %u (since Linux 2.5.19; was %lu before Linux 2.6.22)
+   policy : int64;     (** %lu (should be %u since Linux 2.5.19; was %lu before Linux 2.6.22)
                           (41) Scheduling policy (see
                           sched_setscheduler(2)).  Decode using the SCHED_*
                           constants in linux/sched.h. *)
@@ -268,7 +268,7 @@ module Process : sig
  val get_descendant_easy_stats_as_forest : ?pid:int -> unit -> easy_stat Forest.t
 
  (** {2 Kill descendants}*)
- 
+
  (** Kill the whole hierarchy (forest) of the descendants of the caller (by default) or the provided [~pid].
      By default the children are processed concurrently (and recursively) using futures.
      The sequence of signals send to each process (from leafs to root) are (by default) the following in this order:

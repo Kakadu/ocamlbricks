@@ -31,7 +31,7 @@ module Process = struct
    session      : int;            (* %d (6) *)
    tty_nr       : int;            (* %d (7) *)
    tpgid        : int;            (* %d (8) *)
-   flags        : int;            (* %u (%lu before Linux 2.6.22) (9) *)
+   flags        : int64;          (* %lu (should be %u, or %lu before Linux 2.6.22) (9) *)
    minflt       : int64;          (* %lu (10) *)
    cminflt      : int64;          (* %lu (11) *)
    majflt       : int64;          (* %lu (12) *)
@@ -62,8 +62,8 @@ module Process = struct
    cnswap       : int64;          (* %lu (37) *)
    exit_signal  : int;            (* %d (since Linux 2.1.22) (38) *)
    processor    : int;            (* %d (since Linux 2.2.8)  (39) *)
-   rt_priority  : int;            (* %u (since Linux 2.5.19; was %lu before Linux 2.6.22) (40) *)
-   policy       : int;            (* %u (since Linux 2.5.19; was %lu before Linux 2.6.22) (41) *)
+   rt_priority  : int64;          (* %lu (should be %u since Linux 2.5.19; was %lu before Linux 2.6.22) (40) *)
+   policy       : int64;          (* %lu (should be %u since Linux 2.5.19; was %lu before Linux 2.6.22) (41) *)
    delayacct_blkio_ticks : int64; (* %llu (since Linux 2.6.18) (42) *)
    guest_time   : int64;          (* %lu (since Linux 2.6.24) (43) *)
    cguest_time  : int64;          (* %ld (since Linux 2.6.24) (44) *)
@@ -99,9 +99,9 @@ module Process = struct
     let result =
       try
 	let obj = Scanf.fscanf ch
-	 (* 0                           1                                      2                                       3                                     4               *)
-         (* 1  2  3  4  5  6  7  8  9   0  1   2   3   4   5   6   7   8   9   0   1   2   3   4   5  6   7   8   9   0   1   2   3   4   5   6   7   8  9  0  1  2   3   4 *)
-          "%d %s %c %d %d %d %d %d %u %Lu %Lu %Lu %Lu %Lu %Lu %Ld %Ld %Ld %Ld %Ld %Ld %Lu %Lu %Ld %s %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %s %Lu %Lu %d %d %u %u %Lu %Lu %Ld"
+	 (* 0                           1                                       2                                      3                                    4                 *)
+         (* 1  2  3  4  5  6  7  8  9   0   1   2   3   4   5   6   7   8   9   0   1   2   3   4   5  6   7   8   9   0   1   2   3   4   5   6   7  8  9  0   1   2   3   4 *)
+          "%d %s %c %d %d %d %d %d %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Ld %Ld %Ld %Ld %Ld %Ld %Lu %Lu %Ld %s %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %s %Lu %Lu %d %d %Lu %Lu %Lu %Lu %Ld"
 	  stat_constructor
 	in
 	Some obj
