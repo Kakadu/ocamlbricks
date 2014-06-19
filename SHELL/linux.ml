@@ -92,13 +92,22 @@ module Process = struct
        guest_time=guest_time; cguest_time=cguest_time;
        }
 
+
+ let input_line_from_file filename =
+   try
+     let ch = open_in filename in
+     let result = try Some (input_line ch) with _ -> None in
+     let () = close_in ch in
+     result
+   with _ -> None
+
  let stat pid =
   let filename = Printf.sprintf "/proc/%d/stat" pid in
-  try
-    let ch = open_in filename in
-    let result =
+  Option.bind
+    (input_line_from_file filename)
+    begin fun line ->
       try
-	let obj = Scanf.fscanf ch
+	let obj = Scanf.sscanf line
 	 (* 0                           1                                       2                                      3                                    4                 *)
          (* 1  2  3  4  5  6  7  8  9   0   1   2   3   4   5   6   7   8   9   0   1   2   3   4   5  6   7   8   9   0   1   2   3   4   5   6   7  8  9  0   1   2   3   4 *)
           "%d %s %c %d %d %d %d %d %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Ld %Ld %Ld %Ld %Ld %Ld %Lu %Lu %Ld %s %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %Lu %s %Lu %Lu %d %d %Lu %Lu %Lu %Lu %Ld"
@@ -107,10 +116,7 @@ module Process = struct
 	Some obj
       with Scanf.Scan_failure(msg) ->
         (Printf.kfprintf flush stderr "Linux.stat: failed scanning file %s: %s\n" filename msg; None)
-    in
-    let () = close_in ch in
-    result
-  with _ -> None
+    end
 
  let easy_stat pid =
   let easy_stat_constructor pid comm state ppid pgrp session tty_nr tpgid other_fields =
@@ -127,19 +133,15 @@ module Process = struct
     end
   in
   let filename = Printf.sprintf "/proc/%d/stat" pid in
-  try
-    let ch = open_in filename in
-    let result =
+  Option.bind
+    (input_line_from_file filename)
+    begin fun line ->
       try
-	let obj = Scanf.fscanf ch "%d %s %c %d %d %d %d %d %s@\n" easy_stat_constructor in
+	let obj = Scanf.sscanf line "%d %s %c %d %d %d %d %d %s@\n" easy_stat_constructor in
 	Some obj
       with Scanf.Scan_failure(msg) ->
         (Printf.kfprintf flush stderr "Linux.easy_stat: failed scanning file %s: %s\n" filename msg; None)
-    in
-    let () = close_in ch in
-    result
-  with _ -> None
-
+    end
 
  let get_proc_PID_directories () =
   let xs = UnixExtra.Dir.to_list ~entry_kind:Unix.S_DIR "/proc/" in
