@@ -134,3 +134,22 @@ module Service : sig
     end
 
 end
+
+(* 1-position communication channels: *)
+module Channel : sig
+
+  (* The channel may be empty or it may contain a message for someone *)
+  type 'a t = ('a option) Cortex.t
+
+  val return :
+    ?equality:('a -> 'a -> bool) ->
+    ?on_proposal:('a option -> 'a option -> 'a option) ->
+    ?on_commit:('a option -> 'a option -> unit) ->
+    ?init:'a ->
+    unit -> 'a t
+
+  val receive  : 'a t -> 'a
+  val send     : 'a t -> 'a -> bool (* success/failure of sending *)
+
+end (* Canal *)
+

@@ -400,3 +400,53 @@ module Service = struct
 
 
 end (* module Service *)
+
+module Channel = struct
+
+  (* The channel may be empty or it may contain a message for someone *)
+  type 'a t = ('a option) Cortex.t
+
+  let return
+    ?equality
+    ?on_proposal
+    ?on_commit
+    ?init
+    ()
+    =
+    let equality = match equality with
+    | None   -> None
+    | Some f ->
+        Some
+          (fun xo yo -> match xo,yo with
+           | None, None     -> true
+           | Some x, Some y -> f x y
+           | _,_ -> false)
+    in
+    Cortex.return ?equality ?on_proposal ?on_commit init
+
+  let receive (t:'a t) : 'a =
+    let (result, _changed) =
+      Cortex.eval
+	~guard:(fun v -> v<>None)
+	(fun v () ->
+	  match v with
+	  | Some msg -> (None, (fun _ -> msg))
+	  | None     -> assert false)
+	()
+	t
+    in result
+
+  let send (t:'a t) (msg:'a) : bool =
+    let (result, changed) =
+      Cortex.eval
+	~guard:(fun v -> v=None)
+	(fun v () ->
+	  match v with
+	  | None   -> (Some msg), (fun _accepted -> ())
+	  | Some _ -> assert false)
+	()
+	t
+     in
+     changed
+
+end (* Canal *)
