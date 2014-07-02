@@ -635,7 +635,6 @@ type 'a scalar_or_cortex = ('a, ('a t)) Either.t
 let scalar x = Either.Left x
 let cortex x = Either.Right x
 
-(* La differenza con una view è che gli on_proposal sono distinti. *)
 let connection ?on_proposal ?on_commit ?private_fellow (f:'a->'b) (g:'b -> 'a) (member_x : 'a t) : 'b t =
   let (x_mutexes, x) = member_x in
   let mutexes = x_mutexes in
@@ -661,6 +660,41 @@ let connection ?on_proposal ?on_commit ?private_fellow (f:'a->'b) (g:'b -> 'a) (
 	and
 	  result : ('b t) Lazy.t =
 	    lazy (make ~mutexes ~equality ?on_proposal ?on_commit ~get_content ~propose_content ())
+	in
+	(* end of recursive definition *)
+	let (_, group_u) as group = (Lazy.force result) in
+	let membership () = not !(group_u.Unprotected.no_longer_in_use) in
+	let trigger_on (member) =
+	  repeat_propose_to_group_on_member_commit
+	    ~signal_me_in_critical_section:(Option.extract x_bell) ~membership ~proposal ~group (member)
+	in
+	(* If the encapsulated cortex is private (not accessible outside the connection), nobody will
+	   try to modify its state, so there is no need to install an observer: *)
+	let _thd1 = if private_fellow then None else Some (Thread.create (trigger_on) (member_x)) in
+	group)
+  in
+  let () = Option.iter (Egg.wait) x_bell in
+  group
+
+let view ?equality ?on_proposal ?on_commit ?private_fellow (f:'a->'b) (member_x : 'a t) : 'b t =
+  let (x_mutexes, x) = member_x in
+  let mutexes = x_mutexes in
+  let proposal () = f (x.Unprotected.get_content ()) in
+  let private_fellow : bool = (private_fellow = Some ()) in
+  let x_bell = if private_fellow then None else Some (Egg.create ()) in
+  let group =
+    Mutex_group.with_mutex mutexes
+      (fun () ->
+	let content_copy = ref (proposal ()) in
+	let get_content () = !content_copy in
+	let rec propose_content a =
+	  begin
+	    content_copy := a;
+	    a
+	  end
+	and
+	  result : ('b t) Lazy.t =
+	    lazy (make ~mutexes ?equality ?on_proposal ?on_commit ~get_content ~propose_content ())
 	in
 	(* end of recursive definition *)
 	let (_, group_u) as group = (Lazy.force result) in

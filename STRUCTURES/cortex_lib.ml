@@ -450,3 +450,30 @@ module Channel = struct
      changed
 
 end (* Canal *)
+
+module Clock = struct
+
+  (* Just a counter incremented by an hidden thread. *)
+  type t = int Cortex.t
+
+  let make ?(init=0) ?limit ?(delay=1.) () =
+    let result = Cortex.return init in
+    let _orbiter =
+      let terminate =
+        match limit with
+        | None       -> (fun i -> false)
+        | Some limit -> ((=)limit)
+      in
+      let rec loop i =
+        if terminate i then () else (* continue: *)
+        let () = Thread.delay delay in
+        let i = i + 1 in
+        let () = Cortex.set result i in
+        loop i
+      in
+      Thread.create loop init
+   in
+   result
+
+end (* Clock *)
+

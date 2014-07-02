@@ -76,6 +76,14 @@ val connection :
   ('b -> 'a) ->
   'a t -> 'b t
 
+val view :
+  ?equality:('b -> 'b -> bool) ->
+  ?on_proposal:('b -> 'b -> 'b) ->
+  ?on_commit:('b -> 'b -> unit) ->
+  ?private_fellow:unit ->
+  ('a -> 'b) ->
+  'a t -> 'b t
+
 (* A wrapper is a connection with the identity functions: *)
 val wrapper :
   ?on_proposal:('a -> 'a -> 'a) ->

@@ -153,3 +153,8 @@ module Channel : sig
 
 end (* Canal *)
 
+module Clock : sig
+  type t = int Cortex.t
+  val make : ?init:int -> ?limit:int -> ?delay:float -> unit -> t
+end
+
