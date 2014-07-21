@@ -49,6 +49,10 @@ val random_permutation : 'a array -> 'a array
 val frequence : ('a -> bool) -> 'a array -> int * float
 val count     : ('a -> bool) -> 'a array -> int
 
+val values_such_that             : (int -> 'a -> bool) -> 'a array -> 'a list
+val indexes_such_that            : (int -> 'a -> bool) -> 'a array -> int list
+val indexes_and_values_such_that : (int -> 'a -> bool) -> 'a array -> (int * 'a) list
+
 (* The call {[dichotomic_search a x]} returns a pair (b,i) that
    provides two distinct kind of helpful informations:
    1) if b=true  then x has been found at position i

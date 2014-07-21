@@ -493,3 +493,14 @@ let count pred xs =
  if n=0 then invalid_arg "ArrayExtra.count: empty array" else (* continue: *)
  Array.fold_left (fun occ x -> if (pred x) then occ+1 else occ) 0 xs
  
+let values_such_that (p : int -> 'a -> bool) xs =
+  let ys = fold_lefti (fun i ys x -> if p i x then x::ys else ys) [] xs in
+  List.rev ys
+
+let indexes_such_that (p : int -> 'a -> bool) xs =
+  let ys = fold_lefti (fun i ys x -> if p i x then i::ys else ys) [] xs in
+  List.rev ys
+
+let indexes_and_values_such_that (p : int -> 'a -> bool) xs =
+  let ys = fold_lefti (fun i ys x -> if p i x then (i,x)::ys else ys) [] xs in
+  List.rev ys
