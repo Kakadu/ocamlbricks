@@ -265,38 +265,32 @@ let eval : 'a 'b. ('state -> 'a -> 'state * ('state -> 'b)) -> 'a -> 'state t ->
 	let locally_fixed_proposal =
 	  local_fixpoint first_proposal
 	in
-	if (equals_to_current locally_fixed_proposal)
-	  then
-	    (* No changes => callbacks are finally agreed for the current content *)
-	    ((b_of_state current), false, (current, current))
-	  else begin
-	    (* A change should be observed, supposing the provided `set_content'
-	       or 'propose_content' agreed with the `locally_fixed_proposal': *)
-	    let rec global_fixpoint (s0:'a) : 'a * ('a -> bool) =
-	      let equals_to_s0 = (t.equality s0) in
-	      let s1 = t.propose_content (s0) in
-	      if equals_to_s0 (s1) then (s0, equals_to_s0) else
-	      let s2 = local_fixpoint s1 in
-	      global_fixpoint s2
-	    in
-	    let globally_fixed_proposal, new_equals_to_current =
-	      global_fixpoint (locally_fixed_proposal)
-	    in
-	    let changed = not (equals_to_current globally_fixed_proposal) in
-	    if changed then
-	      begin
-	        (* A patch is really happened: *)
-		t.revno := !(t.revno) + 1;
-		t.equals_to_current := new_equals_to_current;
-		if !(t.waiting_no) > 0
-		  then begin
-		    Condition.broadcast (t.alert_on_commit);
-		    t.waiting_no := 0
-		  end;
-	      end; (* if changed *)
-	    let result = ((b_of_state globally_fixed_proposal), changed, (current, globally_fixed_proposal)) in
-	    result
-	  end (* A change should be observed *)
+        (* A change should be observed, supposing the provided `set_content'
+           or 'propose_content' agreed with the `locally_fixed_proposal': *)
+        let rec global_fixpoint (s0:'a) : 'a * ('a -> bool) =
+          let equals_to_s0 = (t.equality s0) in
+          let s1 = t.propose_content (s0) in
+          if equals_to_s0 (s1) then (s0, equals_to_s0) else
+          let s2 = local_fixpoint s1 in
+          global_fixpoint s2
+        in
+        let globally_fixed_proposal, new_equals_to_current =
+          global_fixpoint (locally_fixed_proposal)
+        in
+        let changed = not (equals_to_current globally_fixed_proposal) in
+        if changed then
+          begin
+            (* A patch is really happened: *)
+            t.revno := !(t.revno) + 1;
+            t.equals_to_current := new_equals_to_current;
+            if !(t.waiting_no) > 0
+              then begin
+                Condition.broadcast (t.alert_on_commit);
+                t.waiting_no := 0
+              end;
+          end; (* if changed *)
+        let result = ((b_of_state globally_fixed_proposal), changed, (current, globally_fixed_proposal)) in
+        result
       end (* A fixed proposal has been calculated *)
 
 (* Unprotected.eval redefined: the third component of the result (the state)
@@ -2103,7 +2097,6 @@ let with_private_interface : 'a t -> 'a private_interface =
 
 end (* Object *)
 
-
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
 module Example1 = struct
 
@@ -2111,11 +2104,11 @@ let x = return 42 ;;
 let y = return 10 ;;
 let z = group_pair x y ;;
 let w = Either_cortex.iLeft ~right:y (Either.Right x) ;;
-let t = sum_array [| x; x; y; y |] ;;
+let s = sum_array [| x; x; y; y |] ;;
 propose x 5 ;;
 
 (* Uncomment the following lines in order to follow the stabilization of resistences: *)
-(* on_commit_append x
+ on_commit_append x
   (fun x0 x1 -> Printf.kfprintf flush stderr "x changed from %d to %d\n" x0 x1) ;;
 
 on_proposal_append x
@@ -2126,7 +2119,7 @@ on_proposal_append y
 
 on_proposal_append z
   (fun (x0,y0) (x1,y1) -> Printf.kfprintf flush stderr "proposed to change z from (%d,%d) to (%d,%d)\n" x0 y0 x1 y1;
-    Thread.delay 0.5; (x1,y1)) ;; *)
+    Thread.delay 0.5; (x1,y1)) ;; 
 
 let even x = (x mod 2 = 0) ;;
 
