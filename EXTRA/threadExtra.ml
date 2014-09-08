@@ -260,11 +260,19 @@ module Available_signals = struct
   (* For the main thread only: register the action of killing all suspending sub-threads.
      This action will provoke the execution of at_exit() for each sub-thread. *)
   let () =
+    (* ugly trick: *)
+    let one_thread_has_been_started_at_least () =
+      (Thread.id (Thread.create (fun () -> ()) ())) > 1
+    in
     Pervasives.at_exit
       (fun () ->
-         ULog.printf "Thread Exiting (main): killing all sub-threads...\n";
-         killall ();
-         Thread.delay 0.5 (* Give to the sub-threads the time to perform their at_exit functions *)
+         if one_thread_has_been_started_at_least () then begin
+           ULog.printf "Thread Exiting (main): killing all sub-threads...\n";
+           killall ();
+           Thread.delay 0.5 (* Give to the sub-threads the time to perform their at_exit functions *)
+           end
+           else
+           ULog.printf "Thread Exiting (main): no sub-threads have been created.\n"
          )
 
 end (* module Available_signals *)
