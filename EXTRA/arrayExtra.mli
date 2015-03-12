@@ -19,7 +19,8 @@
 val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
 val partition  : ?min_size:int -> ('a -> int) -> 'a array -> 'a array array
 val partitioni : ?min_size:int -> (int -> 'a -> int) -> 'a array -> 'a array array
-val amass      : size:int -> 'a array -> 'a array array
+val amass      : ?group_no:int -> ?size:int -> 'a array -> 'a array array
+val flatten    : 'a array array -> 'a array
 val sub        : ?len:int -> 'a array -> int -> 'a array
 
 val int_seq   : min:int   -> max:int   -> incr:int   -> int array
@@ -64,7 +65,9 @@ val indexes_and_values_such_that : (int -> 'a -> bool) -> 'a array -> (int * 'a)
 val dichotomic_search : ?a:int -> ?b:int -> 'a array -> 'a -> bool * int
 val dichotomic_insert : 'a array -> 'a -> 'a array
 val dichotomic_index_of_first_element_gt : ?a:int -> ?b:int -> 'a -> 'a array -> int option
+val dichotomic_index_of_first_element_ge : ?a:int -> ?b:int -> 'a -> 'a array -> int option
 val dichotomic_index_of_last_element_lt  : ?a:int -> ?b:int -> 'a -> 'a array -> int option
+val dichotomic_index_of_last_element_le  : ?a:int -> ?b:int -> 'a -> 'a array -> int option
 
 val for_all2 : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 val exists2  : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool

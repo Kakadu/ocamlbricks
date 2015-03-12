@@ -245,6 +245,17 @@ let dichotomic_index_of_first_element_gt ?a ?b x v =
      if v.(i) > x then Some i else None
  | false, i -> Some i
 
+ 
+let dichotomic_index_of_first_element_ge ?a ?b x v =
+ let l = Array.length v in
+ let last_index = l-1 in
+ match dichotomic_search ?a ?b v x with
+ | true , i ->
+    if (i = last_index) then None else Some (i+1)
+ | false, i when (i = last_index) ->
+     if v.(i) >= x then Some i else None
+ | false, i -> Some i
+ 
 (**  {b Example}:
 {[
 # let a = Array.init 10 (fun i->i*10);;
@@ -279,6 +290,18 @@ let dichotomic_index_of_last_element_lt ?a ?b x v =
      None
  | false, i -> Some (i-1)
 
+let dichotomic_index_of_last_element_le ?a ?b x v =
+ let l = Array.length v in
+ let last_index = l-1 in
+ match dichotomic_search ?a ?b v x with
+ | true , i ->
+    if (i = 0) then None else Some (i-1)
+ | false, i when (i = last_index) ->
+     if v.(i) <= x then Some i else
+     if i>0 && v.(i-1) <= x then Some (i-1) else
+     None
+ | false, i -> Some (i-1)
+ 
 
 let for_all2 f xs ys = for_all (fun i x -> f i x ys.(i)) xs
 let exists2  f xs ys = exists  (fun i x -> f i x ys.(i)) xs
@@ -368,10 +391,31 @@ let partitioni =
   let result = Array.map (fun l -> Array.of_list (List.rev l)) ls in
   result
   
-let amass ~size = 
+(** {b Example}:
+{[
+# amass ~size:3 [|1;2;3;4;5;6;7;8;9;10|] ;;
+  : int array array = [|[|1; 2; 3|]; [|4; 5; 6|]; [|7; 8; 9|]; [|10|]|]
+]} *)
+let amass ?group_no ?size xs = 
+  let size = 
+    match size, group_no with
+    | (Some s), _ -> s
+    | None, (Some g) -> 
+        let n = Array.length xs in
+        let k = n/g in
+        if n mod g > 0 then k+1 else k (* I want exactly g groups *)
+  in
   if size <= 0 then invalid_arg "ArrayExtra.amass: size must be greater than zero" else
-  partitioni (fun i x -> i/size)
+  partitioni (fun i x -> i/size) xs
  
+(** {b Example}:
+{[
+# flatten [|[|1; 2; 3|]; [|4; 5; 6|]; [|7; 8; 9|]; [|10|]|] ;;
+  : int array = [|1; 2; 3; 4; 5; 6; 7; 8; 9; 10|] 
+]} *)
+let flatten xss =
+  Array.concat (Array.to_list xss)
+  
 (** {b Example}:
 {[
 # cut [1;2;3;0;2] [|0;1;2;3;4;5;6;7;8;9|];;
@@ -504,3 +548,4 @@ let indexes_such_that (p : int -> 'a -> bool) xs =
 let indexes_and_values_such_that (p : int -> 'a -> bool) xs =
   let ys = fold_lefti (fun i ys x -> if p i x then (i,x)::ys else ys) [] xs in
   List.rev ys
+  

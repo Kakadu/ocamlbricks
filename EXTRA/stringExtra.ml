@@ -648,7 +648,7 @@ let collapse_and_split ?do_not_squeeze ?(d=' ') t =
 
 (** Merge fixed-length size groups of lines. *)  
 let merge_lines ?(sep=" ") (n:int) xs =
-  let xss = ArrayExtra.amass (n) (Array.of_list xs) in
+  let xss = ArrayExtra.amass (~size:n) (Array.of_list xs) in
   let zs  = Array.map (fun ys -> String.concat sep (Array.to_list ys)) xss in
   Array.to_list zs
 

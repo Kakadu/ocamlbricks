@@ -50,7 +50,7 @@ let to_file_descr =
     (assert (count = len));
     (Unix.close pwrite);
     pread
-  in 
+  in
   function
   | Unix_descr  d -> (d, false)
   | In_channel  c -> ((Unix.descr_of_in_channel c), false)
@@ -63,10 +63,10 @@ let to_in_channel =
   function
   | Unix_descr  d -> ((Unix.in_channel_of_descr d), false)
   | In_channel  c -> (c, false)
-  | other_case     -> 
+  | other_case     ->
       let d, flag = to_file_descr (other_case) in
       (Unix.in_channel_of_descr d), flag
- 
+
 type line = string    (** Lines are strings separated by ['\n'] in the source *)
 type word = string    (** Words are substrings of a line *)
 type delimiter = char (** Word delimiter, the Blank character by default *)
@@ -88,31 +88,31 @@ let with_file_descr t (f : Unix.file_descr -> 'a) =
   result
 
 let fold_lines (f : 'a -> recno -> line -> 'a) s t : 'a =
-  with_in_channel t 
+  with_in_channel t
     begin
       fun ch ->
         let rec loop i acc =
-          try 
+          try
             let line = input_line ch in
             let acc' = (f acc i line) in
-            loop (i+1) acc' 
-          with 
+            loop (i+1) acc'
+          with
             End_of_file -> acc
         in
         loop 1 s
     end
-  
+
 let map_lines (f : recno -> line -> 'a) t : 'a array =
   let (xs, size) = fold_lines (fun (acc,_) i line -> ((f i line)::acc),i) ([],0) t in
   ArrayExtra.of_known_length_list ~reversing:true size xs
-  
-(** {b Example}: 
-{[ Source.iter_lines (Printf.printf "(%d) %s\n") (Source.Filename "/etc/fstab") ;; 
-]} *) 
+
+(** {b Example}:
+{[ Source.iter_lines (Printf.printf "(%d) %s\n") (Source.Filename "/etc/fstab") ;;
+]} *)
 let iter_lines (f : recno -> line -> unit) t =
   fold_lines (fun _ i line -> (f i line)) () t
 
-(* --- *)  
+(* --- *)
 
 let fold_word_lists ?d (f : 'a -> recno -> word list -> 'a) s t : 'a =
   fold_lines (fun a i line -> f a i (StringExtra.split ?d line)) s t
@@ -123,8 +123,8 @@ let map_word_lists ?d (f : recno -> word list -> 'a) t : 'a array =
 let iter_word_lists ?d (f : recno -> word list -> unit) t =
   iter_lines (fun i line -> f i (StringExtra.split ?d line)) t
 
-(* --- *)  
-  
+(* --- *)
+
 let fold_word_arrays ?d (f : 'a -> recno -> word array -> 'a) s t : 'a =
   fold_lines (fun a i line -> f a i (Array.of_list (StringExtra.split ?d line))) s t
 
@@ -134,17 +134,17 @@ let map_word_arrays ?d (f : recno -> word array -> 'a) t : 'a array =
 let iter_word_arrays ?d (f : recno -> word array -> unit) t =
   iter_lines (fun i line -> f i (Array.of_list (StringExtra.split ?d line))) t
 
-(* --- *)  
+(* --- *)
 
 (** {b Example}:
 {[
 Source.fold_words (fun n _ _ _ -> n+1) 0 (Source.Filename "/etc/fstab") ;;
-: int = 88 
+: int = 88
 
 UnixExtra.run "wc -w /etc/fstab" ;;
-: string * Unix.process_status = ("88 /etc/fstab\n", Unix.WEXITED 0)                                                                                                                        
+: string * Unix.process_status = ("88 /etc/fstab\n", Unix.WEXITED 0)
 ]} *)
-let fold_words ?d (f : 'a -> recno -> fieldno -> word -> 'a) s t : 'a = 
+let fold_words ?d (f : 'a -> recno -> fieldno -> word -> 'a) s t : 'a =
   fold_word_arrays ?d (fun s i ws -> ArrayExtra.fold_lefti (fun j a w -> f a i (j+1) w) s ws) s t
 
 let iter_words ?d (f : recno -> fieldno -> word -> unit) t =
@@ -153,13 +153,13 @@ let iter_words ?d (f : recno -> fieldno -> word -> unit) t =
 (** {b Example}:
 {[
 Source.map_words (fun _ _ -> String.capitalize) (Source.Filename "/etc/fstab") ;;
-: string array array = 
-\[|\[|"#"; "/etc/fstab:"; "Static"; "File"; "System"; "Information."|\]; 
+: string array array =
+\[|\[|"#"; "/etc/fstab:"; "Static"; "File"; "System"; "Information."|\];
 ...
 |\] ]} *)
 let map_words ?d (f : recno -> fieldno -> word -> 'a) t : 'a array array =
   map_word_arrays ?d (fun i ws -> Array.mapi (fun j w -> f i (j+1) w) ws) t
-    
+
 end
 
 
@@ -202,11 +202,11 @@ let to_file_descr =
    let (pread,pwrite) = Unix.pipe () in
    let try_close d = try (Unix.close d) with _ -> () in
    let wrap f d =
-     (let res = try (f d) with e -> ((try_close d); raise e) in (try_close d); res) 
+     (let res = try (f d) with e -> ((try_close d); raise e) in (try_close d); res)
    in
    let () = ignore (Thread.create (wrap f) pread) in
    pwrite
- in 
+ in
  function
  | Unix_descr   d -> (d, false)
  | Out_channel  c -> ((Unix.descr_of_out_channel c), false)
@@ -231,7 +231,7 @@ let to_out_channel =
  function
  | Unix_descr   d -> ((Unix.out_channel_of_descr d), false)
  | Out_channel  c -> (c, false)
- | other_case     -> 
+ | other_case     ->
      let d,flag = to_file_descr (other_case) in
      (Unix.out_channel_of_descr d), flag
 
@@ -241,7 +241,7 @@ let with_out_channel t (f : out_channel -> 'a) =
   let result = f ch in
   let () = if flag then (try close_out ch with _ -> ()) in
   result
-     
+
 (** Open and convert the sink into a file descriptor, apply the function, then close it if necessary. *)
 let with_file_descr t (f : Unix.file_descr -> 'a) =
   let (fd, flag) = to_file_descr t in
@@ -254,8 +254,8 @@ type word = string      (** Words are strings separated by default by Blanks in 
 type linesep = string   (** Line (record) separator, by default ['\n'] *)
 type wordsep = string   (** Word (field) separator, by default [' '] (Blank) *)
 
-let print_string t s = 
-  with_out_channel t 
+let print_string t s =
+  with_out_channel t
     (fun ch -> Printf.kfprintf flush ch "%s" s)
 
 let print_lines ?(rs="\n") t xs =
@@ -269,11 +269,11 @@ let print_word_lists ?(rs="\n") ?(fs=" ") t wss =
 let print_word_arrays ?(rs="\n") ?(fs=" ") t wss =
   with_out_channel t
     (fun ch -> Array.iter (fun ws -> Printf.fprintf ch "%s%s" (String.concat fs (Array.to_list ws)) rs) wss)
-  
+
 let printf1 t fmt xs =
   with_out_channel t
     (fun ch -> Array.iter (function x1 -> Printf.fprintf ch fmt x1) xs)
-    
+
 let printf2 t fmt xs =
   with_out_channel t
     (fun ch -> Array.iter (function x1,x2 -> Printf.fprintf ch fmt x1 x2) xs)
@@ -317,5 +317,5 @@ let printf11 t fmt xs =
 let printf12 t fmt xs =
   with_out_channel t
     (fun ch -> Array.iter (function x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12 -> Printf.fprintf ch fmt x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12) xs)
-    
+
 end
