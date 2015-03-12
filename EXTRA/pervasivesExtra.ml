@@ -22,6 +22,8 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+type filename = string
+
 (** Round the float. By default the number of decimals is set to 3. *)
 let round ?(decimals=3) x =
   let k = 10. ** (float_of_int decimals) in
@@ -122,3 +124,19 @@ let get_first_lines_of_file filename n =
     let () = close_in ch in
     result
   with _ -> []
+
+let get_first_chars_of_file filename n =
+  try
+    let ch = open_in filename in
+    let rec loop k acc =
+      if k=0 then List.rev acc else
+      try
+        let line = input_char ch in
+        loop (k-1) (line::acc)
+      with _ -> List.rev acc
+    in
+    let result = loop n [] in
+    let () = close_in ch in
+    result
+  with _ -> []
+  
