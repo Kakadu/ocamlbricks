@@ -404,6 +404,7 @@ let amass ?group_no ?size xs =
         let n = Array.length xs in
         let k = n/g in
         if n mod g > 0 then k+1 else k (* I want exactly g groups *)
+    | None, None -> invalid_arg "ArrayExtra.amass: at leat one of the parameters ~size or ~group_no must be provided"
   in
   if size <= 0 then invalid_arg "ArrayExtra.amass: size must be greater than zero" else
   partitioni (fun i x -> i/size) xs

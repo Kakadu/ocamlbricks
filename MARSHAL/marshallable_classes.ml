@@ -1174,7 +1174,7 @@ module Toolkit = struct
    match (x,y) with
    | (Either.Left  a, Either.Left  c) -> Either.Left  (a,c)
    | (Either.Right b, Either.Right d) -> Either.Right (b,d)
-
+   | _ , _ -> invalid_arg "zip_either"
 end
 
 
@@ -1262,7 +1262,7 @@ object (self)
     let object_maker = get_basic_constructor "class2" ~involved_field:"field4" ~involved_class in
     let functor_map = Option.map in        (* from the tag: option -> Option.map *)
     self#marshaller#register_functorized_object_field ~name:"field4"
-      ~zip:(fun x y -> match (x,y) with None,None-> None| Some x, Some y -> Some (x,y))
+      ~zip:(fun x y -> match (x,y) with None,None-> None| Some x, Some y -> Some (x,y) | _,_ -> assert false)
       functor_map
       object_maker
       (fun () -> self#get_field4)
@@ -1314,7 +1314,7 @@ object (self)
     let object_maker2 = get_basic_constructor "class3" ~involved_field:"field7" ~involved_class in
     let functor_map = Either.Bifunctor.map in
     self#marshaller#register_bifunctorized_objects_field ~name:"field7"
-      ~zip:(fun x y -> match x,y with (Left a, Left b) -> Left (a,b) | (Right c, Right d) -> Right (c,d))
+      ~zip:(fun x y -> match x,y with (Left a, Left b) -> Left (a,b) | (Right c, Right d) -> Right (c,d) | _,_ -> assert false)
       functor_map
       object_maker1
       object_maker2

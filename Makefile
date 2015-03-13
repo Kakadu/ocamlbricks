@@ -40,6 +40,7 @@ SHELL=/bin/bash
 
 OCAMLBUILD = $$( $(call OCAMLBUILD_COMMAND_LINE) )
 LIBRARYPREFIX=$(shell $(call READ_CONFIG, libraryprefix); echo $$libraryprefix)
+OCAML_VERSION=$(shell $(call READ_CONFIG, ocaml_version); echo $$ocaml_version)
 OCAML_LIBRARYPREFIX=$(shell $(call READ_CONFIG, ocaml_libraryprefix); echo $$ocaml_libraryprefix)
 
 # The main target. Its implementation is entirely project-dependant:
@@ -676,9 +677,9 @@ LOGFILE=_build/$(OCAMLBUILD_LOG)
 # -byte-plugin if needed:
 OCAMLBUILD_COMMAND_LINE = \
 	(if [ $$( $(call NATIVE_OR_BYTE) ) == 'byte' ]; then \
-	  echo 'ocamlbuild -j $(PROCESSOR_NO) -byte-plugin -verbose 2 -log $(OCAMLBUILD_LOG)'; \
+	  echo 'ocamlbuild -j $(PROCESSOR_NO) -byte-plugin -verbose 2 -log $(OCAMLBUILD_LOG) $(OCAMLBUILD_OPTIONS)'; \
 	else \
-	  echo 'ocamlbuild -j $(PROCESSOR_NO) -verbose 2 -log $(OCAMLBUILD_LOG)'; \
+	  echo 'ocamlbuild -j $(PROCESSOR_NO) -verbose 2 -log $(OCAMLBUILD_LOG) $(OCAMLBUILD_OPTIONS)'; \
 	fi)
 
 # Macro extracting, via source, the value associated to some keys
@@ -747,7 +748,7 @@ FIX_VERSION = \
 # the value of sourcedirectories:
 SOURCE_SUBDIRECTORIES = \
 	sourcedirectories=''; \
-	for d in `find -name _"build*" -prune -o -type d | grep -v "/[.]bzr\$$" | grep -v "/[.]bzr/" \
+	for d in `find \( -path "_build*" -o -name "[.]bzr" -o -name "$(EXCLUDE_FROM_SOURCE_FINDING)" \) -prune -o -type d \
 	          | grep -v /_build\$$ | grep -v /_build/ \
 	          | grep -v ^.$$ | sort`; do \
 		if ls $$d/*.ml &> /dev/null  || \
@@ -846,10 +847,18 @@ myocamlbuild.ml:
 	for x in $(DIRECTORIES_TO_INCLUDE); do \
 	  if test -d $(LIBRARYPREFIX)/$$x; then echo -en "A \"-I\"; A \"$(LIBRARYPREFIX)/$$x\"; " >> $@; fi; \
 	done; \
+	for x in $(DIRECTORIES_TO_INCLUDE); do \
+	  if test -d ./$$x; then echo -en "A \"-I\"; A \"../$$x\"; " >> $@; fi; \
+	done; \
 	echo -e "];;" >> $@; \
 	echo -en "let our_c_modules = [ " >> $@; \
 	for x in $(C_OBJECTS_TO_LINK); do \
 		echo -en "A \"$$x.o\"; " >> $@; \
+	done; \
+	echo -e "];;" >> $@; \
+	echo -en "let our_c_modules_options = our_c_modules @ [ " >> $@; \
+	for x in $(C_OBJECTS_TO_LINK_OPTIONS); do \
+		echo -en "A \"$$x\"; " >> $@; \
 	done; \
 	echo -e "];;" >> $@; \
 	#echo -en "let our_byte_link_options = our_include_options @ [ A \"-custom\"; " >> $@; \
@@ -885,7 +894,7 @@ myocamlbuild.ml:
 	echo -e "  flag [\"ocaml\"; \"doc\"; \"ourocamldocsettings\"]" >> $@; \
 	echo -e "       (S ([A \"-keep-code\"; A \"-colorize-code\"] @ our_include_options));" >> $@; \
 	echo -e "  flag [\"ocaml\"; \"link\"; \"ourcmodules\"]" >> $@; \
-	echo -e "       (S our_c_modules);" >> $@; \
+	echo -e "       (S our_c_modules_options);" >> $@; \
 	echo -e "  | _ -> ());;" >> $@)
 
 # Auto-generate a source file including meta information and configuration-time
@@ -899,6 +908,7 @@ meta.ml: META CONFIGME
 	echo -e "let name = \"$$name\";;" >> $@ && \
 	echo -e "let version = \"$$version\";;" >> $@ && \
 	echo -e "let prefix = \"$$prefix\";;" >> $@ && \
+	echo -e "let ocaml_version = \"$(OCAML_VERSION)\";;" >> $@ && \
 	echo -e "let ocaml_libraryprefix = \"$(OCAML_LIBRARYPREFIX)\";;" >> $@ && \
 	echo -e "let libraryprefix = \"$(LIBRARYPREFIX)\";;" >> $@ && \
 	echo -e "let configurationprefix = \"$$configurationprefix\";;" >> $@ && \

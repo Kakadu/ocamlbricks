@@ -82,6 +82,8 @@ The result is 42
   val printf5 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> unit
   val printf6 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> unit
   val printf7 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> unit
+  val printf8 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h -> unit
+  val printf9 : ?v:int -> ?force:bool -> ?banner:bool -> (('a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h -> 'i -> unit, out_channel, unit) format) -> 'a -> 'b -> 'c -> 'd -> 'e -> 'f -> 'g -> 'h -> 'i -> unit
 
   val print_exn     : ?v:int -> ?force:bool -> ?banner:bool -> ?prefix:string -> ?suffix:string -> exn -> unit
 

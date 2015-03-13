@@ -176,6 +176,18 @@ module Make
    if Tuning.synchronized
      then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7) ()
      else printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7
+
+  let printf8 ?v ?force ?banner frmt x1 x2 x3 x4 x5 x6 x7 x8 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 x4 x5 x6 x7 x8 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7 x8) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7 x8
+
+  let printf9 ?v ?force ?banner frmt x1 x2 x3 x4 x5 x6 x7 x8 x9 =
+   if unprotected_test_is_log_disable ?v ?force () then Printf.ifprintf out_channel frmt x1 x2 x3 x4 x5 x6 x7 x8 x9 else
+   if Tuning.synchronized
+     then apply_with_mutex (fun () -> printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7 x8 x9) ()
+     else printf_unsynchronized ?banner frmt x1 x2 x3 x4 x5 x6 x7 x8 x9
      
   let print_exn ?v ?force ?banner ?(prefix="") ?suffix e =
    match suffix with
