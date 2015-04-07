@@ -19,8 +19,8 @@
 
 type 'a t = unit -> 'a
 
-(** Transform a thunk in a one-shot thunk, i.e. a thunk that cannot be executed more than once (the second call and subsequent calls return immediately with the previous result (if the codomain is not unit,
-this function is a memoisation): *)
+(** Transform a thunk in a one-shot thunk, i.e. a thunk that is not really executed more than once; 
+    the second and subsequent calls return immediately the previous result: *)
 let linearize thunk =
  let already_called = ref None in
  fun () ->
@@ -50,6 +50,7 @@ let apply thunk = thunk ()
     Actually, if the lazy value raises an exception, the resulting thunk raises this exception for each call,
     while the linearized one raises this exception only once. *)
 let of_lazy l = fun () -> Lazy.force l
+let to_lazy thunk = lazy (thunk ())
 
 type id = int
 type linear = bool

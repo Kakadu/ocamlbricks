@@ -26,6 +26,7 @@ val one_shot  : 'a t -> 'a t
 
 val apply     : 'a t -> 'a
 val of_lazy   : 'a lazy_t -> 'a t
+val to_lazy   : 'a t -> 'a lazy_t
 
 type id = int
 type linear = bool
