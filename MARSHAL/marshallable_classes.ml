@@ -712,12 +712,13 @@ object (self)
              let living_object_t = real_get () in
              let object_t, loading_env =
 	       try
-		 let marshallable_object_t = zip marshallable_t living_object_t in (* this call may fails *)
+	         (* The following definition is commented in order to avoid a boring warning: *)
+                 (* let marshallable_object_t = zip marshallable_t living_object_t in (* this call may fail *) *)
 		 (Functor.map_and_fold_of_functor (Obj.magic map2))
 		    (fun env (msh,liv_obj) ->
 		        self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker env msh)
 		    (loading_env)
-		    marshallable_object_t
+		    ((Obj.magic zip) marshallable_t living_object_t) (* marshallable_object_t *)
 	       with _ -> begin
 	         (* Ignore zip: *)
 		 (Functor.map_and_fold_of_functor map2)
@@ -810,12 +811,13 @@ object (self)
              let living_objects_t = real_get () in
              let objects_t, loading_env =
 	       try
-		 let marshallable_x_objects_t = zip marshallable_t living_objects_t in (* this call may fails *)
+                 (* The following definition is commented in order to avoid a boring warning: *)
+                 (* let marshallable_x_objects_t = zip marshallable_t living_objects_t in (* this call may fails *) *)
                  (Functor.map_and_fold_of_bifunctor (Obj.magic map2))
 		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker1 env msh)
 		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker2 env msh)
 		    (loading_env)
-		    marshallable_x_objects_t
+		    ((Obj.magic zip) marshallable_t living_objects_t) (* marshallable_x_objects_t *)
 	       with _ -> begin
 	         (* Ignore zip: *)
                  (Functor.map_and_fold_of_bifunctor map2)
@@ -915,13 +917,14 @@ object (self)
              let living_objects_t = real_get () in
              let objects_t, loading_env =
 	       try
-		 let marshallable_x_objects_t = zip marshallable_t living_objects_t in (* this call may fails *)
+                 (* The following definition is commented in order to avoid a boring warning: *)
+                 (* let marshallable_x_objects_t = zip marshallable_t living_objects_t in (* this call may fails *) *)
                  (Functor.map_and_fold_of_trifunctor (Obj.magic map2))
 		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker1 env msh)
 		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker2 env msh)
 		    (fun env (msh, liv_obj) -> self#object_of_marshallable ~getter:(fun ()->liv_obj) ~maker:object_maker3 env msh)
 		    (loading_env)
-		    marshallable_x_objects_t
+		    ((Obj.magic zip) marshallable_t living_objects_t) (* marshallable_x_objects_t *)
 	       with _ -> begin
 	         (* Ignore zip: *)
 		  (Functor.map_and_fold_of_trifunctor map2)

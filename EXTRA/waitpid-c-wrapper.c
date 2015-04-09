@@ -28,6 +28,7 @@
 #include <caml/fail.h>
 #include <caml/callback.h>
 #include <caml/unixsupport.h>
+#include <caml/threads.h>
 
 #define WAITPID_NAME "waitpid"
 
