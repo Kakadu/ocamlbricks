@@ -50,17 +50,6 @@ val dd :
 val tgz_create : ?opt:string -> filename -> filexpr -> unit
 val tgz_extract : ?opt:string -> filename -> foldername -> unit
 
-module Check :
-  sig
-    val check : Wrapper.command -> string -> ?nullglob:bool -> filexpr -> bool
-  end
-
-val dir_writable       : ?nullglob:bool -> filexpr -> bool
-val dir_comfortable    : ?nullglob:bool -> filexpr -> bool
-val regfile_readable   : ?nullglob:bool -> filexpr -> bool
-val regfile_modifiable : ?nullglob:bool -> filexpr -> bool
-val freshname_possible : string -> bool
-
 (** Get or kill children or descendants using the command [ps(1)] : *)
 
 type pid = int

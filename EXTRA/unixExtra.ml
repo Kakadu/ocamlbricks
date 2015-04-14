@@ -20,8 +20,8 @@
 (** A {e filename} is a string. *)
 type filename = string;;
 
-(** A {e foldername} is a string. *)
-type foldername = string;;
+(** A {e dirname} is a string. *)
+type dirname = string;;
 
 (** A {e content} is a string. *)
 type content = string;;
@@ -112,7 +112,7 @@ let test_access ?r ?w ?x filename : bool =
  let xs = List.filter (fun (v,_)-> v<>None) xs in
  let xs = Unix.F_OK::(List.map snd xs) in
  try
-   let _ = Unix.access filename xs in true
+   let () = Unix.access filename xs in true
  with
   (* For a strange reason, exceptions are not matched by the
       pattern `Unix.Unix_error (_, _, _)', even if they should!
@@ -121,22 +121,78 @@ let test_access ?r ?w ?x filename : bool =
    e -> false
 ;;
 
+(** Options:
+    ~f stands for Unix.S_REG  (* Regular file *),
+    ~d stands for Unix.S_DIR  (* Directory *),
+    ~c stands for Unix.S_CHR  (* Character device *),
+    ~b stands for Unix.S_BLK  (* Block device *),
+    ~l stands for Unix.S_LNK  (* Symbolic link *),
+    ~p stands for Unix.S_FIFO (* Named pipe *),
+    ~s stands for Unix.S_SOCK (* Socket *).
+    If any argument is provided, the function tests only the existence. 
+    If the option ~l (symlink) is provided with another kind-related option, 
+    the later is automatically considered as test(s) for the link's target, not for the link itself.
+    **)
+let test_kind_and_access ?follow (*kind*) ?f ?d ?c ?b ?l ?p ?s (*access*) ?r ?w ?x filename : bool = 
+ let access = test_access ?r ?w ?x filename in
+ access && 
+   begin
+     try
+	let xs = [(l, Unix.S_LNK); (f, Unix.S_REG); (d, Unix.S_DIR);  (c, Unix.S_CHR);  (b, Unix.S_BLK); (p, Unix.S_FIFO); (s, Unix.S_SOCK)] in
+	let xs = List.filter (fun (v,_)-> v<>None) xs in
+	let stat = (if follow = Some () then Unix.stat else Unix.lstat) in
+	let kind = (stat filename).Unix.st_kind in
+	(match xs with
+	 | ((Some ()), Unix.S_LNK)::y::ys when kind = Unix.S_LNK -> 
+	      (* The other options are automatically considered as test(s) for the link's target, not for the link itself: *)
+	      let kind = (Unix.stat (* not lstat! *) filename).Unix.st_kind in
+	      List.for_all (fun (_, k) -> k = kind) (y::ys)
+	 | _ -> 
+	      List.for_all (fun (_, k) -> k = kind) xs
+	 )
+     with 
+       (* looping symlinks are considered as not accessible: *)
+       Unix.Unix_error (Unix.ELOOP, _, _) -> false
+   end
+
+(** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
+let dir_rw_or_link_to dirname = 
+  test_kind_and_access ~follow:() ~d:() ~r:() ~w:() dirname
+  
+(** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 && -x $1 \]\]]. *)
+let dir_rwx_or_link_to dirname = 
+  test_kind_and_access ~follow:() ~d:() ~r:() ~w:() ~x:() dirname
+
+(** Equivalent to the bash test [\[\[ -f $1 && -r $1 \]\]]. *)
+let regfile_r_or_link_to filename = 
+  test_kind_and_access ~follow:() ~f:() ~r:() filename
+
+(** Equivalent to the bash test [\[\[ -f $1 && -r $1 && -w $1 \]\]]. *)
+let regfile_rw_or_link_to filename = 
+  test_kind_and_access ~follow:() ~f:() ~r:() ~w:() filename
+
+(** A fresh name is viable if it doesn't exist and its parent directory is writable. *)  
+let viable_freshname x =
+  (not (Sys.file_exists x)) &&
+     (let dirname = (Filename.dirname x) in
+      test_kind_and_access ~follow:() ~d:() ~w:() dirname)
+
 (** Create a file if necessary with the given permissions
    (by default equal to [0o644]). *)
 let touch ?(perm=0o644) (fname:filename) : unit =
  try (* file exists *)
-  let stat = (Unix.stat fname) in
-  let size = stat.Unix.st_size in
-  let fd = Unix.openfile fname [Unix.O_WRONLY] 0o644 in
-  Unix.ftruncate fd size;
-  Unix.close fd;
+   let stat = (Unix.stat fname) in
+   let size = stat.Unix.st_size in
+   let fd = Unix.openfile fname [Unix.O_WRONLY] 0o644 in
+   Unix.ftruncate fd size;
+   Unix.close fd;
  with
-  | Unix.Unix_error (Unix.EACCES,"open", _) -> failwith ("UnixExtra.touch: cannot open file "^fname)
-  | Unix.Unix_error (Unix.ENOENT,"stat", _) ->
-  begin (* file doesn't exist *)
-   let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in
-   (Unix.close fd)
-  end
+   | Unix.Unix_error (Unix.EACCES,"open", _) -> failwith ("UnixExtra.touch: cannot open file "^fname)
+   | Unix.Unix_error (Unix.ENOENT,"stat", _) ->
+       begin (* file doesn't exist *)
+	 let fd = (Unix.openfile fname [Unix.O_CREAT] perm) in
+	 (Unix.close fd)
+       end
 ;;
 
 (** Copy or append a file into another. Optional permissions (by default [0o644]) concern of course the target.

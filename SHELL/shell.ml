@@ -341,60 +341,6 @@ let tgz_extract ?(opt="") (fname:filename) (rep:foldername) =
 ;;
 
 
-(** {2 Permissions} *)
-
-(** The following functions check some attributes (or permissions for the CURRENT user)
-    of the filesystem objects the given expression expands to.
-    An exception is raised if the expression (pattern) expands to nothing, otherwise
-    [true] is returned iff the condition holds for {b all} items. *)
-
-(** Equivalent to [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
-
-(** Support. *)
-module Check = struct
-
-let check cmd cmdname ?(nullglob=false) (patt:filexpr) =
-  let wrapper x = Wrapper.make ~at:Treat.quote ~ot:Treat.is_true cmd ~script:true ~args:(Some x) () in
-  match (Files.glob ~null:nullglob patt) with
-  | [] -> failwith (cmdname^": argument '"^patt^"' globs to nothing")
-  | l  -> List.for_all wrapper l
-;;
-
-end;; (* module Check *)
-
-
-(** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 \]\]]. *)
-let dir_writable ?(nullglob=false) (dirpatt:filexpr) =
-  let cmd = "test -d $1 -a -r $1 -a -w $1 && echo true" in
-  Check.check cmd "dir_writable" ~nullglob dirpatt
-;;
-
-(** Equivalent to the bash test [\[\[ -d $1 && -r $1 && -w $1 && -x $1 \]\]]. *)
-let dir_comfortable ?(nullglob=false) (dirpatt:filexpr) =
-  let cmd = "test -d $1 -a -r $1 -a -w $1 -a -x $1 && echo true" in
-  Check.check cmd "dir_comfortable" ~nullglob dirpatt
-;;
-
-(** Equivalent to the bash test [\[\[ -f $1 && -r $1 \]\]]. *)
-let regfile_readable ?(nullglob=false) (dirpatt:filexpr) =
-  let cmd = "test -f $1 -a -r $1 && echo true" in
-  Check.check cmd "regfile_readable" ~nullglob dirpatt
-;;
-
-(** Equivalent to the bash test [\[\[ -f $1 && -r $1 && -w $1 \]\]]. *)
-let regfile_modifiable ?(nullglob=false) (dirpatt:filexpr) =
-  let cmd = "test -f $1 -a -r $1 -a -w $1 && echo true" in
-  Check.check cmd "regfile_modifiable" ~nullglob dirpatt
-;;
-
-
-(** Check if a file with the given name can be created by the current user. *)
-let freshname_possible x =
-  let d = (Filename.dirname x) in
-  (* prerr_endline ("freshname_possible: x="^x^" d="^d) ;  *)
-  (dir_writable d)
- ;;
-
 type pid = int
 
 let get_children_by_the_external_command_ps ?(pid=Unix.getpid ()) () =

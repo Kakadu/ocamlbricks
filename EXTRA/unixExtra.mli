@@ -16,9 +16,9 @@
 
 (** Additional features for the standard library [Unix]. *)
 
-type filename   = string
-type foldername = string
-type content    = string
+type filename = string
+type dirname  = string
+type content  = string
 
 val apply_ignoring_Unix_error : ('a -> unit) -> 'a -> unit
 val apply_catching_Unix_error : fallback:(Unix.error * string * string -> 'b) -> ('a -> 'b) -> 'a -> 'b
@@ -44,6 +44,22 @@ val get_perm : filename -> symbolic_mode
 val set_perm :
   ?u:unit -> ?g:unit -> ?o:unit -> ?a:unit -> ?r:bool -> ?w:bool -> ?x:bool ->
   filename -> unit
+
+(** {2 File kinds and permissions} *)
+  
+val test_kind_and_access : 
+  ?follow:unit ->                                                                (* follow symlinks *)
+  ?f:unit -> ?d:unit -> ?c:unit -> ?b:unit -> ?l:unit -> ?p:unit -> ?s:unit ->   (* kinds *)
+  ?r:unit -> ?w:unit -> ?x:unit ->                                               (* permissions *)
+  filename -> bool
+  
+(** {b Instances}: *)
+
+val dir_rw_or_link_to     : dirname  -> bool  (* test_kind_and_access ~follow:() ~d:() ~r:() ~w:()       *)
+val dir_rwx_or_link_to    : dirname  -> bool  (* test_kind_and_access ~follow:() ~d:() ~r:() ~w:() ~x:() *)
+val regfile_r_or_link_to  : filename -> bool  (* test_kind_and_access ~follow:() ~f:() ~r:()             *)
+val regfile_rw_or_link_to : filename -> bool  (* test_kind_and_access ~follow:() ~f:() ~r:() ~w:()       *)
+val viable_freshname      : filename -> bool
 
 (** {2 Copying files} *)
 
