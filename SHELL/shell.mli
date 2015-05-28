@@ -59,3 +59,5 @@ val get_descendants_by_ps  : ?pid:int -> unit -> pid list
 
 val kill_children_by_ps    : ?pid:int -> unit -> unit
 val kill_descendants_by_ps : ?pid:int -> unit -> unit
+
+val escaped_filename : filename -> filename

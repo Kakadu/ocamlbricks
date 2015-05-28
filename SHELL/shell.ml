@@ -387,3 +387,12 @@ let rec kill_descendants_by_ps ?(pid=Unix.getpid ()) () =
  kill_children_by_ps ~pid ()
 ;;
 
+(** Escape blanks, parenthesis, '&', '*' and '?'. 
+{b Example:}
+{[# escaped_filename "foo (v0.1)" ;;
+  : string = "foo\\ \\(v0.1\\)" 
+]}*)
+let escaped_filename : string -> string = 
+  StrExtra.Global.substitute (Str.regexp "[ )(&*?]") (Printf.sprintf "\\%s") 
+;;
+
