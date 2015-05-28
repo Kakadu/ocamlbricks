@@ -87,21 +87,25 @@ let with_file_descr t (f : Unix.file_descr -> 'a) =
   let () = if flag then (Unix.close fd) in
   result
 
+(* Re-implemented in imperative style in order to avoid "Stack overflow during evaluation (looping recursion?)". *)
 let fold_lines (f : 'a -> recno -> line -> 'a) s t : 'a =
   with_in_channel t
     begin
       fun ch ->
-        let rec loop i acc =
-          try
+        let acc = ref s in
+        let i = ref 1 in
+        let () = 
+          try while true do
             let line = input_line ch in
-            let acc' = (f acc i line) in
-            loop (i+1) acc'
-          with
-            End_of_file -> acc
+            let acc' = (f !acc !i line) in
+            incr i;
+            acc := acc';
+          done    
+          with End_of_file -> ()
         in
-        loop 1 s
+        !acc
     end
-
+    
 let map_lines (f : recno -> line -> 'a) t : 'a array =
   let (xs, size) = fold_lines (fun (acc,_) i line -> ((f i line)::acc),i) ([],0) t in
   ArrayExtra.of_known_length_list ~reversing:true size xs
