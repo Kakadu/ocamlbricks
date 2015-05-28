@@ -550,3 +550,34 @@ let indexes_and_values_such_that (p : int -> 'a -> bool) xs =
   let ys = fold_lefti (fun i ys x -> if p i x then (i,x)::ys else ys) [] xs in
   List.rev ys
   
+(**
+{[# let gs, gvs = group_by (fun x -> (x mod 3), (x, x*x)) [| 0;1;2;3;4;5;6;7;8;9 |] ;; 
+val gs : int array = [|0; 1; 2|]                                                                                                                                                               val gvs : (int, (int * int) array) M.t = <abstr> 
+
+# Hashtbl.find gvs 0 ;;
+  : int array = [|(0, 0); (3, 9); (6, 36); (9, 81)|]
+
+# Hashtbl.find gvs 1 ;;
+  : int array = [|(1, 1); (4, 16); (7, 49)|]
+
+# Hashtbl.find gvs 2 ;;
+  : (int * int) array = [|(2, 4); (5, 25); (8, 64)|]
+]}
+*)
+let group_by f xs =
+  let n = Array.length xs in
+  let ht = Hashtbl.create n in
+  (* domain with the fist position where we have found this element in the array *)
+  let domain = Hashtbl.create n in 
+  let domain_add b i = if Hashtbl.mem domain b then () else Hashtbl.replace domain b i in
+  (* --- *)
+  let () = Array.iteri (fun i a -> let (b,c) = f a in (Hashtbl.add ht b c; domain_add b i)) xs in
+  let domain = Array.of_list (Hashtbl.fold (fun x i ixs -> (i,x)::ixs) domain []) in
+  let () = Array.sort compare domain in
+  let domain = Array.map snd domain in
+  (* --- *)
+  let result = Hashtbl.create n in
+  (* For all items in the domain, we get the list of associated value in ht: *)
+  let () = Array.iter (fun b -> Hashtbl.replace result b (Array.of_list (List.rev (Hashtbl.find_all ht b)))) domain in
+  domain, result
+  

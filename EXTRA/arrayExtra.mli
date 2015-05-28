@@ -20,6 +20,7 @@ val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
 val partition  : ?min_size:int -> ('a -> int) -> 'a array -> 'a array array
 val partitioni : ?min_size:int -> (int -> 'a -> int) -> 'a array -> 'a array array
 val amass      : ?group_no:int -> ?size:int -> 'a array -> 'a array array
+val group_by   : ('a -> 'b * 'c) -> 'a array -> 'b array * ('b, 'c array) Hashtbl.t
 val flatten    : 'a array array -> 'a array
 val sub        : ?len:int -> 'a array -> int -> 'a array
 
