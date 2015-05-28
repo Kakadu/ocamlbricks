@@ -29,6 +29,24 @@ let remove_all t x =
  let ys = Hashtbl.find_all t x in
  List.iter (fun _ -> Hashtbl.remove t x) ys
 
+let map f t =
+  let n = (Hashtbl.stats t).num_buckets in
+  let t' = Hashtbl.create n in
+  let () = Hashtbl.iter (fun k v -> Hashtbl.replace t' k (f v)) t in
+  t'
+
+let mapk f t =
+  let n = (Hashtbl.stats t).num_buckets in
+  let t' = Hashtbl.create n in
+  let () = Hashtbl.iter (fun k v -> Hashtbl.replace t' k (f k v)) t in
+  t'
+
+let map2 f t1 t2 = 
+  mapk (fun k a -> let b = Hashtbl.find t2 k in f a b) t1
+
+let map2k f t1 t2 = 
+  mapk (fun k a -> let b = Hashtbl.find t2 k in f k a b) t1
+  
 module Make (H : Hashtbl.HashedType) = struct
  include Hashtbl.Make(H)
 
@@ -39,4 +57,22 @@ module Make (H : Hashtbl.HashedType) = struct
   let ys = find_all t x in
   List.iter (fun _ -> remove t x) ys
 
+ let map f t =
+  let n = (stats t).num_buckets in
+  let t' = create n in
+  let () = iter (fun k v -> replace t' k (f v)) t in
+  t'
+
+ let mapk f t =
+  let n = (stats t).num_buckets in
+  let t' = create n in
+  let () = iter (fun k v -> replace t' k (f k v)) t in
+  t'
+
+ let map2 f t1 t2 = 
+  mapk (fun k a -> let b = find t2 k in f a b) t1
+
+ let map2k f t1 t2 = 
+  mapk (fun k a -> let b = find t2 k in f k a b) t1
+  
 end

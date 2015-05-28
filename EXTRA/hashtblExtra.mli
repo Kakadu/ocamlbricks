@@ -21,6 +21,10 @@ type ('a, 'b) t = ('a, 'b) Hashtbl.t
 val remove_all : ('a, 'b) t -> 'a -> unit
 val search        : ('a, 'b) t -> 'a  -> 'b option
 val to_assoc_list : ('a, 'b) t -> ('a * 'b) list
+val map           : ('b -> 'c) -> ('a, 'b) t -> ('a, 'c) t
+val mapk          : ('a -> 'b -> 'c) -> ('a, 'b) t -> ('a, 'c) t
+val map2          : ('b -> 'c -> 'd) -> ('a, 'b) t -> ('a, 'c) t -> ('a, 'd) t
+val map2k         : ('a -> 'b -> 'c -> 'd) -> ('a, 'b) t -> ('a, 'c) t -> ('a, 'd) t
 
 module Make :
   functor (H : Hashtbl.HashedType) ->
@@ -43,4 +47,9 @@ module Make :
       val remove_all : 'a t -> key -> unit
       val search     : 'a t -> key -> 'a option
       val to_assoc_list : 'a t -> (key * 'a) list
+      (* --- *)
+      val map   : ('a -> 'b) -> 'a t -> 'b t
+      val mapk  : (key -> 'a -> 'b) -> 'a t -> 'b t
+      val map2  : ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+      val map2k : (key -> 'a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 end
