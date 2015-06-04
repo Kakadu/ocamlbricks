@@ -115,10 +115,10 @@ module ComboTextTree = struct
 class comboTextTree = fun
 
   (* The option generator. May be a constant function as particular case. *)
-  ~(generator: string Environment.string_env -> string list)
+  ~(generator: string Environments.string_env -> string list)
 
   (* The first input for the generator. *)
-  ~(msg:string Environment.string_env)
+  ~(msg:string Environments.string_env)
 
   (* The key of the pair (key,value) send to its children. *)
   ~(key:string)
@@ -142,7 +142,7 @@ class comboTextTree = fun
   (** The function to build or rebuild the choices using the given environnement.
       For a simple comboTextTree, this method is used only at the creation and the function
       is not really dependent from its argument, but it is a simple costant function. *)
-  method generator : (string Environment.string_env -> string list) = generator
+  method generator : (string Environments.string_env -> string list) = generator
 
   (** The key of the pair (key,value) which this widget (node) eventually transmit to its children (slaves). This field
       is set at the creation. The value of the pair (key,value) will be the selected value of the widget, of course. *)
@@ -165,7 +165,7 @@ class comboTextTree = fun
       for any alteration of its state, it must resend to its children the last environment received
       from its ancestors enriched with the pair (key,value) representing its own state. In this way,
       every descendent know the state of all its ancestors (not only the state of its father). *)
-  val mutable env     : (string Environment.string_env)     = msg
+  val mutable env     : (string Environments.string_env)     = msg
 
   (** The choices calculated by the last call to the generator. *)
   val mutable choices : (string list)  = (generator msg)
@@ -230,12 +230,12 @@ class comboTextTree = fun
       This procedure is performed sending to all children the ancestor environment (method [env]) enriched by
       the pair (key,value), where value is the current selected item of this node. *)
   method children_rebuild () =
-    let msg = Environment.make_string_env (self#env#to_list @ [(self#key,self#selected)]) in  (* x = self#selected *)
+    let msg = Environments.make_string_env (self#env#to_list @ [(self#key,self#selected)]) in  (* x = self#selected *)
     List.iter (fun w -> w#rebuild msg) self#children
 
 
   (** Rebuild this widget, and its eventually all children, with the new given environment. *)
-  method rebuild (msg : string Environment.string_env) =
+  method rebuild (msg : string Environments.string_env) =
     begin
       (* Save the current selected choice. We will try to reset it. *)
       let previous = self#selected in
@@ -305,8 +305,8 @@ type choices = choice list;;
 (** The simplest and general constuctor. Simply calls the class constructor and initialize callbacks. *)
 let make
 
-  ~(generator: (string Environment.string_env)->(string list)) (** The option generator. May be a constant function as particular case. *)
-  ~(msg:string Environment.string_env)                         (** The input for the generator. *)
+  ~(generator: (string Environments.string_env)->(string list)) (** The option generator. May be a constant function as particular case. *)
+  ~(msg:string Environments.string_env)                         (** The input for the generator. *)
   ~(key:string)                                      (** The key of the pair (key,value) send to its children. *)
   ~(callback:(choice->unit) option)                  (** An optional callback function, to call at any change *)
   ~(packing:(GObj.widget -> unit) option)            (** The packing function. *)
@@ -335,7 +335,7 @@ let fromList
   (lst:choices)
   =
   let g = (fun r -> lst)  in
-  let m = (Environment.make_string_env []) in
+  let m = (Environments.make_string_env []) in
   make ~generator:g ~msg:m ~key ~callback ~packing
 ;;
 
@@ -366,7 +366,7 @@ let fromListWithSlave
  = let master = fromList ~key:"master" ~callback:masterCallback ~packing:masterPacking masterChoices in
    let slave  = make
          ~generator:(fun r -> slaveChoices (r#get "master"))
-         ~msg:(Environment.make_string_env [("master",master#selected)])
+         ~msg:(Environments.make_string_env [("master",master#selected)])
          ~key:"slave"
          ~callback:slaveCallback
          ~packing:slavePacking in
@@ -396,7 +396,7 @@ let fromListWithSlaveWithSlave
    let slaveSlave =
      make
        ~generator:(fun r -> slaveSlaveChoices (r#get "master") (r#get "slave"))
-       ~msg:(Environment.make_string_env [("master",master#selected);("slave",master#slave#selected)])
+       ~msg:(Environments.make_string_env [("master",master#selected);("slave",master#slave#selected)])
        ~key:"slaveSlave"
        ~callback:slaveSlaveCallback
        ~packing:slaveSlavePacking
@@ -434,7 +434,7 @@ let fromListWithSlaveWithSlaveWithSlave
 
    let slaveSlaveSlave = make
          ~generator:(fun r -> slaveSlaveSlaveChoices (r#get "master") (r#get "slave") (r#get "slaveSlave"))
-         ~msg:(Environment.make_string_env [("master",master#selected);("slave",master#slave#selected);("slaveSlave",master#slave#slave#selected)])
+         ~msg:(Environments.make_string_env [("master",master#selected);("slave",master#slave#selected);("slaveSlave",master#slave#slave#selected)])
          ~key:"slaveSlaveSlave"
          ~callback:slaveSlaveSlaveCallback
          ~packing:slaveSlaveSlavePacking in
@@ -473,7 +473,7 @@ let fromListWithTwoSlaves
    let slave0  =
      make
       ~generator:(fun r -> slave0Choices (r#get "master"))
-      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~msg:(Environments.make_string_env [("master",master#selected)])
       ~key:"slave0"
       ~callback:slave0Callback
       ~packing:slave0Packing
@@ -481,7 +481,7 @@ let fromListWithTwoSlaves
    let slave1  =
      make
       ~generator:(fun r -> slave1Choices (r#get "master"))
-      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~msg:(Environments.make_string_env [("master",master#selected)])
       ~key:"slave1"
       ~callback:slave1Callback
       ~packing:slave1Packing
@@ -514,7 +514,7 @@ let fromListWithThreeSlaves
    let slave0  =
      make
       ~generator:(fun r -> slave0Choices (r#get "master"))
-      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~msg:(Environments.make_string_env [("master",master#selected)])
       ~key:"slave0"
       ~callback:slave0Callback
       ~packing:slave0Packing
@@ -522,7 +522,7 @@ let fromListWithThreeSlaves
    let slave1  =
      make
       ~generator:(fun r -> slave1Choices (r#get "master"))
-      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~msg:(Environments.make_string_env [("master",master#selected)])
       ~key:"slave1"
       ~callback:slave1Callback
       ~packing:slave1Packing
@@ -530,7 +530,7 @@ let fromListWithThreeSlaves
    let slave2  =
      make
       ~generator:(fun r -> slave2Choices (r#get "master"))
-      ~msg:(Environment.make_string_env [("master",master#selected)])
+      ~msg:(Environments.make_string_env [("master",master#selected)])
       ~key:"slave2"
       ~callback:slave2Callback
       ~packing:slave2Packing

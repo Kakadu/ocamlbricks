@@ -40,8 +40,8 @@ module ComboTextTree :
   sig
 
     class comboTextTree :
-      generator:(string Environment.string_env -> string list) ->
-      msg:string Environment.string_env ->
+      generator:(string Environments.string_env -> string list) ->
+      msg:string Environments.string_env ->
       key:string ->
       callback:(string -> unit) option ->
       packing:(GObj.widget -> unit) option ->
@@ -55,19 +55,19 @@ module ComboTextTree :
         method children_rebuild : unit -> unit
         method choices : string list
         method col : string GTree.column
-        method env : string Environment.string_env
-        method generator : string Environment.string_env -> string list
+        method env : string Environments.string_env
+        method generator : string Environments.string_env -> string list
         method initialize_callbacks : unit
         method key : string
         method packing : GObj.widget -> unit
-        method rebuild : string Environment.string_env -> unit
+        method rebuild : string Environments.string_env -> unit
         method selected : string
         method set_active_value : string -> unit
         method set_box : GEdit.combo_box -> unit
         method set_children : comboTextTree list -> unit
         method set_choices : string list -> unit
         method set_col : string GTree.column -> unit
-        method set_env : string Environment.string_env -> unit
+        method set_env : string Environments.string_env -> unit
         method slave : comboTextTree
         method slave0 : comboTextTree
         method slave1 : comboTextTree
@@ -81,8 +81,8 @@ module ComboTextTree :
     type choices = choice list
 
     val make :
-      generator:(choice Environment.string_env -> choice list) ->
-      msg:choice Environment.string_env ->
+      generator:(choice Environments.string_env -> choice list) ->
+      msg:choice Environments.string_env ->
       key:string ->
       callback:(choice -> unit) option ->
       packing:(GObj.widget -> unit) option -> comboTextTree
