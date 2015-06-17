@@ -2098,6 +2098,7 @@ let with_private_interface : 'a t -> 'a private_interface =
 end (* Object *)
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+module Make_Examples (Void:sig end) = struct
 module Example1 = struct
 
 let x = return 42 ;;
@@ -2294,6 +2295,7 @@ set y (-11) ;;
 look x;;
 (* - : int = 42 *)
 end
+end (* functor Make_Examples *)
 ENDIF
 
 

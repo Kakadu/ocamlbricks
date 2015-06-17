@@ -46,7 +46,7 @@ let map2 f t1 t2 =
 
 let map2k f t1 t2 = 
   mapk (fun k a -> let b = Hashtbl.find t2 k in f k a b) t1
-  
+
 module Make (H : Hashtbl.HashedType) = struct
  include Hashtbl.Make(H)
 

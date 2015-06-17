@@ -537,6 +537,7 @@ val lifes :
    ------------------------------------------- *)
 
 IFDEF DOCUMENTATION_OR_DEBUGGING THEN
+module Make_Examples : functor (Void:sig end) -> sig
 module Example1 : sig
   val x : int t
   val y : int t
@@ -552,4 +553,5 @@ module Example2 : sig
   val look : ('a * 'b t) t -> 'b
   val member : ('a * 'b t) t -> 'b t
   end
+end (* functor Make_Examples() *)  
 ENDIF
