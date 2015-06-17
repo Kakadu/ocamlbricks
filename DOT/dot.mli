@@ -820,7 +820,6 @@ type output_format =
  | `fig                    (* FIG *)
  | `gd | `gd2              (* GD/GD2 formats *)
  | `gif                    (* GIF *)
- | `gtk                    (* GTK canvas *)
  | `hpgl                   (* HP-GL subset of PCL *)
  | `ico                    (* Icon Image File Format *)
  | `imap | `cmapx          (* Server-side and client-side imagemaps *)

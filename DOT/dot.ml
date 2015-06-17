@@ -99,7 +99,6 @@ let string_of_output_format = function
 |`gd->"gd"
 |`gd2->"gd2"
 |`gif->"gif"
-|`gtk->"gtk"
 |`hpgl->"hpgl"
 |`ico->"ico"
 |`imap->"imap"
@@ -135,7 +134,6 @@ let output_format_of_string = function
 | "gd" -> `gd
 | "gd2" -> `gd2
 | "gif" -> `gif
-| "gtk" -> `gtk
 | "hpgl" -> `hpgl
 | "ico" -> `ico
 | "imap" -> `imap
@@ -161,7 +159,7 @@ let output_format_of_string = function
 | _ -> raise Not_found
 
 let admissible_output_formats = [
-  `bmp; `canon; `dia; `dot; `xdot; `cmap; `eps; `fig; `gd; `gd2; `gif; `gtk; `hpgl; `ico; `imap; `cmapx; `imap_np; `cmapx_np; `ismap;
+  `bmp; `canon; `dia; `dot; `xdot; `cmap; `eps; `fig; `gd; `gd2; `gif; `hpgl; `ico; `imap; `cmapx; `imap_np; `cmapx_np; `ismap;
   `jpg; `pdf; `plain; `plain_ext; `png; `ps; `ps2; `svg; `svgz; `tiff; `vml; `vmlz; `vrml; `wbmp; (*`xlib;*)
    ]
 
@@ -178,7 +176,6 @@ let output_format_description = function
  | `gd                     -> "GD graphics library format"
  | `gd2                    -> "GD2 graphics library format"
  | `gif                    -> "GIF Graphics Interchange Format"
- | `gtk                    -> "GTK canvas"
  | `hpgl                   -> "HP-GL subset of PCL"
  | `ico                    -> "Icon Image File Format"
  | `imap | `cmapx          -> "Server- and client-side imagemaps"
