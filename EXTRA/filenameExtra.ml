@@ -69,10 +69,10 @@ let get_extension_or_default ?with_dot ?(default="") filename =
  | Some r -> r
 
 (** [Filename.concat] generalized to lists.  {b Examples}:
-{[# concat_all ["aaa";"bbb";"ccc"] ;;
+{[# concat_list ["aaa";"bbb";"ccc"] ;;
  : string = "aaa/bbb/ccc"
 ]} *)
-let concat_list = String.concat "/"
+let rec concat_list = function [] -> "" | x::[] -> x | x::xs -> Filename.concat x (concat_list xs)
 
 let temp_dir ?temp_dir ?(prefix="") ?(suffix="") ?(perm=0o755) () =
   let result = Filename.temp_file ?temp_dir prefix suffix in

@@ -409,7 +409,7 @@ let repeat_eval_after_commit
   fun ~folder a c ->
   let rec loop c =
     match eval a with
-    | None -> c (* A membership failure => break *)
+    | None   -> c (* A membership failure => break *)
     | Some r ->
         let (c', break) = folder c r in
         if break then c' else loop c'
@@ -1592,7 +1592,10 @@ let defuse : 'a t -> unit =
       (fun () ->
          t.Unprotected.no_longer_in_use := true;
          Container.Queue_with_identifiers.clear (t.Unprotected.on_proposal#as_queue);
-         Container.Queue_with_identifiers.clear (t.Unprotected.on_commit#as_queue))
+         Container.Queue_with_identifiers.clear (t.Unprotected.on_commit#as_queue);
+         (* Wake up threads waiting on this cortex: *)
+         Condition.broadcast (t.Unprotected.alert_on_commit);
+         ())
 
 module Option_cortex = struct
 
