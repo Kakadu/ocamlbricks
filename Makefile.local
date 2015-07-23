@@ -38,7 +38,13 @@ BYTE_LIBRARIES = $(shell \
   if which ocamlc.opt &>/dev/null || which ocamlc &>/dev/null;\
   then echo $(BYTE_LIBRARY_NAME); fi)
 
-PP_OPTION = camlp4of
+# Empty for OCaml 3.x.y series, set to "-DOCAML4_OR_LATER" for 4.x.y or later:  
+OCAML4_OR_LATER=$(shell if grep -q "^[4-9]" <<<"$(OCAML_VERSION)"; then echo "-DOCAML4_OR_LATER"; fi)
+
+# Transmit the information about the compiler version in order to 
+# activate conditional compilation:
+PP_OPTION = camlp4of $(OCAML4_OR_LATER)
+
 GETTEXT=GETTEXT
 C_OBJECTS_TO_LINK = gettext-c-wrapper does-process-exist-c-wrapper waitpid-c-wrapper
 OTHER_LIBRARY_FILES_TO_INSTALL = _build/{gettext-c-wrapper.o,does-process-exist-c-wrapper.o,gettext_extract_pot_p4.cmo,waitpid-c-wrapper.o,include_type_definitions_p4.cmo,include_as_string_p4.cmo,where_p4.cmo,option_extract_p4.cmo,raise_p4.cmo,log_module_loading_p4.cmo}

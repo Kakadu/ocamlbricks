@@ -29,6 +29,7 @@ let remove_all t x =
  let ys = Hashtbl.find_all t x in
  List.iter (fun _ -> Hashtbl.remove t x) ys
 
+IFDEF OCAML4_OR_LATER THEN
 let map f t =
   let n = (Hashtbl.stats t).num_buckets in
   let t' = Hashtbl.create n in
@@ -46,6 +47,7 @@ let map2 f t1 t2 =
 
 let map2k f t1 t2 = 
   mapk (fun k a -> let b = Hashtbl.find t2 k in f k a b) t1
+ENDIF
 
 module Make (H : Hashtbl.HashedType) = struct
  include Hashtbl.Make(H)
@@ -57,6 +59,7 @@ module Make (H : Hashtbl.HashedType) = struct
   let ys = find_all t x in
   List.iter (fun _ -> remove t x) ys
 
+IFDEF OCAML4_OR_LATER THEN
  let map f t =
   let n = (stats t).num_buckets in
   let t' = create n in
@@ -74,5 +77,6 @@ module Make (H : Hashtbl.HashedType) = struct
 
  let map2k f t1 t2 = 
   mapk (fun k a -> let b = find t2 k in f k a b) t1
-  
+ENDIF
+
 end
