@@ -55,21 +55,22 @@ val values_such_that             : (int -> 'a -> bool) -> 'a array -> 'a list
 val indexes_such_that            : (int -> 'a -> bool) -> 'a array -> int list
 val indexes_and_values_such_that : (int -> 'a -> bool) -> 'a array -> (int * 'a) list
 
-(* The call {[dichotomic_search a x]} returns a pair (b,i) that
-   provides two distinct kind of helpful informations:
-   1) if b=true  then x has been found at position i
-   2) if b=false then x has not been found and i contains
-      the *first* element y strictly greater than x or i is
-      out of bounds (i>=length, that means x greater than all
-      elements in the array)
-   *)
-val dichotomic_search : ?a:int -> ?b:int -> 'a array -> 'a -> bool * int
-val dichotomic_insert : 'a array -> 'a -> 'a array
-val dichotomic_index_of_first_element_gt : ?a:int -> ?b:int -> 'a -> 'a array -> int option
-val dichotomic_index_of_first_element_ge : ?a:int -> ?b:int -> 'a -> 'a array -> int option
-val dichotomic_index_of_last_element_lt  : ?a:int -> ?b:int -> 'a -> 'a array -> int option
-val dichotomic_index_of_last_element_le  : ?a:int -> ?b:int -> 'a -> 'a array -> int option
+(* Computes j = max {i | v.(i) <= x }. The result is None if there are no lower bounds for {x} in the array. 
+   A result as Some(true,j) means that v.(j) = x, while Some(false,j) means v.(j) < x. *)
+val dichotomic_rightmost_le : ?compare:('a -> 'a -> int) -> ?a:int -> ?b:int -> 'a -> 'a array -> (bool * int) option 
 
+(* Computes j = min {i | x <= v.(i) }. The result is None if there are no upper bounds for {x} in the array. 
+   A result as Some(true,j) means that v.(j) = x, while Some(false,j) means x < v.(j). *)
+val dichotomic_leftmost_ge  : ?compare:('a -> 'a -> int) -> ?a:int -> ?b:int -> 'a -> 'a array -> (bool * int) option
+
+(* In the following function `dichotomic_*' the optional parameter ?unicity will be used 
+   to obtain better performances when there aren't duplicates in the array. *)
+(* --- *)
+val dichotomic_frame        : ?compare:('a -> 'a -> int) -> ?a:int -> ?b:int -> ?unicity:unit -> 'a -> 'a array -> (int * int) option
+(* --- *)
+val dichotomic_rightmost_lt : ?compare:('a -> 'a -> int) -> ?a:int -> ?b:int -> ?unicity:unit -> 'a -> 'a array -> int option
+val dichotomic_leftmost_gt  : ?compare:('a -> 'a -> int) -> ?a:int -> ?b:int -> ?unicity:unit -> 'a -> 'a array -> int option
+   
 val for_all2 : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 val exists2  : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 

@@ -21,7 +21,7 @@
 
 (* Supposing you are compiling with the camlp4 preprocessor :
    $ ocamlc -c -pp 'camlp4XX -I +ocamlbricks' ... *)
-#load "include_type_definitions_p4.cmo";;
+#load "include_as_string_p4.cmo";;
 
 let content = INCLUDE_AS_STRING "/bin/ls" in
 Printf.eprintf "The length in word of /bin/ls is %d\n" (String.length content);

@@ -191,118 +191,158 @@ let shared_property f s =
   (p s.(i)) && loop (i+1)
  in loop 1
 
-let dichotomic_search ?(a=0) ?b v x =
+module Dichotomic = struct 
+
+(** Supposing the array sorted, this function find the index of the 
+    leftmost supremum (least upper bound) of the provided value.
+    In other words, it computes j = min {i | x <= v.(i) }. 
+    The result is None if there are no upper bounds for {x} in the array. 
+    A result as Some (true,j) means that v.(j) = x, while Some (false,j) means x < v.(j).
+
+{b Example}: 
+{[ dichotomic_leftmost_ge 3 [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : (bool * index) option = Some (false, 2)                                                                                                                                                               
+   
+   dichotomic_leftmost_ge 4 [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : (bool * index) option = Some (true, 2)                                                                                                                                                                    
+   
+   dichotomic_leftmost_ge 5 [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : bool * index) option = Some (false, 7)  
+   
+   dichotomic_leftmost_ge 100 [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : (bool * index) option = None
+]} *)
+let dichotomic_leftmost_ge ?(compare=Pervasives.compare) ?(a=0) ?b x v = (* precedentemente dichotomic_search *)
+ let eq x y = (compare x y) = 0 in
+ let lt x y = (compare x y) = (-1) in
+ let le x y = let r = (compare x y) in r = (-1) || r = 0 in
+ let b = match b with None -> (Array.length v)-1 | Some b -> b in
+ let (a0, b0) = (a, b) in
  let rec loop a b =
-   if a=b then a else
-   let i = (a+b)/2 in
-   if x > v.(i) then loop (i+1) b else
-   if (i>0) && (v.(i-1) >= x) then loop a (i-1) else
+   if a=b then a else (* a < b *)
+   let i = (a+b)/2 in (* note that (i+1) <= b  by construction *)
+   if (lt v.(i) x) then loop (i+1) b else
+   (* At this point, x <= v.(i), i.e. we have found an upper bound *)
+   if (i > a0) && (le x v.(i-1)) then loop a (i-1) else
+   (* v.(i-1) < x <= v.(i) or (i=a0 and x<=v.(a0)) *)
    i
  in
- let b = match b with None -> (Array.length v)-1 | Some b -> b in
+ if lt x v.(a) then Some (false,a) else (* continue: *)
+ if lt v.(b) x then None (* there are no upper bounds *) else (* continue: *)
  let i = loop a b in
- ((v.(i) = x),i)
+ Some ((eq v.(i) x),i)
 
-let dichotomic_insert v x =
- let l = Array.length v in
- let last_index = l-1 in
- match dichotomic_search v x with
- | true, _ -> v
- | false, index when (index = last_index) ->
-     Array.init (l+1) (fun i -> try v.(i) with _ -> x)
- | false, index ->
-    Array.init
-      (l+1)
-      (fun i -> match compare i index with (-1) -> v.(i) | 0 -> x | _ -> v.(i-1))
 
+(** Supposing the array sorted, this function find the index of the 
+    rightmost infimum (greatest lower bound) of the provided value.
+    In other words, it computes:  j = max {i | v.(i) <= x }.
+    The result is None if there are no lower bounds for {x} in the array. 
+    A result as Some (true,j) means that v.(j) = x, while Some (false,j) means v.(j) < x. 
+
+{b Example}: 
+{[ dichotomic_rightmost_le (-100) [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : (bool * index) option = None
+   
+   dichotomic_rightmost_le 3 [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : (bool * index) option = Some (false, 1)
+   
+   dichotomic_rightmost_le 5 [| 0;2;4;4;4;4;4;6;8;10 |];;
+   : (bool * index) option = Some (false, 6)    
+]} *)
+ let dichotomic_rightmost_le ?(compare=Pervasives.compare) ?(a=0) ?b x v =
+ let eq x y = (compare x y) = 0 in
+ let lt x y = (compare x y) = (-1) in
+ let le x y = let r = (compare x y) in r = (-1) || r = 0 in
+ let b = match b with None -> (Array.length v)-1 | Some b -> b in
+ let (a0, b0) = (a, b) in
+ let rec loop a b =
+   if a=b then a else   (* a < b *)
+   let i = (a+b+1)/2 in (* note that (i-1) >= a  by construction *)
+   if (lt x v.(i)) then loop a (i-1) else
+   (* At this point, v.(i) <= x, i.e. we have found a lower bound *)
+   if (i < b0) && (le v.(i+1) x) then loop (i+1) b else
+   (* v.(i) <= x < v.(i+1) or (i=b0 and v.(b0)<=x) *)
+   i
+ in
+ if lt x v.(a) then None (* there are no lower bounds *) else (* continue: *)
+ if lt v.(b) x then Some (false,b) else (* continue: *)
+ let i = loop a b in
+ Some ((eq v.(i) x),i)
+ 
+let dichotomic_frame ?compare ?a ?b x v =
+ let inf = dichotomic_rightmost_le ?compare ?a ?b x v in (* v.(inf) <= x *)
+ if inf = None then None else (* continue: *)
+ let sup = dichotomic_leftmost_ge ?compare ?a ?b x v in (*  x <= v.(sup) *)
+ if sup = None then None else (* continue: *)
+ match (inf, sup) with
+ | (Some (false, i)), (Some (false, j)) -> Some (i,j)
+ | (Some (true,  i)), (Some (true,  j)) -> 
+     Some (j,i) (* because v.(i)=v.(j) and the inf (i) is the rightmost while the sup (j) is the leftmost *)
+ | _,_ -> assert false
+
+(* Redefinition with ?unicity *) 
 (** {b Example}:
-{[
-# let a = Array.init 10 (fun i->i*10);;
-val a : int array = [|0; 10; 20; 30; 40; 50; 60; 70; 80; 90|]
-# dichotomic_index_of_first_element_gt (-1) a ;;
-  : int option = Some 0
-# dichotomic_index_of_first_element_gt 0 a ;;
-  : int option = Some 1
-# dichotomic_index_of_first_element_gt 15 a ;;
-  : int option = Some 2
-# dichotomic_index_of_first_element_gt 20 a ;;
-  : int option = Some 3
-# dichotomic_index_of_first_element_gt 80 a ;;
-  : int option = Some 9
-# dichotomic_index_of_first_element_gt 85 a ;;
-  : int option = Some 9
-# dichotomic_index_of_first_element_gt 90 a ;;
-  : int option = None
-]}
-*)
-let dichotomic_index_of_first_element_gt ?a ?b x v =
- let l = Array.length v in
- let last_index = l-1 in
- match dichotomic_search ?a ?b v x with
- | true , i ->
-    if (i = last_index) then None else Some (i+1)
- | false, i when (i = last_index) ->
-     if v.(i) > x then Some i else None
- | false, i -> Some i
+{[ # let xs = [| 0; 10; 20; 30; 40; 40; 40; 40; 80; 90; 100; |] (* There are duplicates! *) ;;
+   # let ys = [| 0; 10; 20; 30; 40; 50; 60; 70; 80; 90; 100; |] (* Unicity! *) ;;
+   
+   # dichotomic_frame 30 xs ;;
+   : (int * int) option = Some (3, 3) 
+   
+   # dichotomic_frame 40 xs ;;
+   : (int * int) option = Some (4, 7)
+   
+   # dichotomic_frame ~unicity:() 40 ys ;;   (* suppose (and exploit) unicity! *)
+   : (int * int) option = Some (4, 4)
 
- 
-let dichotomic_index_of_first_element_ge ?a ?b x v =
- let l = Array.length v in
- let last_index = l-1 in
- match dichotomic_search ?a ?b v x with
- | true , i ->
-    if (i = last_index) then None else Some (i+1)
- | false, i when (i = last_index) ->
-     if v.(i) >= x then Some i else None
- | false, i -> Some i
- 
-(**  {b Example}:
-{[
-# let a = Array.init 10 (fun i->i*10);;
-val a : int array = [|0; 10; 20; 30; 40; 50; 60; 70; 80; 90|]
-# dichotomic_index_of_last_element_lt (-1) a ;;
-  : int option = None
-# dichotomic_index_of_last_element_lt 0 a ;;
-  : int option = None
-# dichotomic_index_of_last_element_lt 5 a ;;
-  : int option = Some 0
-# dichotomic_index_of_last_element_lt 10 a ;;
-  : int option = Some 0
-# dichotomic_index_of_last_element_lt 15 a ;;
-  : int option = Some 1
-# dichotomic_index_of_last_element_lt 85 a ;;
-  : int option = Some 8
-# dichotomic_index_of_last_element_lt 90 a ;;
-  : int option = Some 8
-# dichotomic_index_of_last_element_lt 95 a ;;
- : int option = Some 9
-]}
-*)
-let dichotomic_index_of_last_element_lt ?a ?b x v =
- let l = Array.length v in
- let last_index = l-1 in
- match dichotomic_search ?a ?b v x with
- | true , i ->
-    if (i = 0) then None else Some (i-1)
- | false, i when (i = last_index) ->
-     if v.(i) < x then Some i else
-     if i>0 && v.(i-1) < x then Some (i-1) else
-     None
- | false, i -> Some (i-1)
+   # dichotomic_frame 42 xs ;;
+   : (int * int) option = Some (7, 8)
+   
+   # dichotomic_frame 101 xs ;;
+   : (int * int) option = None
+   
+   # dichotomic_frame (-1) ;;
+   : (int * int) option = None
+]} *)
+let dichotomic_frame ?compare ?a ?b ?unicity x v =
+ match unicity with
+ | None    -> dichotomic_frame ?compare ?a ?b x v
+ | Some () ->
+     let a = match a with None -> 0 | Some a -> a in
+     let sup = dichotomic_leftmost_ge ?compare ~a ?b x v in (* x <= v.(sup) *)
+     (match sup with
+      | None -> None
+      (* In the following two cases we suppose the unicity (no duplicated values in the array) *)
+      | Some (false,i) -> if i = a then None else Some (i-1,i)
+      | Some (true,i)  -> Some (i,i) 
+      )
 
-let dichotomic_index_of_last_element_le ?a ?b x v =
- let l = Array.length v in
- let last_index = l-1 in
- match dichotomic_search ?a ?b v x with
- | true , i ->
-    if (i = 0) then None else Some (i-1)
- | false, i when (i = last_index) ->
-     if v.(i) <= x then Some i else
-     if i>0 && v.(i-1) <= x then Some (i-1) else
-     None
- | false, i -> Some (i-1)
- 
+let dichotomic_leftmost_gt ?(compare=Pervasives.compare) ?(a=0) ?b ?unicity x v =
+ if compare v.(a) x = 1 then Some a else
+ match dichotomic_frame ~compare ~a ?b ?unicity x v with
+ | None -> None
+ | Some (i,j) ->
+    if (compare v.(i) v.(j) = 0) then
+      let b = match b with None -> (Array.length v)-1 | Some b -> b in
+      let j' = j+1 in if j' > b then None else Some j' 
+    else
+      Some j
 
+let dichotomic_rightmost_lt ?(compare=Pervasives.compare) ?a ?b ?unicity x v =
+ let b = match b with None -> (Array.length v)-1 | Some b -> b in
+ if compare x v.(b) = 1 then Some b else
+ match dichotomic_frame ~compare ?a ~b ?unicity x v with
+ | None -> None
+ | Some (i,j) ->
+    if (compare v.(i) v.(j) = 0) then
+      let a = match a with None -> 0 | Some a -> a in
+      let i' = i-1 in if i' < a then None else Some i' 
+    else
+      Some i
+      
+end (* Dichotomic *) 
+(* Included at toplevel: *)
+include Dichotomic 
+ 
 let for_all2 f xs ys = for_all (fun i x -> f i x ys.(i)) xs
 let exists2  f xs ys = exists  (fun i x -> f i x ys.(i)) xs
 
