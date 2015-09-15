@@ -20,12 +20,17 @@
 
 type 'a t
 
-val make    : ?size:int -> unit -> 'a t
-val mem     : 'a t -> 'a -> bool
-val add     : 'a t -> 'a -> unit
-val remove  : 'a t -> 'a -> unit
-val of_list : 'a list -> 'a t
-val uniq    : 'a list -> 'a list
+val make       : ?size:int -> unit -> 'a t
+val mem        : 'a t -> 'a -> bool
+val add        : 'a t -> 'a -> unit
+val remove     : 'a t -> 'a -> unit
+val of_list    : 'a list -> 'a t
+val to_list    : 'a t -> 'a list
+val of_array   : 'a array -> 'a t
+val to_array   : 'a t -> 'a array 
+val list_uniq  : 'a list -> 'a list 
+val array_uniq : 'a array -> 'a array
+val uniq       : 'a list -> 'a list (* alias for list_uniq *)
 
 (** {2 Object-oriented interface} *)
 
@@ -33,7 +38,8 @@ class ['a] hashset :
   ?size:int ->
   unit ->
   object
-    method add : 'a -> unit
-    method mem : 'a -> bool
-    method remove : 'a -> unit
+    method hashtbl : ('a, unit) Hashtbl.t
+    method add     : 'a -> unit
+    method mem     : 'a -> bool
+    method remove  : 'a -> unit
   end
