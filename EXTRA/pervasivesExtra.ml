@@ -23,6 +23,7 @@
 (** *)
 
 type filename = string
+type length = int
 
 (** Round the float. By default the number of decimals is set to 3. *)
 let round ?(decimals=3) x =
@@ -139,4 +140,47 @@ let get_first_chars_of_file filename n =
     let () = close_in ch in
     result
   with _ -> []
+  
+
+let with_open_in ~filename mtdh =
+  let in_channel = open_in filename in
+  let length = in_channel_length (in_channel) in
+  let result = mtdh in_channel length in
+  close_in in_channel;
+  result
+  
+let with_open_in_bin ~filename mtdh =
+  let in_channel = open_in_bin filename in
+  let length = in_channel_length (in_channel) in
+  let result = mtdh in_channel length in
+  close_in in_channel;
+  result
+
+let with_open_out ?(perm=0o644) ~filename mtdh =
+  let file_exists = Sys.file_exists filename in
+  let out_channel = open_out filename in
+  let result = mtdh out_channel in
+  close_out out_channel;
+  if not file_exists then Unix.chmod filename perm else ();
+  result
+
+let with_open_out_bin ?(perm=0o644) ~filename mtdh =
+  let file_exists = Sys.file_exists filename in
+  let out_channel = open_out_gen [Open_wronly; Open_creat; Open_trunc; Open_binary] 0 filename in
+  let result = mtdh out_channel in
+  close_out out_channel;
+  if not file_exists then Unix.chmod filename perm else ();
+  result
+
+let get_file_content ~filename =
+  with_open_in_bin ~filename
+    (fun in_channel length ->
+       let s = String.create length in
+       really_input in_channel s 0 length;
+       s)
+
+let put_file_content ?perm ~filename content =
+  with_open_out_bin ?perm ~filename
+    (fun out_channel -> output_string out_channel content)
+
   

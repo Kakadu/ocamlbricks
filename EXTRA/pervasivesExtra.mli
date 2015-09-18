@@ -17,11 +17,12 @@
 (** Additional features for the standard module [Pervasives]. *)
 
 type filename = string
+type length = int
 
 val round : ?decimals:int -> float -> float
 
 val for_float : ?break:('a -> float -> bool) -> ?backward:unit -> min:float -> max:float -> step:float -> ('a -> float -> 'a) -> 'a -> 'a
-val for_int   : ?break:('a -> int -> bool) -> ?backward:unit -> ?step:int -> min:int -> max:int -> ('a -> int -> 'a) -> 'a -> 'a
+val for_int   : ?break:('a -> int -> bool)   -> ?backward:unit -> ?step:int -> min:int -> max:int -> ('a -> int -> 'a) -> 'a -> 'a
 
 (** The result on empty or non-existent files is None. *)
 val get_first_line_of_file  : string -> string option
@@ -31,3 +32,12 @@ val get_first_lines_of_file : filename -> int -> string list
 
 (** The result on empty or non-existent files is the empty list. *)
 val get_first_chars_of_file : filename -> int -> char list
+
+val with_open_in      : filename:string -> (in_channel -> length -> 'a) -> 'a
+val with_open_in_bin  : filename:string -> (in_channel -> length -> 'a) -> 'a
+
+val with_open_out     : ?perm:int -> filename:string -> (out_channel -> 'a) -> 'a
+val with_open_out_bin : ?perm:int -> filename:string -> (out_channel -> 'a) -> 'a
+
+val get_file_content  : filename:string -> string
+val put_file_content  : ?perm:int -> filename:string -> string -> unit
