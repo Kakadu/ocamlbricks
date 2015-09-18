@@ -16,6 +16,8 @@
 
 (** Operations on type ['a option]. *)
 
+type 'a t = 'a option
+
 (** Extract the encapsulated value. If the argument is [None], the optional [?fallback] is called.
     By default [fallback] is set to [fun ()->failwith "Option.extract"].*)
 val extract : ?failwith_msg:string -> ?fallback:(unit -> 'a) -> 'a option -> 'a
@@ -39,5 +41,11 @@ val apply_or_catch : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b opt
 val of_bool : bool -> unit option
 val to_bool : 'a option -> bool
 
-val to_list : 'a option -> 'a list
-val to_string : ?a:('a -> string) -> 'a option -> string
+val to_list   : 'a option -> 'a list
+
+(* Printing *)
+
+val  printf   : ?none:string -> ?frame:(string -> string, unit, string) format -> ('a -> string, unit, string) format -> 'a option -> unit
+val eprintf   : ?none:string -> ?frame:(string -> string, unit, string) format -> ('a -> string, unit, string) format -> 'a option -> unit
+val sprintf   : ?none:string -> ?frame:(string -> string, unit, string) format -> ('a -> string, unit, string) format -> 'a option -> string
+val to_string : ?none:string -> ?frame:(string -> string, unit, string) format -> ?a:('a -> string) -> 'a option -> string

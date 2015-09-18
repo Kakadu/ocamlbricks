@@ -19,6 +19,8 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+type 'a t = 'a list 
+
 (** Filter and map in the same loop using an {e heuristic} function (i.e. a function ['a -> 'b option]). *)
 let filter_map ?acc f =
  let acc = match acc with None -> [] | Some l -> l in
@@ -647,3 +649,29 @@ let k_perm_map ?disorder ~k f =
  | None    -> fun xs -> List.rev (k_perm_fold ~k (fun y c -> (f c)::y) [] xs)
  | Some () -> k_perm_fold ~disorder:() ~k (fun y c -> (f c)::y) []
 
+ 
+(* --- Printing --- *) 
+ 
+(** {b Examples}:
+{[# sprintf "%.2f" [1.;2.;3.;4.] ;;
+  : string = "[1.00; 2.00; 3.00; 4.00]"
+
+# sprintf ~frame:"The list is (%s)" ~sep:", " "%.2f" [1.;2.;3.;4.] ;;
+  : string = "The list is (1.00, 2.00, 3.00, 4.00)"
+]} *)
+let sprintf ?frame ?(sep="; ") fmt xs = 
+  let content = String.concat sep (List.map (Printf.sprintf fmt) xs) in
+  match frame with
+  | None     -> Printf.sprintf "[%s]" content
+  | Some fmt -> Printf.sprintf fmt content
+  
+let printf ?frame ?sep fmt xs = 
+  Printf.printf "%s" (sprintf ?frame ?sep fmt xs)
+
+let eprintf ?frame ?sep fmt xs = 
+  Printf.eprintf "%s" (sprintf ?frame ?sep fmt xs)
+  
+let to_string ?frame ?sep f xs =
+  let ys = List.map f xs in
+  sprintf ?frame ?sep "%s" ys
+ 

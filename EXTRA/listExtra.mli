@@ -16,6 +16,8 @@
 
 (** Additional features for the standard module [List]. *)
 
+type 'a t = 'a list
+
 val filter_map : ?acc:('b list) -> ('a -> 'b option) -> 'a list -> 'b list
 val filteri    : ?acc:'a list -> (int -> 'a -> bool) -> 'a list -> 'a list
 val find_map   : ('a -> 'b option) -> 'a list -> 'b
@@ -163,6 +165,13 @@ val big         : ('a -> 'a -> 'a) -> 'a list -> 'a
 val max  : 'a list -> 'a
 val min  : 'a list -> 'a
 val best : ?choice:('a -> 'a -> 'a) -> 'a list -> 'a
+
+(** {2 Printing} *)
+
+val  printf   : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string, unit, string) format -> 'a list -> unit
+val eprintf   : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string, unit, string) format -> 'a list -> unit
+val sprintf   : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string, unit, string) format -> 'a list -> string
+val to_string : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string) -> 'a list -> string
 
 (** {2 List of lists} *)
 

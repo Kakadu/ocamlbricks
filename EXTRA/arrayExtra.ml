@@ -17,6 +17,8 @@
 (* Do not remove the following comment: it's an ocamldoc workaround. *)
 (** *)
 
+type 'a t = 'a array
+
 (** Equivalent to the standard [Array.of_list] but the list is not scanned twice. The function raises [Invalid_argument]
     if the real length of the list differs from the announced. *)
 let of_known_length_list ?(reversing=false) len = function
@@ -96,6 +98,15 @@ let undo_permutation js xs =
   let ys = Array.copy xs in
   let () = Array.iteri (fun i j -> ys.(j) <- xs.(i)) js in
   ys
+  
+let is_sorted ?(compare=Pervasives.compare) s : bool =
+ let l = Array.length s in
+ if l = 0 then true else (* continue: *)
+ let rec loop pred i =
+  if i>=l then true else
+  let x = s.(i) in
+  if (compare pred x) = 1 then false else loop x (i+1)
+ in loop s.(0) 1
   
 (** {b Example}:
 {[# int_seq 3 10 2 ;;
@@ -621,3 +632,28 @@ let group_by f xs =
   let () = Array.iter (fun b -> Hashtbl.replace result b (Array.of_list (List.rev (Hashtbl.find_all ht b)))) domain in
   domain, result
   
+  
+(* --- Printing --- *)
+  
+(** {b Examples}:
+{[# sprintf "%.2f" [|1.;2.;3.;4.|] ;;
+  : string = "[|1.00; 2.00; 3.00; 4.00|]"
+
+# sprintf ~frame:"The vector is (%s)" ~sep:", " "%.2f" [|1.;2.;3.;4.|] ;;
+  : string = "The vector is (1.00, 2.00, 3.00, 4.00)"
+]} *)
+let sprintf ?frame ?(sep="; ") fmt xs = 
+  let content = String.concat sep (List.map (Printf.sprintf fmt) (Array.to_list xs)) in
+  match frame with
+  | None     -> Printf.sprintf "[|%s|]" content
+  | Some fmt -> Printf.sprintf fmt content
+  
+let printf ?frame ?sep fmt xs = 
+  Printf.printf "%s" (sprintf ?frame ?sep fmt xs)
+
+let eprintf ?frame ?sep fmt xs = 
+  Printf.eprintf "%s" (sprintf ?frame ?sep fmt xs)
+  
+let to_string ?frame ?sep f xs =
+  let ys = Array.map f xs in
+  sprintf ?frame ?sep "%s" ys

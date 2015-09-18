@@ -16,6 +16,8 @@
 
 (** Additional features for the standard module [Array].*)
 
+type 'a t = 'a array
+
 val of_known_length_list : ?reversing:bool -> int -> 'a list -> 'a array
 val partition  : ?min_size:int -> ('a -> int) -> 'a array -> 'a array array
 val partitioni : ?min_size:int -> (int -> 'a -> int) -> 'a array -> 'a array array
@@ -27,6 +29,7 @@ val sub        : ?len:int -> 'a array -> int -> 'a array
 val int_seq   : min:int   -> max:int   -> incr:int   -> int array
 val float_seq : min:float -> max:float -> incr:float -> float array
 
+val is_sorted               : ?compare:('a -> 'a -> int) -> 'a array -> bool
 val sorted_copy             : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
 val fast_sorted_copy        : ?compare:('a -> 'a -> int) -> 'a array -> 'a array
 val sort_saving_positions   : ?compare:('a -> 'a -> int) -> 'a array -> (int * 'a) array
@@ -110,3 +113,10 @@ module Matrix : sig
  val to_list : 'a t -> 'a list list
  val transpose : 'a t -> 'a t
 end
+
+(** {2 Printing} *)
+
+val  printf   : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string, unit, string) format -> 'a array -> unit
+val eprintf   : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string, unit, string) format -> 'a array -> unit
+val sprintf   : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string, unit, string) format -> 'a array -> string
+val to_string : ?frame:(string -> string, unit, string) format -> ?sep:string -> ('a -> string) -> 'a array -> string

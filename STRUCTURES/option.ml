@@ -14,6 +14,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. *)
 
+type 'a t = 'a option   
+   
 let extract ?(failwith_msg="Option.extract") ?(fallback=(fun () -> failwith failwith_msg)) =
  function
   | None   -> fallback ()
@@ -68,7 +70,38 @@ let to_bool = function
  | Some _ -> true
 
 let to_list = function None -> [] | Some x -> [x]
-let to_string ?(a=fun _ -> "_") =
- function
- | None -> "None"
- | Some x -> "Some "^(a x)
+
+(** {b Examples}: 
+{[ 
+# sprintf "[%4.2f]" None ;;  
+  : string = "None"
+
+# sprintf ~none:"NULL" "[%4.2f]" None ;;  
+  : string = "NULL"
+
+# Option.sprintf "[%4.2f]" (Some 3.14159) ;;
+  : string = "Some [3.14]"
+  
+# Option.sprintf ~frame:"(The result is %s)" "[%4.2f]" (Some 3.14159) ;;
+  : string = "(The result is [3.14])"
+]}*)
+let sprintf ?(none="None") ?frame fmt = 
+  function 
+  | None   -> none 
+  | Some x -> 
+     (match frame with
+     | None      -> Printf.sprintf "Some %s" (Printf.sprintf fmt x) 
+     | Some fmt' -> Printf.sprintf fmt' (Printf.sprintf fmt x) 
+     )
+
+let printf ?none ?frame fmt x = 
+  Printf.printf "%s" (sprintf ?none ?frame fmt x)
+
+let eprintf ?none ?frame fmt x = 
+  Printf.eprintf "%s" (sprintf ?none ?frame fmt x)
+     
+let to_string ?none ?frame ?(a=fun _ -> "<abstr>") x =
+  let y = map a x in
+  sprintf ?none ?frame "%s" y
+
+  
