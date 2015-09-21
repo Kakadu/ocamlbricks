@@ -24,6 +24,12 @@ type ('a, 'b) t = ('a, 'b) Hashtbl.t
 let search t k  = try Some (Hashtbl.find t k) with Not_found -> None
 
 let to_assoc_list t = Hashtbl.fold (fun x y l -> (x,y)::l) t []
+let of_assoc_list ?random ?size l = 
+  (* At least 51 buckets when size is not provided: *)
+  let n = match size with Some n -> n | None -> max (List.length l) 51 in 
+  let ht = Hashtbl.create ?random n in
+  let () = List.iter (fun (x,y) -> Hashtbl.add ht x y) l in
+  ht
 
 let remove_all t x =
  let ys = Hashtbl.find_all t x in
@@ -54,6 +60,12 @@ module Make (H : Hashtbl.HashedType) = struct
 
  let search t k  = try Some (find t k) with Not_found -> None
  let to_assoc_list t = fold (fun x y l -> (x,y)::l) t []
+ let of_assoc_list ?size l = 
+   (* At least 51 buckets when size is not provided: *)
+   let n = match size with Some n -> n | None -> max (List.length l) 51 in 
+   let ht = create (n) in
+   let () = List.iter (fun (x,y) -> add ht x y) l in
+   ht
 
  let remove_all t x =
   let ys = find_all t x in

@@ -21,6 +21,7 @@ type ('a, 'b) t = ('a, 'b) Hashtbl.t
 val remove_all : ('a, 'b) t -> 'a -> unit
 val search        : ('a, 'b) t -> 'a  -> 'b option
 val to_assoc_list : ('a, 'b) t -> ('a * 'b) list
+val of_assoc_list : ?random:bool -> ?size:int -> ('a * 'b) list -> ('a,'b) t
 
 IFDEF OCAML4_OR_LATER THEN
 val map           : ('b -> 'c) -> ('a, 'b) t -> ('a, 'c) t
@@ -50,6 +51,7 @@ module Make :
       val remove_all : 'a t -> key -> unit
       val search     : 'a t -> key -> 'a option
       val to_assoc_list : 'a t -> (key * 'a) list
+      val of_assoc_list : ?size:int -> (key * 'a) list -> 'a t
       (* --- *)
       IFDEF OCAML4_OR_LATER THEN
       val map   : ('a -> 'b) -> 'a t -> 'b t
