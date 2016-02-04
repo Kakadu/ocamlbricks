@@ -36,6 +36,7 @@ val sort_saving_positions   : ?compare:('a -> 'a -> int) -> 'a array -> (int * '
 val sort_saving_permutation : ?compare:('a -> 'a -> int) -> 'a array -> (int array) * ('a array)
 val apply_permutation       : int array -> 'a array -> 'a array 
 val undo_permutation        : int array -> 'a array -> 'a array 
+val sort_in_the_same_way    : ?compare:('a -> 'a -> int) -> 'a array -> 'b array list -> (int array) * ('a array) * (('b array) list)
 
 val for_all : (int -> 'a -> bool) -> 'a array -> bool
 val exists  : (int -> 'a -> bool) -> 'a array -> bool
@@ -77,21 +78,25 @@ val dichotomic_leftmost_gt  : ?compare:('a -> 'a -> int) -> ?a:int -> ?b:int -> 
 val for_all2 : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 val exists2  : (int -> 'a -> 'b -> bool) -> 'a array -> 'b array -> bool
 
-val iter2  : ('a -> 'b -> unit) -> 'a array -> 'b array -> unit
+val iter2  :        ('a -> 'b -> unit) -> 'a array -> 'b array -> unit
 val iteri2 : (int -> 'a -> 'b -> unit) -> 'a array -> 'b array -> unit
 
-val map2   : ('a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
+val map2   :        ('a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
 val mapi2  : (int -> 'a -> 'b -> 'c) -> 'a array -> 'b array -> 'c array
 
-val map_fold : ('a -> int -> 'b -> 'c * 'a) -> 'a -> 'b array -> 'c array
+val map_folding  :        ('s -> 'a -> 'b * 's) -> 's -> 'a array -> 'b array
+val mapi_folding : (int -> 's -> 'a -> 'b * 's) -> 's -> 'a array -> 'b array
+(* --- *)
+val map_fold     :        ('s -> 'a -> 'b) ->        ('s -> 'a -> 's) -> 's -> 'a array -> 'b array * 's
+val mapi_fold    : (int -> 's -> 'a -> 'b) -> (int -> 's -> 'a -> 's) -> 's -> 'a array -> 'b array * 's
 
 val fold_lefti  : (int -> 'a -> 'b -> 'a) -> 'a -> 'b array -> 'a
 val fold_righti : (int -> 'a -> 'b -> 'b) -> 'a array -> 'b -> 'b
 
-val fold_left2 : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
+val fold_left2  : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
 val fold_right2 : ('a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -> 'c
 
-val fold_lefti2 : (int -> 'a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
+val fold_lefti2  : (int -> 'a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
 val fold_righti2 : (int -> 'a -> 'b -> 'c -> 'c) -> 'a array -> 'b array -> 'c -> 'c
 
 val fold_binop : ('a -> 'a -> 'a) -> 'a array -> 'a

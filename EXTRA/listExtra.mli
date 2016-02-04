@@ -64,8 +64,11 @@ val product8 : 'a list -> 'b list -> 'c list -> 'd list -> 'e list -> 'f list ->
 type 'a tuple = 'a list
 val product : 'a list tuple -> 'a tuple list
 
-val map_fold  : ?acc:'c list -> ('a -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
-val mapi_fold : ?acc:'c list -> ('a -> int -> 'b -> 'c * 'a) -> 'a -> 'b list -> 'c list
+val map_folding  : ?acc:'b list ->        ('s -> 'a -> 'b * 's) -> 's -> 'a list -> 'b list
+val mapi_folding : ?acc:'b list -> (int -> 's -> 'a -> 'b * 's) -> 's -> 'a list -> 'b list
+(* --- *)
+val map_fold     : ?acc:'b list ->        ('s -> 'a -> 'b) ->        ('s -> 'a -> 's) -> 's -> 'a list -> 'b list * 's
+val mapi_fold    : ?acc:'b list -> (int -> 's -> 'a -> 'b) -> (int -> 's -> 'a -> 's) -> 's -> 'a list -> 'b list * 's
 
 val init : int -> (int -> 'a) -> 'a list
 

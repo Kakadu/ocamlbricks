@@ -108,6 +108,11 @@ let is_sorted ?(compare=Pervasives.compare) s : bool =
   if (compare pred x) = 1 then false else loop x (i+1)
  in loop s.(0) 1
   
+let sort_in_the_same_way ?compare xs yss =
+  let perm, xs' = sort_saving_permutation ?compare xs in
+  let yss' = List.map (apply_permutation perm) yss in
+  perm, xs', yss'
+  
 (** {b Example}:
 {[# int_seq 3 10 2 ;;
   : int array = [|3; 5; 7; 9|]
@@ -364,23 +369,73 @@ let map2  f a b = Array.mapi (fun i a -> f a b.(i)) a
 let mapi2 f a b = Array.mapi (fun i a -> f i a b.(i)) a
 
 (** {b Example}:
-{[ map_fold (fun s i x -> (x+s,s+x)) 0 [|0;1;2;3;4;5|] ;;
+{[ map_folding (fun s i x -> (x+s,s+x)) 0 [|0;1;2;3;4;5|] ;;
   : int array = [|0; 1; 3; 6; 10; 15|]
 ]} *)
-let map_fold f s0 xs =
+let mapi_folding (f : int -> 's -> 'a -> 'b * 's) (s0 : 's) (xs : 'a array) : 'b array =
   let n = Array.length xs in
   if n = 0 then [||] else begin
-    let (y0, s1) = f s0 0 (xs.(0)) in
+    let (y0, s1) = f 0 s0 (xs.(0)) in
     let result = Array.create n y0 in
     let state = ref s1 in
     for i = 1 to n-1 do
-      let (y,z) = f (!state) i (xs.(i)) in
+      let (y,z) = f  i (!state) (xs.(i)) in
       result.(i) <- y ;
       state := z;
     done;
     result
   end
 
+let map_folding (f : 's -> 'a -> 'b * 's) (s0 :'s) (xs : 'a array) : 'b array =
+  let n = Array.length xs in
+  if n = 0 then [||] else begin
+    let (y0, s1) = f s0 (xs.(0)) in
+    let result = Array.create n y0 in
+    let state = ref s1 in
+    for i = 1 to n-1 do
+      let (y,z) = f (!state) (xs.(i)) in
+      result.(i) <- y ;
+      state := z;
+    done;
+    result
+  end
+  
+(* --- *)
+  
+(* val mapi_fold : (int -> 's -> 'a -> 'b) -> (int -> 's -> 'a -> 's) -> 's -> 'a array -> 'b array * 's *)
+let mapi_fold fy fs s0 xs =
+  let n = Array.length xs in
+  if n = 0 then ([||], s0) else begin
+    let y0 = fy 0 s0 (xs.(0)) in
+    let s1 = fs 0 s0 (xs.(0)) in
+    let result = Array.create n y0 in
+    let state = ref s1 in
+    for i = 1 to n-1 do
+      let s  = !state in
+      let x  = xs.(i) in
+      result.(i) <- fy i s x;
+      state      := fs i s x;
+    done;
+    (result, !state)
+  end
+
+(* val map_fold : ('s -> 'a -> 'b) -> ('s -> 'a -> 's) -> 's -> 'a array -> 'b array * 's *)
+let map_fold fy fs s0 xs =
+  let n = Array.length xs in
+  if n = 0 then ([||], s0) else begin
+    let y0 = fy s0 (xs.(0)) in
+    let s1 = fs s0 (xs.(0)) in
+    let result = Array.create n y0 in
+    let state = ref s1 in
+    for i = 1 to n-1 do
+      let s  = !state in
+      let x  = xs.(i) in
+      result.(i) <- fy s x;
+      state      := fs s x;
+    done;
+    (result, !state)
+  end
+  
 let fold_lefti f y0 s =
  let l = Array.length s in
  let rec loop acc i =
@@ -618,7 +673,7 @@ val gs : int array = [|0; 1; 2|]                                                
 let group_by f xs =
   let n = Array.length xs in
   let ht = Hashtbl.create n in
-  (* domain with the fist position where we have found this element in the array *)
+  (* domain with the first position where we have found this element in the array *)
   let domain = Hashtbl.create n in 
   let domain_add b i = if Hashtbl.mem domain b then () else Hashtbl.replace domain b i in
   (* --- *)

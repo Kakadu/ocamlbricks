@@ -87,23 +87,45 @@ let rev_mapi ?acc f =
  loop 0 acc
 
 (** {b Example}:
-{[ map_fold (fun s x -> (x+s,s+x)) 0 [|0;1;2;3;4;5|] ;;
+{[ map_folding (fun s x -> (x+s,s+x)) 0 [0;1;2;3;4;5] ;;
   : int array = [|0; 1; 3; 6; 10; 15|]
 ]} *)
-let map_fold ?acc f s0 =
+let map_folding ?acc f s0 =
  let acc = match acc with None -> [] | Some l -> l in
  let rec loop s acc = function
  | []    -> acc
  | x::xs -> let (y,s') = f s x in (y::(loop s' acc xs))
  in loop s0 acc
 
-let mapi_fold ?acc f s0 =
+let mapi_folding ?acc f s0 =
  let acc = match acc with None -> [] | Some l -> l in
  let rec loop s i acc = function
  | []    -> acc
- | x::xs -> let (y,s') = f s i x in (y::(loop s' (i+1) acc xs))
+ | x::xs -> let (y,s') = f i s x in (y::(loop s' (i+1) acc xs))
  in loop s0 0 acc
 
+let map_fold ?acc fy fs s0 =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop s acc = function
+ | []    -> (acc, s)
+ | x::xs -> 
+     let y  = fy s x in
+     let s' = fs s x in
+     let (res_l, res_s) = loop s' acc xs in
+     ((y::res_l), res_s)
+ in loop s0 acc
+
+let mapi_fold ?acc fy fs s0 =
+ let acc = match acc with None -> [] | Some l -> l in
+ let rec loop s i acc = function
+ | []    -> (acc, s)
+ | x::xs -> 
+     let y  = fy i s x in 
+     let s' = fs i s x in 
+     let (res_l, res_s) = loop s' (i+1) acc xs in
+     ((y::res_l), res_s)
+ in loop s0 0 acc
+ 
 (** As standard [Array.init] but for lists. *)
 let init n f =
  if n<0 then invalid_arg "ListExtra.init" else
