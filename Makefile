@@ -465,14 +465,18 @@ dist: clean dist-local
 	@($(call READ_META, name, version); \
 	$(call FIX_VERSION); \
 	echo "Making the source tarball _build/$$name-$$version.tar.gz ..."; \
+	if [ -d .bzr ]; then \
 	$(MAKE) meta.ml.released; \
 	$(MAKE) ChangeLog; \
+	fi; \
 	mkdir -p _build/$$name-$$version; \
 	cp -af * _build/$$name-$$version/ &> /dev/null; \
 	(tar --exclude=_build --exclude=meta.ml --exclude=.bzr -C _build -czf \
 	     _build/$$name-$$version.tar.gz $$name-$$version/ && \
 	rm -rf _build/$$name-$$version)) && \
-	rm -f meta.ml.released ChangeLog; \
+	if [ -d .bzr ]; then \
+	  rm -f meta.ml.released ChangeLog; \
+	fi; \
 	echo "Success."
 
 # These files are included also in binary tarballs:
@@ -923,11 +927,14 @@ meta.ml: META CONFIGME
 	else \
 	grep "let revision" <meta.ml.released >> $@ && \
 	grep "let source_date" <meta.ml.released >> $@ ; \
+	grep "let source_date_utc_yy_mm_dd" <meta.ml.released >> $@ ; \
 	fi &&\
 	echo "Success.")
 
 meta.ml.released: meta.ml
+	if [ -d .bzr ]; then \
 	cp $< $@
+	fi; \
 
 ###########################################################################
 # Include the project-dependant file (if any) which implements the '-local'
