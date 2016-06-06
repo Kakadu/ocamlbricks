@@ -19,13 +19,12 @@
 # Set this variable to "-verbose 0" for more details
 OCAMLBUILD_OPTIONS=-quiet
 
-# BYTE_COMPILE_OPTIONS += -custom -ccopt -L./ -cclib -L./
 COMPILE_OPTIONS += -g -thread
 DIRECTORIES_TO_INCLUDE = threads lablgtk2 camlp4
 LIBRARIES_TO_LINK = str unix threads lablgtk
 
-NATIVE_PROGRAMS += mutexExtra_test.native
-BYTE_PROGRAMS += mutexExtra_test.byte
+# NATIVE_PROGRAMS += mutexExtra_test.native
+# BYTE_PROGRAMS += mutexExtra_test.byte
 
 NATIVE_LIBRARY_NAME = ocamlbricks.cmxa
 BYTE_LIBRARY_NAME = ocamlbricks.cma
@@ -136,21 +135,33 @@ _build/libocamlbricks_stubs.a: $(GETTEXT)/gettext-c-wrapper.c  EXTRA/does-proces
 	ocamlc -c -verbose EXTRA/waitpid-c-wrapper.c; \
 	ocamlmklib -verbose -oc ocamlbricks_stubs gettext-c-wrapper.o does-process-exist-c-wrapper.o waitpid-c-wrapper.o
 
+MANUALLY_POST_MAKE_IN_build= rebuild-library-with-linkall  install-all-files-in-a-single-local-directory
+
 # idempotent
-rebuilding:
+_build/rebuild-library-with-linkall: 
 	@chmod +x Makefile.d/ocamlmklib_wrapper.sh
 	@Makefile.d/ocamlmklib_wrapper.sh $(C_OBJECTS_TO_LINK)
 
+FLATTENED_DIRECTORY=_build/_build.flattened
+_build/install-all-files-in-a-single-local-directory:
+	@mkdir -p $(FLATTENED_DIRECTORY); 
+	@find _build/ -path $(FLATTENED_DIRECTORY) -prune -o -type f -exec cp -fl {} $(FLATTENED_DIRECTORY)/ \;
+	@echo "Success: ocamlbricks was rebuilt linking all stubs and was installed for marionnet in a local directory ($(FLATTENED_DIRECTORY)).";
+
 preprocessors: _build/gettext_extract_pot_p4.cmo
 
+rebuilding:
+	$(MAKE) _build/rebuild-library-with-linkall
+
+# install-libraries-local: _build/rebuild-library-with-linkall preprocessors
 install-libraries-local: rebuilding preprocessors
 
 # Remove the automatically-generated documentation on clean:
 clean-local:
-	@(rm -rf doc/html)
-	rm -f meta_ocamlbrics.ml _build/meta_ocamlbrics.ml
-	rm -rf _build/does_process_exist.o
-	rm -rf _build/waitpid-c-wrapper.o
+	@rm -rf doc/html
+	@rm -f meta_ocamlbrics.ml _build/meta_ocamlbrics.ml
+	@rm -rf _build/does_process_exist.o
+	@rm -rf _build/waitpid-c-wrapper.o
 
 compile_for_testing:
 	@if grep -q "DDOCUMENTATION_OR_DEBUGGING" $(LOGFILE); then echo "Fine, already compiled for testing."; else make clean; fi; \
