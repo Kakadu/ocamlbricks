@@ -438,7 +438,7 @@ install-libraries: libraries install-libraries-local
 	  (mkdir -p $(LIBRARYPREFIX)/$$name &> /dev/null || true); \
 	  shopt -s nullglob; \
 	  cp -f META $(OTHER_LIBRARY_FILES_TO_INSTALL) \
-	        _build/*.cma _build/*.cmxa _build/*.a \
+	        _build/*.cma _build/*.cmxa _build/*.a _build/*.so \
 	        `find _build/ -name \*.cmi | grep -v /myocamlbuild` \
 	        `find _build/ -name \*.mli | grep -v /myocamlbuild` \
 	      $(LIBRARYPREFIX)/$$name/) && \

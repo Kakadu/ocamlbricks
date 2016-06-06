@@ -25,8 +25,10 @@ which $TOPLEVEL &>/dev/null || {
 }
 
 FLATTENED_DIRECTORY=_build/_build.flattened
-mkdir -p $FLATTENED_DIRECTORY
-find _build -path $FLATTENED_DIRECTORY -prune -o -type f -exec cp -fl {} $FLATTENED_DIRECTORY/ \;
+if [[ ! -d $FLATTENED_DIRECTORY ]]; then
+  mkdir -p $FLATTENED_DIRECTORY
+  find _build -path $FLATTENED_DIRECTORY -prune -o -type f -exec cp -fl {} $FLATTENED_DIRECTORY/ \;
+fi
 
 PREAMBLE=$(mktemp)
 cat > $PREAMBLE  <<EOF
