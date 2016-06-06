@@ -30,6 +30,15 @@ let round ?(decimals=3) x =
   let k = 10. ** (float_of_int decimals) in
   (floor (x *. k +. 0.5)) /. k
 
+(** Multiply by [100.] then round. For instance, [percentage ~decimals:1 0.896531] returns [89.7]. *)
+let percentage ?(decimals=0) x =
+  round ~decimals (x *. 100.)
+
+(** Convert the two integers into floats, divide them, multiply by [100.] and finally round. 
+    For instance, [percentage_fraction ~decimals:2 711 1013] returns [70.19]. *)
+let percentage_fraction ?decimals x y =
+  percentage ?decimals ((float_of_int x) /. (float_of_int y))
+
 (** For-based folder using float numbers. *)
 let for_float ?backward ~min ~max ~step f acc =
   let tollerance = step /. 2. in

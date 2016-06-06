@@ -19,7 +19,10 @@
 type filename = string
 type length = int
 
-val round : ?decimals:int -> float -> float
+val round      : ?decimals:int (* 3 *) -> float -> float
+
+val percentage          : ?decimals:int (* 0 *) -> float -> float
+val percentage_fraction : ?decimals:int (* 0 *) -> int -> int -> float
 
 val for_float : ?break:('a -> float -> bool) -> ?backward:unit -> min:float -> max:float -> step:float -> ('a -> float -> 'a) -> 'a -> 'a
 val for_int   : ?break:('a -> int -> bool)   -> ?backward:unit -> ?step:int -> min:int -> max:int -> ('a -> int -> 'a) -> 'a -> 'a
