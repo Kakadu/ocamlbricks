@@ -19,7 +19,7 @@
 val default_size : int
 
 (** Transform a function into its memoized version. *)
-val memoize : ?trace_faults:unit -> ?size:int -> ('a -> 'b) -> 'a -> 'b
+val memoize : ?trace_faults:unit -> ?trace_success:unit -> ?size:int -> ('a -> 'b) -> 'a -> 'b
 
 (** In order to manually manage the memory allocation it may be useful to get also the hash table: *)
-val memoize_and_get_table : ?trace_faults:unit -> ?size:int -> ('a -> 'b) -> ('a -> 'b) * ('a,'b) Hashtbl.t
+val memoize_and_get_table : ?trace_faults:unit -> ?trace_success:unit -> ?size:int -> ('a -> 'b) -> ('a -> 'b) * ('a,'b) Hashtbl.t
