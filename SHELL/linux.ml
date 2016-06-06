@@ -331,3 +331,22 @@ module Process = struct
  include Kill_descendants
 
 end (* Process *)
+
+let processor_no = 
+  lazy begin
+  let filename = "/proc/cpuinfo" in
+  try
+    let ch = open_in filename in
+    let rec loop k =
+      try
+        let line = input_line ch in
+        let sub = try (String.sub line 0 9) with _ -> "" in
+        let k = if (sub = "processor") then (k+1) else k in
+        loop k
+      with End_of_file -> k
+    in
+    let result = loop 0 in
+    let () = close_in ch in
+    result
+  with _ -> 1 (* I suppose there is one processor... *)
+  end

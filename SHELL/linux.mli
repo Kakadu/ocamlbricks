@@ -19,6 +19,9 @@
 
 type pid = int
 
+(** The number of processors, read from /proc/cpuinfo: *)
+val processor_no : int lazy_t
+
 (** [Linux] processes related features. With respect to the other [Unix],
     we suppose here to be able to get information from [/proc/<PID>/] directories.*)
 module Process : sig
