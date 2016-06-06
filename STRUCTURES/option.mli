@@ -33,7 +33,9 @@ val map2   : ('a -> 'b -> 'c) -> 'a option -> 'b option -> 'c option
 val bind2  : 'a option -> 'b option -> ('a -> 'b -> 'c option) -> 'c option
 val join   : 'a option option -> 'a option
 
-val iter : ('a -> unit) -> 'a option -> unit
+val iter  : ('a -> unit) -> 'a option -> unit
+val iter2 : ('a -> 'b -> unit) -> 'a option -> 'b option -> unit
+
 val filter : ('a -> bool) -> 'a option -> 'a option
 
 val apply_or_catch : ?fallback:(exn -> 'a -> unit) -> ('a -> 'b) -> 'a -> 'b option
@@ -42,6 +44,16 @@ val of_bool : bool -> unit option
 val to_bool : 'a option -> bool
 
 val to_list   : 'a option -> 'a list
+
+val split    : ('a * 'b) option -> 'a option * 'b option
+val split3   : ('a * 'b * 'c) option -> 'a option * 'b option * 'c option
+val split4   : ('a * 'b * 'c * 'd) option -> 'a option * 'b option * 'c option * 'd option
+val split5   : ('a * 'b * 'c * 'd * 'e) option -> 'a option * 'b option * 'c option * 'd option * 'e option
+
+val combine  : 'a option -> 'b option -> ('a * 'b) option
+val combine3 : 'a option -> 'b option -> 'c option -> ('a * 'b * 'c) option
+val combine4 : 'a option -> 'b option -> 'c option -> 'd option -> ('a * 'b * 'c * 'd) option
+val combine5 : 'a option -> 'b option -> 'c option -> 'd option -> 'e option -> ('a * 'b * 'c * 'd * 'e) option
 
 (* Printing *)
 

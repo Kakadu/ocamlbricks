@@ -44,6 +44,7 @@ let join = function
 (* Monadic definition: *)
 let map2 f m1 m2  = bind m1 (function x1 -> map (f x1) m2)
 let bind2 m1 m2 f = bind m1 (function x1 -> bind m2 (f x1))
+let iter2 f m1 m2 = iter (function x1 -> iter (f x1) m2) m1
 
 let filter p x = bind x (fun x -> if p x then Some x else None)
 
@@ -70,6 +71,33 @@ let to_bool = function
  | Some _ -> true
 
 let to_list = function None -> [] | Some x -> [x]
+
+(* val split   : ('a * 'b) option -> 'a option * 'b option *)
+let split = function
+| Some (x1,x2) -> (Some x1), (Some x2)
+| None -> None, None
+
+let split3 = function
+| Some (x1,x2,x3) -> (Some x1), (Some x2), (Some x3)
+| None -> None, None, None
+
+let split4 = function
+| Some (x1,x2,x3,x4) -> (Some x1), (Some x2), (Some x3), (Some x4)
+| None -> None, None, None, None
+
+let split5 = function
+| Some (x1,x2,x3,x4,x5) -> (Some x1), (Some x2), (Some x3), (Some x4), (Some x5)
+| None -> None, None, None, None, None
+
+(* val combine : 'a option -> 'b option -> ('a * 'b) option *)
+let map3 f m1 m2 m3  = bind m1 (function x1 -> map2 (f x1) m2 m3)
+let map4 f m1 m2 m3 m4 = bind m1 (function x1 -> map3 (f x1) m2 m3 m4)
+let map5 f m1 m2 m3 m4 m5 = bind m1 (function x1 -> map4 (f x1) m2 m3 m4 m5)
+
+let combine  x y = map2 (fun x y -> (x,y)) x y
+let combine3 x y z = map3 (fun x y z -> (x,y,z)) x y z
+let combine4 x y z t = map4 (fun x y z t -> (x,y,z,t)) x y z t
+let combine5 x y z t u = map5 (fun x y z t u -> (x,y,z,t,u)) x y z t u
 
 (** {b Examples}: 
 {[ 
