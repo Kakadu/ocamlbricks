@@ -1,0 +1,14 @@
+opam-version: "1.2"
+name: "bricks"
+version: "0.90.3"
+maintainer: "kakadu <kakadu.hafanana@gmail.com>"
+authors: "kakadu <kakadu.hafanana@gmail.com>"
+homepage: "https://launchpad.net/ocamlbricks"
+bug-reports: "https://launchpad.net/ocamlbricks"
+license: "GPL"
+build: [make]
+install: [make "install"]
+remove: ["ocamlfind" "remove" "bricks"]
+depends: [
+  "ocamlfind" {build}
+]
